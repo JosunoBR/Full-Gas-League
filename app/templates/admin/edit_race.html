@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card bg-dark border-silver shadow">
+            <div class="card-header border-secondary d-flex justify-content-between align-items-center">
+                <h4 class="text-white fw-bold mb-0"><i class="fa-solid fa-pen-to-square text-warning me-2"></i> Editar Corrida</h4>
+                <a href="{{ url_for('admin.manage_season', season_id=race.season_id) }}" class="btn btn-sm btn-outline-secondary">Voltar</a>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST">
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label text-white-50 small fw-bold">NOME DO GP</label>
+                            <input type="text" class="form-control bg-dark text-white border-secondary" name="nome_gp" value="{{ race.nome_gp }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-white-50 small fw-bold">PISTA / CIRCUITO</label>
+                            <input type="text" class="form-control bg-dark text-white border-secondary" name="pista" value="{{ race.pista }}" list="pistasList" required>
+                            <datalist id="pistasList">
+                                {% for p in pistas %}
+                                    <option value="{{ p.nome }}">
+                                {% endfor %}
+                            </datalist>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label text-white-50 small fw-bold">GRID</label>
+                            <select class="form-select bg-dark text-white border-secondary" name="grid">
+                                <option value="ELITE" {% if race.grid == 'ELITE' %}selected{% endif %}>ELITE</option>
+                                <option value="ADVANCED" {% if race.grid == 'ADVANCED' %}selected{% endif %}>ADVANCED</option>
+                                <option value="INITIAL" {% if race.grid == 'INITIAL' %}selected{% endif %}>INITIAL</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label text-white-50 small fw-bold">TIPO DE ETAPA</label>
+                            <select class="form-select bg-dark text-white border-secondary" name="tipo_etapa">
+                                <option value="NORMAL" {% if race.tipo_etapa == 'NORMAL' %}selected{% endif %}>Normal (x1.0)</option>
+                                <option value="SPRINT" {% if race.tipo_etapa == 'SPRINT' %}selected{% endif %}>Sprint (x0.5)</option>
+                                <option value="FINAL" {% if race.tipo_etapa == 'FINAL' %}selected{% endif %}>Final (x2.0)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label text-white-50 small fw-bold">DATA</label>
+                            <input type="date" class="form-control bg-dark text-white border-secondary" name="data" value="{{ race.data_corrida }}">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-warning fw-bold w-100 mt-3">SALVAR ALTERAÇÕES</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

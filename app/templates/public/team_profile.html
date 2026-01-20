@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12 text-center">
+        <div class="mx-auto mb-3" style="width: 200px; height: 200px; border-radius: 50%; overflow: hidden; border: 4px solid #E60000; box-shadow: 0 0 20px rgba(230, 0, 0, 0.3);">
+            {% if team.logo_url %}
+                <img src="{{ url_for('static', filename='uploads/' + team.logo_url) }}" style="width: 100%; height: 100%; object-fit: cover;">
+            {% else %}
+                <div class="d-flex align-items-center justify-content-center h-100 bg-secondary">
+                    <i class="fa-solid fa-users fa-4x text-dark"></i>
+                </div>
+            {% endif %}
+        </div>
+        <h1 class="display-4 fw-bold text-white text-uppercase" style="font-family: 'Cinzel', serif;">
+            {{ team.nome }}
+        </h1>
+        <span class="badge bg-dark border border-danger text-danger fs-6">{{ team.grid }} TEAM</span>
+    </div>
+</div>
+
+<div class="row text-center mb-5">
+    <div class="col-6">
+        <div class="p-3 border border-secondary rounded bg-dark">
+            <h5 class="text-white-50">PONTOS TOTAIS</h5>
+            <h2 class="text-danger fw-bold mb-0">{{ total_pontos|int }}</h2>
+        </div>
+    </div>
+    <div class="col-6">
+        <div class="p-3 border border-secondary rounded bg-dark">
+            <h5 class="text-white-50">VITÓRIAS</h5>
+            <h2 class="text-success fw-bold mb-0">{{ total_vitorias }}</h2>
+        </div>
+    </div>
+</div>
+
+<h3 class="text-white border-bottom border-secondary pb-2 mb-4" style="font-family: 'Cinzel', serif;">PILOTOS TITULARES</h3>
+<div class="row justify-content-center">
+    {% for stat in stats_pilotos %}
+    <div class="col-md-5 mb-4">
+        <div class="card shadow border-secondary h-100">
+            <div class="card-body bg-dark text-center p-4">
+                <a href="{{ url_for('public.public_profile', pilot_id=stat.piloto.id) }}" class="text-decoration-none">
+                    <div class="mx-auto mb-3" style="width: 100px; height: 100px; border-radius: 50%; overflow: hidden; border: 2px solid #E60000;">
+                        {% if stat.piloto.foto_url %}
+                            <img src="{{ url_for('static', filename='uploads/' + stat.piloto.foto_url) }}" style="width: 100%; height: 100%; object-fit: cover;">
+                        {% else %}
+                            <div class="d-flex align-items-center justify-content-center h-100 bg-secondary">
+                                <i class="fa-solid fa-user fa-2x"></i>
+                            </div>
+                        {% endif %}
+                    </div>
+                    <h4 class="text-white fw-bold">{{ stat.piloto.nickname }}</h4>
+                </a>
+                <div class="d-flex justify-content-center gap-3 mt-3">
+                    <span class="badge bg-dark border border-secondary text-danger">{{ stat.pontos|int }} PTS</span>
+                    <span class="badge bg-dark border border-secondary text-success">{{ stat.vitorias }} WIN</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-12 text-center text-white-50">Nenhum piloto atribuído ainda.</div>
+    {% endfor %}
+</div>
+{% endblock %}

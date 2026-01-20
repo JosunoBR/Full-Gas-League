@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="text-white fw-bold"><i class="fa-solid fa-stopwatch text-danger"></i> Seletiva de Pilotos</h2>
+    <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary">Voltar</a>
+</div>
+
+<!-- FORMULÁRIO DE ENTRADA -->
+<div class="card shadow border-silver mb-4">
+    <div class="card-body bg-dark">
+        <form method="POST" class="row g-3 align-items-end">
+            <div class="col-md-5">
+                <label class="text-white-50 small">Piloto (Sem Grid)</label>
+                <select name="pilot_id" class="form-select bg-secondary text-white border-0" required>
+                    <option value="">-- Selecione --</option>
+                    {% for p in pilotos %}
+                        <option value="{{ p.id }}">{{ p.nickname }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="text-white-50 small">Tempo (M:SS.mmm)</label>
+                <input type="text" name="tempo" id="tempoInput" class="form-control bg-secondary text-white border-0" placeholder="1:35.800" required>
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-red w-100 fw-bold">
+                    <i class="fa-solid fa-plus"></i> REGISTRAR TEMPO
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- TABELA DE CLASSIFICAÇÃO -->
+<div class="card shadow border-silver">
+    <div class="card-header bg-dark border-silver d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 text-white fw-bold">Classificação Atual</h5>
+        
+        {% if current_user.role == 'SUPER_ADM' and entradas %}
+        <button type="button" class="btn btn-sm btn-success fw-bold" data-bs-toggle="modal" data-bs-target="#closeSeletivaModal">
+            <i class="fa-solid fa-check-double"></i> FECHAR SELETIVA E APLICAR GRIDS
+        </button>
+        {% endif %}
+    </div>
+    <div class="card-body bg-dark p-0">
+        <div class="table-responsive">
+            <table class="table table-dark table-hover mb-0 align-middle">
+                <thead>
+                    <tr class="text-white-50 small text-uppercase">
+                        <th class="ps-4">Pos</th>
+                        <th>Piloto</th>
+                        <th>Tempo</th>
+                        <th>Grid Projetado</th>
+                        <th class="text-end pe-4">Ação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in entradas %}
+                    {% set pos = loop.index %}
+                    {% set row_class = '' %}
+                    {% set grid_proj = '' %}
+                    {% set badge_class = '' %}
+
+                    {% if pos <= 20 %}
+                        {% set row_class = 'border-start border-4 border-warning' %}
+                        {% set grid_proj = 'ELITE' %}
+                        {% set badge_class = 'bg-warning text-dark' %}
+                    {% elif pos <= 40 %}
+                        {% set row_class = 'border-start border-4 border-info' %}
+                        {% set grid_proj = 'ADVANCED' %}
+                        {% set badge_class = 'bg-info text-dark' %}
+                    {% elif pos <= 60 %}
+                        {% set row_class = 'border-start border-4 border-danger' %}
+                        {% set grid_proj = 'INITIAL' %}
+                        {% set badge_class = 'bg-danger text-white' %}
+                    {% else %}
+                        {% set row_class = 'border-start border-4 border-secondary' %}
+                        {% set grid_proj = 'RESERVA' %}
+                        {% set badge_class = 'bg-secondary text-white' %}
+                    {% endif %}
+
+                    <tr class="{{ row_class }}">
+                        <td class="ps-4 fw-bold">{{ pos }}º</td>
+                        <td>
+                            {% if entry.piloto.foto_url %}
+                                <img src="{{ url_for('static', filename='uploads/' + entry.piloto.foto_url) }}" width="25" height="25" class="rounded-circle me-2" style="object-fit: cover;">
+                            {% endif %}
+                            {{ entry.piloto.nickname }}
+                        </td>
+                        <td class="font-monospace text-warning">{{ entry.tempo_str }}</td>
+                        <td><span class="badge {{ badge_class }}">{{ grid_proj }}</span></td>
+                        <td class="text-end pe-4">
+                            <form action="{{ url_for('admin.delete_seletiva_entry', entry_id=entry.id) }}" method="POST" class="d-inline">
+                                <button type="submit" class="btn btn-sm btn-outline-danger border-0" title="Remover Tempo">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center py-5 text-white-50">Nenhum tempo registrado ainda.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL DE CONFIRMAÇÃO -->
+<div class="modal fade" id="closeSeletivaModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-white fw-bold">Confirmar Definição de Grids</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-white">
+                <p>Você está prestes a definir o grid de <strong>{{ entradas|length }} pilotos</strong> com base na tabela atual.</p>
+                <ul class="list-unstyled">
+                    <li><span class="badge bg-warning text-dark">ELITE</span>: 1º ao 20º</li>
+                    <li><span class="badge bg-info text-dark">ADVANCED</span>: 21º ao 40º</li>
+                    <li><span class="badge bg-danger text-white">INITIAL</span>: 41º ao 60º</li>
+                    <li><span class="badge bg-secondary text-white">RESERVA</span>: 61º em diante</li>
+                </ul>
+                <p class="text-danger small mb-0"><i class="fa-solid fa-triangle-exclamation"></i> Esta ação atualizará o perfil de todos os pilotos listados.</p>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form action="{{ url_for('admin.close_seletiva') }}" method="POST">
+                    <button type="submit" class="btn btn-success fw-bold">CONFIRMAR E APLICAR</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Máscara simples para o campo de tempo
+    const input = document.getElementById('tempoInput');
+    input.addEventListener('input', function (e) {
+        let value = e.target.value.replace(/[^0-9]/g, '');
+        if (value.length > 6) value = value.slice(0, 6); // Limita a 6 dígitos (M:SS.mmm)
+        
+        if (value.length >= 3) {
+            // Adiciona ponto dos milissegundos
+            value = value.slice(0, value.length - 3) + '.' + value.slice(value.length - 3);
+        }
+        if (value.length >= 6) {
+            // Adiciona dois pontos dos minutos
+            value = value.slice(0, value.length - 6) + ':' + value.slice(value.length - 6);
+        }
+        e.target.value = value;
+    });
+</script>
+{% endblock %}

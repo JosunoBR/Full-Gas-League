@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow border-silver">
+            <div class="card-header bg-dark border-silver">
+                <h4 class="mb-0 text-danger fw-bold">Editar Piloto</h4>
+            </div>
+            <div class="card-body bg-dark">
+                <form method="POST" enctype="multipart/form-data">
+                    
+                    <div class="text-center mb-4 pb-3 border-bottom border-secondary">
+                        <label class="form-label text-white d-block mb-3">Foto de Perfil Atual</label>
+                        
+                        <div class="mb-3 position-relative d-inline-block">
+                            {% if pilot.foto_url %}
+                                <img src="{{ url_for('static', filename='uploads/' + pilot.foto_url) }}" 
+                                     class="rounded-circle border border-danger p-1 shadow" 
+                                     width="150" height="150" 
+                                     style="object-fit: cover;">
+                            {% else %}
+                                <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center mx-auto border border-danger p-1 shadow" 
+                                     style="width: 150px; height: 150px;">
+                                    <i class="fa-solid fa-user fa-4x text-dark"></i>
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="w-75 mx-auto">
+                            {% if pilot.foto_url %}
+                                <a href="{{ url_for('static', filename='uploads/' + pilot.foto_url) }}" download class="btn btn-outline-light btn-sm fw-bold mb-2">
+                                    <i class="fa-solid fa-download me-1"></i> Baixar foto
+                                </a>
+                            {% endif %}
+                            <input type="file" name="foto" class="form-control bg-secondary text-white border-0">
+                            <div class="form-text text-white-50 small">Formatos: JPG, PNG. Max 2MB.</div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-white">Nickname (Pista)</label>
+                            <input type="text" name="nickname" class="form-control bg-secondary text-white border-0" value="{{ pilot.nickname }}" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-white">Nome Real</label>
+                            <input type="text" name="nome_real" class="form-control bg-secondary text-white border-0" value="{{ pilot.nome_real }}" required>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-white">Grid</label>
+                            <select name="grid" class="form-select bg-secondary text-white border-0" required>
+                                <option value="SEM_GRID" {% if pilot.grid == 'SEM_GRID' or not pilot.grid %}selected{% endif %}>Sem grid definido</option>
+                                
+                                <option value="ELITE" {% if pilot.grid == 'ELITE' %}selected{% endif %}>Elite</option>
+                                
+                                <option value="ADVANCED" {% if pilot.grid == 'ADVANCED' %}selected{% endif %}>Advanced</option>
+                                
+                                <option value="INITIAL" {% if pilot.grid == 'INITIAL' %}selected{% endif %}>Initial</option>
+                                
+                                <option value="RESERVA" {% if pilot.grid == 'RESERVA' %}selected{% endif %}>Reserva</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-white">Pontos CNH</label>
+                            <input type="number" name="pontos_cnh" class="form-control bg-secondary text-white border-0" value="{{ pilot.pontos_cnh }}">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label text-white">Telefone (WhatsApp)</label>
+                            <input type="text" name="telefone" class="form-control bg-secondary text-white border-0" value="{{ pilot.telefone or '' }}" placeholder="(00) 00000-0000" oninput="maskPhone(this)" maxlength="15">
+                        </div>
+                    </div>
+
+                    <hr class="border-secondary my-4">
+                    <h5 class="text-white fw-bold"><i class="fa-solid fa-lock me-2"></i> Reset de Senha Administrativo</h5>
+                    <div class="mb-3">
+                        <label class="form-label text-white-50">Nova Senha Provisória (Opcional)</label>
+                        <input type="text" name="nova_senha" class="form-control bg-secondary text-danger border-danger" placeholder="Deixe em branco para manter a atual">
+                        <div class="form-text text-white-50">Preencha apenas se o piloto esqueceu a senha e precisa de uma nova para acessar.</div>
+                    </div>
+
+                    <div class="d-grid mt-4">
+                        <button type="submit" class="btn btn-red fw-bold">SALVAR ALTERAÇÕES</button>
+                        <a href="{{ url_for('admin.list_pilots') }}" class="btn btn-outline-light mt-2 text-white">Cancelar</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

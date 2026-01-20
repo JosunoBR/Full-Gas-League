@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="text-white mb-0">{{ season.nome }}</h2>
+        <small class="text-white-50">Gerenciamento de Calendário</small>
+        {% if not season.ativa %}
+            <span class="badge bg-danger ms-2">ARQUIVADA</span>
+        {% endif %}
+    </div>
+    
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('admin.seasons') }}" class="btn btn-outline-light">Voltar</a>
+        
+        {% if season.ativa %}
+        <form method="POST" action="{{ url_for('admin.close_season', season_id=season.id) }}" onsubmit="return confirm('ATENÇÃO: Isso encerrará o campeonato atual, arquivará os resultados e RESETARÁ a CNH de todos os pilotos para 25 pontos.\n\nDeseja confirmar?');">
+            <button type="submit" class="btn btn-danger fw-bold">
+                <i class="fa-solid fa-flag-checkered"></i> ENCERRAR TEMPORADA
+            </button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+{% if season.ativa %}
+<div class="row">
+    <div class="col-md-12 mb-5">
+        <div class="card shadow border-secondary">
+            <div class="card-header bg-dark border-secondary">
+                <h5 class="mb-0 text-white"><i class="fa-solid fa-calendar-plus text-success"></i> Agendar Nova Corrida</h5>
+            </div>
+            <div class="card-body bg-dark text-white">
+                <form method="POST" class="row g-3 align-items-end">
+                    
+                    <div class="col-md-2">
+                        <label class="form-label text-white-50 small">Grid</label>
+                        <select name="grid" class="form-select bg-secondary text-white border-0" required>
+                            <option value="ELITE">Elite</option>
+                            <option value="ADVANCED">Advanced</option>
+                            <option value="INITIAL">Initial</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label text-white-50 small">Circuito / Pista</label>
+                        <select id="select-pista" name="pista" class="form-select bg-secondary text-white border-0" onchange="autoFillGP()" required>
+                            <option value="" disabled selected>Selecione o Circuito...</option>
+                            {% for pista in pistas %}
+                                <option value="{{ pista.nome }}" 
+                                        data-gp="{{ pista.gp }}" 
+                                        {% if pista.type %}data-type="{{ pista.type }}"{% endif %}>
+                                    {{ pista.nome }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label text-white-50 small">Nome do GP</label>
+                        <input type="text" id="input-gp" name="nome_gp" class="form-control bg-secondary text-white border-0" placeholder="Seleciona a pista..." required>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="form-label text-white-50 small">Tipo de Etapa</label>
+                        <select name="tipo_etapa" class="form-select bg-secondary text-white border-0">
+                            <option value="NORMAL" selected>Normal</option>
+                            <option value="SPRINT">Sprint (50%)</option>
+                            <option value="FINAL">Final (2x)</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="form-label text-white-50 small">Data</label>
+                        <input type="date" name="data" class="form-control bg-secondary text-white border-0" required>
+                    </div>
+                    
+                    <div class="col-12 text-end mt-3">
+                        <button type="submit" class="btn btn-success fw-bold px-4">
+                            <i class="fa-solid fa-plus"></i> ADICIONAR
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="alert alert-danger text-center fw-bold">
+    <i class="fa-solid fa-lock"></i> ESTA TEMPORADA ESTÁ ENCERRADA. APENAS CONSULTA PERMITIDA.
+</div>
+{% endif %}
+
+<ul class="nav nav-pills mb-3" id="pills-tab" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active fw-bold" id="pills-elite-tab" data-bs-toggle="pill" data-bs-target="#pills-elite" type="button" role="tab">GRID ELITE</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link fw-bold" id="pills-advanced-tab" data-bs-toggle="pill" data-bs-target="#pills-advanced" type="button" role="tab">GRID ADVANCED</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link fw-bold" id="pills-initial-tab" data-bs-toggle="pill" data-bs-target="#pills-initial" type="button" role="tab">GRID INITIAL</button>
+    </li>
+</ul>
+
+<div class="tab-content" id="pills-tabContent">
+    {% for grid_name in ['ELITE', 'ADVANCED', 'INITIAL'] %}
+    <div class="tab-pane fade {% if grid_name == 'ELITE' %}show active{% endif %}" id="pills-{{ grid_name|lower }}" role="tabpanel">
+        
+        <div class="card shadow border-secondary">
+            <div class="card-header bg-dark border-secondary">
+                <strong class="text-white">Calendário {{ grid_name }}</strong>
+            </div>
+            <div class="card-body bg-dark p-0">
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover mb-0 align-middle">
+                        <thead>
+                            <tr>
+                                <th class="ps-4">Data</th>
+                                <th>GP</th>
+                                <th>Tipo</th>
+                                <th>Status</th>
+                                <th class="text-end pe-4">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for race in season.races|sort(attribute='data_corrida') if race.grid == grid_name %}
+                            <tr>
+                                <td class="ps-4 text-white-50 font-monospace">
+                                    {{ race.data_corrida.strftime('%d/%m') if race.data_corrida else '--/--' }}
+                                </td>
+                                
+                                <td>
+                                    <div class="fw-bold text-white">{{ race.nome_gp }}</div>
+                                    <div class="small text-white-50">{{ race.pista }}</div>
+                                </td>
+
+                                <td>
+                                    {% if race.tipo_etapa == 'SPRINT' %}
+                                        <small class="text-warning border border-warning px-2 rounded">Sprint</small>
+                                    {% elif race.tipo_etapa == 'FINAL' %}
+                                        <small class="text-danger border border-danger px-2 rounded">Final</small>
+                                    {% else %}
+                                        <small class="text-white-50 border border-secondary px-2 rounded">Normal</small>
+                                    {% endif %}
+                                </td>
+
+                                <td>
+                                    {% if race.status == 'Concluida' %}
+                                        <span class="text-success small"><i class="fa-solid fa-check"></i> Concluída</span>
+                                    {% else %}
+                                        <span class="text-secondary small">Agendada</span>
+                                    {% endif %}
+                                </td>
+
+                                <td class="text-end pe-4">
+                                    <div class="d-flex justify-content-end gap-2">
+                                        {% if season.ativa %}
+                                            <a href="{{ url_for('admin.generate_grid_text', race_id=race.id) }}" 
+                                               class="btn btn-sm btn-outline-info" 
+                                               title="Gerar Lista de Carros (WhatsApp)">
+                                                <i class="fa-solid fa-list"></i> Grid
+                                            </a>
+
+                                            <a href="{{ url_for('admin.race_results', race_id=race.id) }}" 
+                                               class="btn btn-sm {{ 'btn-outline-success' if race.status == 'Concluida' else 'btn-outline-light' }}"
+                                               title="Lançar/Ver Resultados">
+                                                <i class="fa-solid fa-list-ol"></i> 
+                                            </a>
+
+                                            <a href="{{ url_for('admin.edit_race', race_id=race.id) }}" class="btn btn-sm btn-outline-warning" title="Editar">
+                                                <i class="fa-solid fa-pen-to-square"></i>
+                                            </a>
+
+                                            <form method="POST" action="{{ url_for('admin.delete_race', race_id=race.id) }}" onsubmit="return confirm('Excluir corrida?');">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Excluir">
+                                                    <i class="fa-solid fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        {% else %}
+                                            {% if race.status == 'Concluida' %}
+                                                <a href="{{ url_for('admin.race_results', race_id=race.id) }}" class="btn btn-sm btn-outline-secondary">
+                                                    <i class="fa-solid fa-eye"></i> Ver Resultados
+                                                </a>
+                                            {% endif %}
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center py-5 text-white-50">
+                                    Nenhuma corrida cadastrada para o grid {{ grid_name }}.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+    {% endfor %}
+</div>
+
+<script>
+function autoFillGP() {
+    var select = document.getElementById("select-pista");
+    var inputGP = document.getElementById("input-gp");
+    var gpName = select.options[select.selectedIndex].getAttribute("data-gp");
+    if (gpName) inputGP.value = gpName;
+
+    var typeSelect = document.querySelector('select[name="tipo_etapa"]');
+    var raceType = select.options[select.selectedIndex].getAttribute("data-type");
+    if (raceType) {
+        typeSelect.value = raceType;
+    } else {
+        typeSelect.value = "NORMAL";
+    }
+}
+</script>
+{% endblock %}

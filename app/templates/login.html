@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-5">
+        <div class="card shadow-lg" style="border: 1px solid #333;">
+            <div class="card-header text-center py-4" style="background-color: rgba(0,0,0,0.6); border-bottom: 1px solid #333;">
+                <h3 class="text-white fw-bold mb-0" style="font-family: 'Cinzel', serif;">LOGIN</h3>
+                <small class="text-white-50">Acesso ao Paddock</small>
+            </div>
+            <div class="card-body p-4" style="background-color: #1E1E1E;">
+                <form method="POST">
+                    
+                    <div class="mb-3">
+                        <label class="form-label text-white-50">E-mail</label>
+                        <div class="input-group">
+                            <span class="input-group-text border-0 text-white" style="background-color: #2c2c2c;"><i class="fa-solid fa-envelope"></i></span>
+                            <input type="email" name="email" class="form-control border-0 text-white" style="background-color: #2c2c2c;" placeholder="seu@email.com" required>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="form-label text-white-50">Senha</label>
+                        <div class="input-group">
+                            <span class="input-group-text border-0 text-white" style="background-color: #2c2c2c;"><i class="fa-solid fa-lock"></i></span>
+                            <input type="password" name="password" class="form-control border-0 text-white" style="background-color: #2c2c2c;" placeholder="••••••" required>
+                        </div>
+                    </div>
+
+                    <div class="d-grid mb-2">
+                        <button type="submit" class="btn btn-red py-2">ENTRAR NA PISTA</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2 class="text-white fw-bold" style="font-family: 'Cinzel', serif;">PAINEL DE CONTROLE</h2>
+        <div class="d-flex align-items-center">
+            <p class="text-white-50 mb-0 me-3">Bem-vindo, {{ current_user.username }}.</p>
+            <a href="{{ url_for('public.my_profile') }}" class="btn btn-sm btn-outline-danger">
+                <i class="fa-solid fa-helmet-safety me-1"></i> Acessar meu Perfil de Piloto
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    
+    <div class="col-md-4 col-lg-3">
+        <div class="card shadow border-silver h-100 bg-dark hover-effect">
+            <div class="card-body text-center p-4">
+                <i class="fa-solid fa-chart-pie fa-3x text-danger mb-3"></i>
+                <h5 class="card-title text-white fw-bold">Visão Geral</h5>
+                <p class="card-text text-white-50 small">Resumo de pontos, estatísticas e grids.</p>
+                <div class="d-grid mt-3">
+                    <a href="{{ url_for('admin.overview') }}" class="btn btn-outline-light btn-sm text-white">VER DADOS</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4 col-lg-3">
+        <div class="card shadow border-silver h-100 bg-dark hover-effect">
+            <div class="card-body text-center p-4">
+                <i class="fa-solid fa-calendar-days fa-3x text-danger mb-3"></i>
+                <h5 class="card-title text-white fw-bold">Temporadas</h5>
+                <p class="card-text text-white-50 small">Gerenciar calendário, corridas e resultados.</p>
+                <div class="d-grid mt-3">
+                    <a href="{{ url_for('admin.seasons') }}" class="btn btn-outline-danger btn-sm text-white">CALENDÁRIO</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4 col-lg-3">
+        <div class="card shadow border-silver h-100 bg-dark hover-effect">
+            <div class="card-body text-center p-4">
+                <i class="fa-solid fa-users fa-3x text-danger mb-3"></i>
+                <h5 class="card-title text-white fw-bold">Pilotos</h5>
+                <p class="card-text text-white-50 small">Editar perfis, CNH e lista de inscritos.</p>
+                <div class="d-grid mt-3">
+                    <a href="{{ url_for('admin.list_pilots') }}" class="btn btn-outline-danger btn-sm text-white">LISTA COMPLETA</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4 col-lg-3">
+        <div class="card shadow border-silver h-100 bg-dark hover-effect">
+            <div class="card-body text-center p-4">
+                <i class="fa-solid fa-users-gear fa-3x text-danger mb-3"></i>
+                <h5 class="card-title text-white fw-bold">Equipes</h5>
+                <p class="card-text text-white-50 small">Criar times, gerenciar logos e contratos.</p>
+                <div class="d-grid mt-3">
+                    <a href="{{ url_for('admin.list_teams') }}" class="btn btn-outline-danger btn-sm text-white">GERENCIAR</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4 col-lg-3">
+        <div class="card shadow border-silver h-100 bg-dark hover-effect">
+            <div class="card-body text-center p-4">
+                <i class="fa-solid fa-gavel fa-3x text-danger mb-3"></i>
+                <h5 class="card-title text-white fw-bold">Tribunal</h5>
+                <p class="card-text text-white-50 small">Julgar protestos e aplicar punições.</p>
+                <div class="d-grid mt-3">
+                    <a href="{{ url_for('admin.protests') }}" class="btn btn-outline-danger btn-sm text-white">SALA DOS JUÍZES</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4 col-lg-3">
+        <div class="card shadow border-silver h-100 bg-dark hover-effect">
+            <div class="card-body text-center p-4">
+                <i class="fa-solid fa-stopwatch fa-3x {% if season_ativa %}text-secondary{% else %}text-danger{% endif %} mb-3"></i>
+                <h5 class="card-title text-white fw-bold">Seletiva</h5>
+                <p class="card-text text-white-50 small">Time Trial para definição de grids.</p>
+                <div class="d-grid mt-3">
+                    {% if season_ativa %}
+                        <button type="button" class="btn btn-outline-secondary btn-sm text-white-50 fw-bold" onclick="alert('não é permitido criar uma seletiva com uma season em andamento')" style="cursor: not-allowed;">ABRIR SELETIVA</button>
+                    {% else %}
+                        <a href="{{ url_for('admin.seletiva') }}" class="btn btn-outline-danger btn-sm text-white fw-bold">ABRIR SELETIVA</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4 col-lg-3">
+        <div class="card shadow border-silver h-100 bg-dark hover-effect">
+            <div class="card-body text-center p-4">
+                <i class="fa-solid fa-newspaper fa-3x text-danger mb-3"></i>
+                <h5 class="card-title text-white fw-bold">Notícias</h5>
+                <p class="card-text text-white-50 small">Publique novidades no carrossel da Home.</p>
+                <div class="d-grid mt-3">
+                    <a href="{{ url_for('admin.list_news') }}" class="btn btn-outline-danger btn-sm text-white fw-bold">GERENCIAR</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if current_user.role == 'SUPER_ADM' %}
+    
+    <div class="col-md-4 col-lg-3">
+        <div class="card shadow border-silver h-100 bg-dark hover-effect">
+            <div class="card-body text-center p-4">
+                <i class="fa-solid fa-envelope-open-text fa-3x text-danger mb-3"></i>
+                <h5 class="card-title text-white fw-bold">Convites</h5>
+                <p class="card-text text-white-50 small">Gerar tokens para cadastro de pilotos.</p>
+                <div class="d-grid mt-3">
+                    <a href="{{ url_for('admin.invites') }}" class="btn btn-outline-danger btn-sm text-white fw-bold">GERAR TOKENS</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4 col-lg-3">
+        <div class="card shadow border-silver h-100 bg-dark hover-effect">
+            <div class="card-body text-center p-4">
+                <i class="fa-solid fa-user-shield fa-3x text-white mb-3"></i>
+                <h5 class="card-title text-white fw-bold">Admins</h5>
+                <p class="card-text text-white-50 small">Gerenciar contas administrativas.</p>
+                <div class="d-grid mt-3">
+                    <a href="{{ url_for('admin.list_admins') }}" class="btn btn-outline-danger btn-sm fw-bold text-white">CONTAS ADMIN</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+<style>
+    .hover-effect { transition: transform 0.2s; }
+    .hover-effect:hover { transform: translateY(-5px); }
+</style>
+{% endblock %}

@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="text-white"><i class="fa-solid fa-envelope-open-text text-danger"></i> Whitelist (Convites)</h2>
+    <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary">Voltar</a>
+</div>
+
+<div class="row">
+    <div class="col-md-5">
+        <div class="card shadow border-silver mb-4">
+            <div class="card-header bg-danger text-white">
+                <strong><i class="fa-solid fa-plus"></i> Novo Convite</strong>
+            </div>
+            <div class="card-body bg-dark text-white">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label>E-mail do Piloto</label>
+                        <input type="email" name="email" class="form-control bg-secondary text-white border-0" placeholder="piloto@gmail.com" required>
+                        <small class="text-muted">O código funcionará EXCLUSIVAMENTE para este e-mail.</small>
+                    </div>
+                    <button type="submit" class="btn btn-red w-100 fw-bold">Gerar Código Único</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-7">
+        <div class="card shadow">
+            <div class="card-header bg-dark border-secondary text-white">
+                Códigos Válidos (Não Usados)
+            </div>
+            <div class="table-responsive">
+                <table class="table table-dark table-hover mb-0 align-middle">
+                    <thead>
+                        <tr>
+                            <th>E-mail Autorizado</th>
+                            <th>Código</th>
+                            <th class="text-end">Enviar</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for invite in invites %}
+                        <tr>
+                            <td>{{ invite.email }}</td>
+                            <td><span class="badge bg-danger text-white fs-6">{{ invite.token }}</span></td>
+                            <td class="text-end">
+                                <a href="https://wa.me/?text=🏎️%20*Convite%20Full%20Gas%20Racing*%0A%0AOlá!%20Seu%20acesso%20foi%20liberado.%0A%0A📧%20*E-mail:*%20{{ invite.email }}%0A🔑%20*Código:*%20{{ invite.token }}%0A%0A🔗%20Cadastre-se:%20{{ url_for('public.register', _external=True) }}" 
+                                   target="_blank" 
+                                   class="btn btn-sm btn-success fw-bold">
+                                    <i class="fa-brands fa-whatsapp"></i> WhatsApp
+                                </a>
+                                
+                                <button class="btn btn-sm btn-outline-light" onclick="navigator.clipboard.writeText('{{ invite.token }}')" title="Copiar Código">
+                                    <i class="fa-regular fa-copy"></i>
+                                </button>
+
+                                <form action="{{ url_for('admin.delete_invite', invite_id=invite.id) }}" method="POST" style="display:inline;">
+                                    <button type="submit" class="btn btn-sm btn-danger ms-1" onclick="return confirm('Deseja excluir este convite?')" title="Excluir Convite">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="3" class="text-center text-muted py-3">Todos os convites já foram utilizados.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

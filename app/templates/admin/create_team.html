@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow border-silver">
+            <div class="card-header bg-dark border-silver">
+                <h4 class="mb-0 text-danger fw-bold">Nova Equipe</h4>
+            </div>
+            <div class="card-body bg-dark">
+                <form method="POST" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label class="form-label text-white">Nome da Equipe</label>
+                        <input type="text" name="nome" class="form-control bg-secondary text-white border-0" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-white">Grid</label>
+                        <select name="grid" class="form-select bg-secondary text-white border-0" required>
+                            <option value="ELITE">Elite</option>
+                            <option value="ADVANCED">Advanced</option>
+                            <option value="INITIAL">Initial</option>
+                        </select>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label text-white">Foto do Macacão/Carro</label>
+                        <input type="file" name="foto" class="form-control bg-secondary text-white border-0">
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-red fw-bold">CRIAR EQUIPE</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

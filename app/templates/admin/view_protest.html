@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    
+    <div class="d-flex justify-content-between align-items-center mb-4 border-bottom border-secondary pb-3">
+        <div>
+            <h3 class="text-white fw-bold mb-0" style="font-family: 'Cinzel', serif;">DOSSIÊ DO CASO #{{ protesto.id }}</h3>
+            <span class="text-white-50">{{ protesto.etapa.nome_gp }} - {{ protesto.etapa.grid }}</span>
+        </div>
+        
+        <div class="d-flex align-items-center gap-3">
+            {% if protesto.status == 'CONCLUIDO' %}
+                <span class="badge bg-secondary border border-light px-3 py-2">ENCERRADO</span>
+            {% elif protesto.status == 'AGUARDANDO_DEFESA' %}
+                <span class="badge bg-warning text-dark border border-warning px-3 py-2">AGUARDANDO DEFESA</span>
+            {% else %}
+                <span class="badge bg-info text-dark border border-info px-3 py-2">EM VOTAÇÃO</span>
+            {% endif %}
+            
+            <a href="{{ url_for('admin.protests') }}" class="btn btn-outline-light btn-sm">
+                <i class="fa-solid fa-arrow-left me-2"></i> Voltar
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        
+        <div class="col-lg-8">
+            
+            <div class="card bg-dark border-danger mb-4 shadow-lg">
+                <div class="card-header bg-transparent border-danger text-danger fw-bold">
+                    <i class="fa-solid fa-gavel me-2"></i> ACUSAÇÃO ({{ protesto.acusador.nickname }})
+                </div>
+                <div class="card-body">
+                    {% if embed_acusacao %}
+                        <div class="ratio ratio-16x9 mb-3 bg-black rounded">
+                            <iframe src="{{ embed_acusacao }}" allowfullscreen></iframe>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5 bg-secondary bg-opacity-10 rounded mb-3 border border-secondary border-opacity-25">
+                            <a href="{{ protesto.video_link }}" target="_blank" class="btn btn-danger">
+                                <i class="fa-brands fa-youtube me-2"></i> Abrir Vídeo da Acusação
+                            </a>
+                        </div>
+                    {% endif %}
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-12">
+                            <p class="text-white-50 mb-1"><strong class="text-danger">Minuto/Volta:</strong> {{ protesto.minuto }}</p>
+                            <p class="text-white-50 mb-0"><strong class="text-danger">Relato:</strong> <em>"{{ protesto.descricao }}"</em></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card bg-dark border-warning mb-4 shadow-lg">
+                <div class="card-header bg-transparent border-warning text-warning fw-bold">
+                    <i class="fa-solid fa-shield-halved me-2"></i> DEFESA ({{ protesto.acusado.nickname }})
+                </div>
+                <div class="card-body">
+                    {% if protesto.status == 'AGUARDANDO_DEFESA' %}
+                        <div class="d-flex align-items-center justify-content-center py-5 text-white-50">
+                            <div class="text-center">
+                                <i class="fa-regular fa-clock fa-2x mb-2"></i>
+                                <p class="mb-0">Aguardando o piloto enviar a defesa...</p>
+                            </div>
+                        </div>
+                    {% else %}
+                        {% if embed_defesa %}
+                            <div class="ratio ratio-16x9 mb-3 bg-black rounded">
+                                <iframe src="{{ embed_defesa }}" allowfullscreen></iframe>
+                            </div>
+                        {% elif protesto.video_defesa %}
+                            <div class="text-center py-5 bg-secondary bg-opacity-10 rounded mb-3 border border-secondary border-opacity-25">
+                                <a href="{{ protesto.video_defesa }}" target="_blank" class="btn btn-warning text-dark fw-bold">
+                                    <i class="fa-brands fa-youtube me-2"></i> Abrir Vídeo da Defesa
+                                </a>
+                            </div>
+                        {% else %}
+                            <div class="alert alert-dark border-secondary text-white-50 text-center mb-3">
+                                Piloto não anexou vídeo de defesa.
+                            </div>
+                        {% endif %}
+                        <p class="text-white-50 mb-0"><strong class="text-warning">Argumento:</strong> <em>"{{ protesto.argumento_defesa }}"</em></p>
+                    {% endif %}
+                </div>
+            </div>
+
+        </div>
+
+        <div class="col-lg-4">
+            
+            <div class="card bg-dark border-info mb-4 shadow-lg">
+                <div class="card-header bg-info text-dark fw-bold">
+                    <i class="fa-solid fa-check-to-slot me-2"></i> Seu Voto
+                </div>
+                <div class="card-body">
+                    {% if meu_voto %}
+                        <div class="alert alert-light fw-bold text-center mb-4">
+                            Você votou em: <span class="text-primary">{{ meu_voto.escolha }}</span>
+                        </div>
+                    {% else %}
+                        <p class="text-white-50 small mb-3 text-center">Analise os vídeos e escolha a punição adequada:</p>
+                    {% endif %}
+
+                    {% if protesto.status != 'CONCLUIDO' %}
+                    {% if current_user.pilot_profile and (current_user.pilot_profile.id == protesto.acusado_id or current_user.pilot_profile.id == protesto.acusador_id) and current_user.role != 'SUPER_ADM' %}
+                        <div class="alert alert-warning text-center small mb-0 border-warning">
+                            <i class="fa-solid fa-ban me-1"></i> <strong>Impedimento:</strong><br>Você é parte envolvida (acusado/acusador) e não tem direito a voto.
+                        </div>
+                    {% else %}
+                        <form method="POST" class="d-grid gap-2">
+                            <button type="submit" name="voto" value="INOCENTE" class="btn btn-outline-success btn-sm fw-bold text-start ps-3">
+                                <i class="fa-solid fa-circle me-2"></i> Inocente (0 pts)
+                            </button>
+                            <button type="submit" name="voto" value="INCIDENTE_CORRIDA" class="btn btn-outline-success btn-sm fw-bold text-start ps-3">
+                                <i class="fa-solid fa-circle me-2"></i> Incidente de Corrida (0 pts)
+                            </button>
+                            <button type="submit" name="voto" value="ADVERTENCIA" class="btn btn-outline-warning btn-sm fw-bold text-start ps-3">
+                                <i class="fa-solid fa-circle me-2"></i> Advertência (0 pts)
+                            </button>
+                            <button type="submit" name="voto" value="LEVE" class="btn btn-outline-danger btn-sm fw-bold text-start ps-3">
+                                <i class="fa-solid fa-circle me-2"></i> Punição Leve (-3 pts)
+                            </button>
+                            <button type="submit" name="voto" value="MEDIA" class="btn btn-outline-danger btn-sm fw-bold text-start ps-3">
+                                <i class="fa-solid fa-circle me-2"></i> Punição Média (-5 pts)
+                            </button>
+                            <button type="submit" name="voto" value="GRAVE" class="btn btn-outline-danger btn-sm fw-bold text-start ps-3">
+                                <i class="fa-solid fa-circle me-2"></i> Punição Grave (-10 pts)
+                            </button>
+                        </form>
+                    {% endif %}
+                    {% else %}
+                        <div class="alert alert-secondary text-center small mb-0">
+                            <i class="fa-solid fa-lock me-1"></i> Votação encerrada.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card bg-dark border-danger shadow-lg">
+                <div class="card-header bg-danger text-white fw-bold">
+                    <i class="fa-solid fa-scale-balanced me-2"></i> Zona do Diretor de Prova
+                </div>
+                <div class="card-body">
+                    
+                    <h6 class="text-white border-bottom border-secondary pb-2 mb-3">APURAÇÃO DOS VOTOS:</h6>
+                    <div class="mb-4">
+                        {% for voto in votos_resumo %}
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="text-white-50 small">{{ voto[0] }}</span>
+                            <span class="badge bg-secondary">{{ voto[1] }} votos</span>
+                        </div>
+                        {% else %}
+                            <p class="text-muted small fst-italic">Nenhum voto computado ainda.</p>
+                        {% endfor %}
+                    </div>
+
+                    {% if protesto.status != 'CONCLUIDO' %}
+                        {% if current_user.role == 'SUPER_ADM' %}
+                        <form method="POST">
+                            <div class="mb-3">
+                                <label class="form-label text-danger fw-bold small">Veredito Final</label>
+                                <select name="veredito_final" class="form-select bg-dark text-white border-secondary btn-sm">
+                                    <option value="INOCENTE">Inocente</option>
+                                    <option value="INCIDENTE_CORRIDA">Incidente de Corrida</option>
+                                    <option value="ADVERTENCIA">Advertência</option>
+                                    <option value="LEVE">Punição Leve (-3 pts)</option>
+                                    <option value="MEDIA">Punição Média (-5 pts)</option>
+                                    <option value="GRAVE">Punição Grave (-10 pts)</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label text-danger fw-bold small">Justificativa Oficial</label>
+                                <textarea name="justificativa" class="form-control bg-dark text-white border-secondary" rows="3" required></textarea>
+                            </div>
+                            <button type="submit" name="encerrar" value="true" class="btn btn-danger w-100 fw-bold">
+                                ENCERRAR E APLICAR PENA
+                            </button>
+                        </form>
+                        {% else %}
+                            <div class="alert alert-dark border-secondary text-white-50 text-center small">
+                                Aguardando decisão do Diretor de Prova.
+                            </div>
+                        {% endif %}
+
+                    {% else %}
+                        <div class="bg-secondary bg-opacity-10 p-3 rounded border border-secondary border-opacity-25 mb-3">
+                            <p class="text-white-50 small mb-1">Veredito Final:</p>
+                            <h5 class="text-white fw-bold mb-3">
+                                {% if protesto.veredito_final == 'INOCENTE' or protesto.veredito_final == 'INCIDENTE_CORRIDA' %}
+                                    <span class="text-success">{{ protesto.veredito_final }}</span>
+                                {% else %}
+                                    <span class="text-danger">{{ protesto.veredito_final }}</span>
+                                {% endif %}
+                            </h5>
+                            <p class="text-white-50 small mb-1">Justificativa:</p>
+                            <p class="text-white fst-italic small">"{{ protesto.justificativa_texto }}"</p>
+                        </div>
+
+                        {% if current_user.role == 'SUPER_ADM' %}
+                        <form method="POST">
+                            <input type="hidden" name="reabrir" value="true">
+                            <button type="submit" class="btn btn-outline-warning w-100 fw-bold btn-sm" onclick="return confirm('ATENÇÃO: Reabrir irá ESTORNAR os pontos aplicados. Confirmar?');">
+                                <i class="fa-solid fa-rotate-left me-2"></i> REABRIR E ESTORNAR
+                            </button>
+                        </form>
+                        {% endif %}
+                    {% endif %}
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

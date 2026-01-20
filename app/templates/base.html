@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Full Gas League</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Segoe+UI:wght@400;600&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            background-color: #121212;
+            color: #e0e0e0;
+            font-family: 'Segoe UI', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        h1, h2, h3, h4, h5, .navbar-brand {
+            font-family: 'Cinzel', serif;
+        }
+        .navbar {
+            background-color: #000 !important;
+            border-bottom: 2px solid #C0C0C0; /* Prata */
+        }
+        .navbar-brand span {
+            color: #E60000; /* Vermelho */
+        }
+        .nav-link {
+            color: #fff !important;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+        .nav-link:hover {
+            color: #E60000 !important;
+        }
+        .btn-red {
+            background-color: #E60000;
+            color: #fff;
+            border: none;
+            font-weight: bold;
+        }
+        .btn-red:hover {
+            background-color: #cc0000;
+            color: #fff;
+        }
+        /* Carbon Fiber Texture Effect for Cards */
+        .bg-dark {
+            background-color: #1E1E1E !important;
+        }
+        footer {
+            margin-top: auto;
+            background-color: #000;
+            border-top: 1px solid #333;
+        }
+        .border-silver {
+            border-color: #C0C0C0 !important;
+        }
+        .text-silver {
+            color: #C0C0C0 !important;
+        }
+        .navbar-brand img {
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .navbar-brand:hover img {
+            transform: scale(1.15);
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar navbar-expand-lg navbar-dark py-3 sticky-top">
+        <div class="container">
+            <a class="navbar-brand fw-bold fs-4 d-flex align-items-center" href="{{ url_for('public.home') }}">
+                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Full Gas League" height="70">
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto align-items-center">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('public.rules') }}">Regulamento</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('public.transparency') }}">Como Funciona</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('public.register') }}">Registro</a>
+                    </li>
+
+                    {% if current_user.is_authenticated and current_user.role in ['PILOTO', 'ADM', 'SUPER_ADM'] %}
+                        <li class="nav-item ms-lg-3">
+                            <a class="nav-link text-danger" href="{{ url_for('public.my_profile') }}">
+                                <i class="fa-solid fa-helmet-safety me-1"></i> Meu Perfil
+                            </a>
+                        </li>
+                    {% endif %}
+
+                    {% if current_user.is_authenticated and current_user.role in ['SUPER_ADM', 'ADM'] %}
+                        <li class="nav-item dropdown ms-lg-3">
+                            <a class="nav-link dropdown-toggle text-danger" href="#" role="button" data-bs-toggle="dropdown">
+                                <i class="fa-solid fa-user-tie me-1"></i> Gestão
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-dark border-secondary">
+                                <li><a class="dropdown-item" href="{{ url_for('admin.dashboard') }}">Dashboard</a></li>
+                                <li><hr class="dropdown-divider border-secondary"></li>
+                                <li><a class="dropdown-item" href="{{ url_for('admin.list_teams') }}">Equipes</a></li> <li><a class="dropdown-item" href="{{ url_for('admin.seasons') }}">Temporadas</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('admin.list_pilots') }}">Pilotos</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('admin.protests') }}">Tribunal</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('admin.manual') }}">Manual da Direção</a></li>
+                                {% if current_user.role == 'SUPER_ADM' %}
+                                    <li><a class="dropdown-item" href="{{ url_for('admin.invites') }}">Convites</a></li>
+                                {% endif %}
+                            </ul>
+                        </li>
+                    {% endif %}
+
+                    <li class="nav-item ms-lg-4">
+                        {% if current_user.is_authenticated %}
+                            <a href="{{ url_for('public.logout') }}" class="btn btn-outline-light btn-sm rounded-pill px-3">
+                                Sair <i class="fa-solid fa-right-from-bracket ms-1"></i>
+                            </a>
+                        {% else %}
+                            <a href="{{ url_for('public.login') }}" class="btn btn-red btn-sm rounded-pill px-4">
+                                LOGIN
+                            </a>
+                        {% endif %}
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container py-5">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show border-{{ category }} shadow" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </div>
+
+    <footer class="py-4 text-center text-white-50">
+        <div class="container">
+            <small>&copy; {{ now_year }} Full Gas League. Todos os direitos reservados.</small>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Easter Egg: Assinatura Secreta -->
+    <script>
+        let keyBuffer = '';
+        const secretCode = 'josu';
+
+        document.addEventListener('keydown', (event) => {
+            // Adiciona a tecla pressionada ao buffer (tudo minúsculo)
+            keyBuffer += event.key.toLowerCase();
+            
+            // Mantém o buffer apenas com o tamanho da senha
+            if (keyBuffer.length > secretCode.length) {
+                keyBuffer = keyBuffer.slice(-secretCode.length);
+            }
+
+            // Verifica se a senha foi digitada
+            if (keyBuffer === secretCode) {
+                const signature = document.createElement('div');
+                signature.innerHTML = '<i class="fa-solid fa-laptop-code me-2"></i> Desenvolvido por <strong>JosuNogueira</strong>';
+                
+                // Estilização Inline para garantir o visual sem mexer no CSS
+                Object.assign(signature.style, {
+                    position: 'fixed',
+                    bottom: '30px',
+                    right: '30px',
+                    backgroundColor: '#E60000', // Vermelho FullGas
+                    color: '#fff',
+                    padding: '15px 25px',
+                    borderRadius: '50px',
+                    boxShadow: '0 5px 15px rgba(0,0,0,0.5)',
+                    zIndex: '10000',
+                    fontFamily: "'Segoe UI', sans-serif",
+                    fontSize: '15px',
+                    transition: 'opacity 0.5s ease'
+                });
+
+                document.body.appendChild(signature);
+
+                // Remove suavemente após 4 segundos
+                setTimeout(() => {
+                    signature.style.opacity = '0';
+                    setTimeout(() => signature.remove(), 500);
+                }, 4000);
+
+                keyBuffer = ''; // Reseta para não disparar repetido
+            }
+        });
+    </script>
+
+    <script>
+        function maskPhone(input) {
+            let v = input.value.replace(/\D/g, '');
+            if (v.length > 11) v = v.slice(0, 11);
+            v = v.replace(/^(\d{2})(\d)/g, '($1) $2');
+            v = v.replace(/(\d{5})(\d)/, '$1-$2');
+            input.value = v;
+        }
+    </script>
+</body>
+</html>

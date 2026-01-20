@@ -1,0 +1,13 @@
+# Ambientes Virtuais
+venv/
+.env
+
+# Python
+__pycache__/
+*.pyc
+
+# Banco de Dados Local
+*.db
+
+# Uploads e arquivos estáticos de usuário
+app/static/uploads/*

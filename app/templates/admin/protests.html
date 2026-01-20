@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="text-white fw-bold"><i class="fa-solid fa-gavel me-2"></i> Sala dos Juízes</h2>
+</div>
+
+{% if aguardando %}
+<div class="card border-warning mb-5 shadow">
+    <div class="card-header bg-warning text-dark fw-bold d-flex justify-content-between align-items-center">
+        <span><i class="fa-solid fa-clock me-2"></i> AGUARDANDO DEFESA</span>
+        <span class="badge bg-dark text-warning">{{ aguardando|length }}</span>
+    </div>
+    <div class="card-body bg-dark p-0">
+        <div class="table-responsive">
+            <table class="table table-dark table-hover mb-0 align-middle">
+                <thead>
+                    <tr class="text-white-50">
+                        <th class="ps-3">GP / Pista</th>
+                        <th>Envolvidos (Acusador vs Acusado)</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-end pe-3">Ação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in aguardando %}
+                    <tr>
+                        <td class="ps-3 fw-bold text-white">{{ p.etapa.nome_gp }}</td>
+                        <td class="text-white">
+                            <span class="text-info">{{ p.acusador.nickname }}</span> 
+                            <span class="text-white-50 mx-1">vs</span> 
+                            <span class="text-warning">{{ p.acusado.nickname }}</span>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-warning text-dark">Aguardando Piloto</span>
+                        </td>
+                        <td class="text-end pe-3">
+                            <a href="{{ url_for('admin.view_protest', protest_id=p.id) }}" class="btn btn-sm btn-outline-light">
+                                Ver Detalhes
+                            </a>
+                            {% if current_user.role == 'SUPER_ADM' %}
+                            <form action="{{ url_for('admin.delete_protest_admin', protest_id=p.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Tem certeza que deseja apagar este pedido de punição?');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger border-0" title="Excluir Protesto"><i class="fa-solid fa-trash"></i></button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="card border-info mb-5 shadow">
+    <div class="card-header bg-info text-dark fw-bold d-flex justify-content-between align-items-center">
+        <span><i class="fa-solid fa-scale-balanced me-2"></i> EM JULGAMENTO (VOTAÇÃO ABERTA)</span>
+        <span class="badge bg-dark text-info">{{ pendentes|length }}</span>
+    </div>
+    <div class="card-body bg-dark p-0">
+        <div class="table-responsive">
+            <table class="table table-dark table-hover mb-0 align-middle">
+                <thead>
+                    <tr class="text-white-50">
+                        <th class="ps-3">GP / Pista</th>
+                        <th>Envolvidos</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-end pe-3">Ação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in pendentes %}
+                    <tr>
+                        <td class="ps-3 fw-bold text-white">{{ p.etapa.nome_gp }}</td>
+                        <td class="text-white">
+                            {{ p.acusador.nickname }} <span class="text-white-50">vs</span> {{ p.acusado.nickname }}
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-info text-dark">Votação em Andamento</span>
+                        </td>
+                        <td class="text-end pe-3">
+                            <a href="{{ url_for('admin.view_protest', protest_id=p.id) }}" class="btn btn-sm btn-info fw-bold text-dark">
+                                <i class="fa-solid fa-gavel me-1"></i> JULGAR
+                            </a>
+                            {% if current_user.role == 'SUPER_ADM' %}
+                            <form action="{{ url_for('admin.delete_protest_admin', protest_id=p.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Tem certeza que deseja apagar este pedido de punição?');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger border-0" title="Excluir Protesto"><i class="fa-solid fa-trash"></i></button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="text-center py-4 text-white-50">Não há protestos pendentes de votação no momento.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="card border-secondary shadow">
+    <div class="card-header bg-secondary text-white fw-bold d-flex justify-content-between align-items-center">
+        <span><i class="fa-solid fa-box-archive me-2"></i> ARQUIVO (ÚLTIMOS 10)</span>
+    </div>
+    <div class="card-body bg-dark p-0">
+        <div class="table-responsive">
+            <table class="table table-dark table-hover mb-0 align-middle">
+                <thead>
+                    <tr class="text-white-50">
+                        <th class="ps-3">GP</th>
+                        <th>Envolvidos</th>
+                        <th class="text-center">Veredito Final</th>
+                        <th class="text-end pe-3">Detalhes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in concluidos %}
+                    <tr>
+                        <td class="ps-3 text-white">{{ p.etapa.nome_gp }}</td>
+                        <td class="text-white">
+                            {{ p.acusador.nickname }} <span class="text-white-50">vs</span> {{ p.acusado.nickname }}
+                        </td>
+                        <td class="text-center">
+                            {% if p.veredito_final == 'INOCENTE' %}
+                                <span class="badge bg-success text-white">Inocente</span>
+                            {% elif p.veredito_final == 'INCIDENTE_CORRIDA' %}
+                                <span class="badge bg-secondary text-white">Incidente de Corrida</span>
+                            {% elif p.veredito_final == 'ADVERTENCIA' %}
+                                <span class="badge bg-warning text-dark">Advertência</span>
+                            {% else %}
+                                <span class="badge bg-danger text-white">{{ p.veredito_final }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-3">
+                            <a href="{{ url_for('admin.view_protest', protest_id=p.id) }}" class="btn btn-sm btn-outline-secondary text-white">
+                                <i class="fa-solid fa-eye"></i> Ver
+                            </a>
+                            {% if current_user.role == 'SUPER_ADM' %}
+                            <form action="{{ url_for('admin.delete_protest_admin', protest_id=p.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Tem certeza que deseja apagar este pedido de punição? As punições aplicadas serão revertidas e os pontos devolvidos.');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger border-0" title="Excluir Protesto"><i class="fa-solid fa-trash"></i></button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="text-center py-4 text-muted">Nenhum caso arquivado ainda.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

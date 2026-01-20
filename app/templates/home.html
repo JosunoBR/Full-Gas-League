@@ -1,0 +1,409 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<!-- 1. CABEÇALHO E BANNER -->
+<div class="row mb-5 text-center">
+    <div class="col-12">
+        <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Full Gas League" class="img-fluid mb-3" style="max-height: 245px;">
+        {% if season_ativa %}
+            <p class="lead text-white-50">Temporada Atual: <strong class="text-white">{{ season_ativa.nome }}</strong></p>
+        {% else %}
+            <p class="lead text-white-50">Aguardando início da nova temporada.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 1.5 CARROSSEL DE NOTÍCIAS -->
+<div class="row justify-content-center mb-5">
+    <div class="col-lg-10">
+        <div id="newsCarousel" class="carousel slide shadow-lg border-silver rounded" data-bs-ride="carousel">
+            <div class="carousel-inner rounded">
+                {% if noticias %}
+                {% for news in noticias %}
+                <div class="carousel-item {% if loop.first %}active{% endif %}">
+                    {% if news.imagem_url %}
+                        <img src="{{ url_for('static', filename='uploads/' + news.imagem_url) }}" class="d-block w-100" style="height: 400px; object-fit: cover; filter: brightness(0.7);" alt="{{ news.titulo }}">
+                    {% else %}
+                        <div class="d-block w-100 bg-secondary d-flex align-items-center justify-content-center" style="height: 400px;">
+                            <i class="fa-solid fa-newspaper fa-5x text-white-50"></i>
+                        </div>
+                    {% endif %}
+                    <div class="carousel-caption d-none d-md-block bg-dark bg-opacity-75 p-3 rounded border border-secondary">
+                        <h3 class="fw-bold text-white mb-1">{{ news.titulo }}</h3>
+                        <p class="text-white-50 mb-0">{{ news.subtitulo }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <!-- SLIDE PADRÃO (QUANDO NÃO HÁ NOTÍCIAS) -->
+                <div class="carousel-item active">
+                    <div class="d-block w-100 bg-dark d-flex align-items-center justify-content-center border border-secondary" style="height: 400px;">
+                        <div class="text-center">
+                            <i class="fa-solid fa-flag-checkered fa-4x text-danger mb-3"></i>
+                            <h3 class="fw-bold text-white">Bem-vindo à Full Gas League</h3>
+                            <p class="text-white-50">Fique ligado! As notícias da temporada aparecerão aqui.</p>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            {% if noticias %}
+            <button class="carousel-control-prev" type="button" data-bs-target="#newsCarousel" data-bs-slide="prev"><span class="carousel-control-prev-icon" aria-hidden="true"></span><span class="visually-hidden">Anterior</span></button>
+            <button class="carousel-control-next" type="button" data-bs-target="#newsCarousel" data-bs-slide="next"><span class="carousel-control-next-icon" aria-hidden="true"></span><span class="visually-hidden">Próximo</span></button>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% if season_ativa %}
+
+<!-- 1.8 GRID DE PILOTOS (CARROSSEL) -->
+{% for grid_name in ['ELITE', 'ADVANCED', 'INITIAL'] %}
+{% if pilots_by_grid[grid_name] %}
+<div class="row mb-5">
+    <div class="col-12">
+        <h4 class="text-white fw-bold mb-4 ps-3 border-start border-4 
+            {% if grid_name == 'ELITE' %}border-warning text-warning
+            {% elif grid_name == 'ADVANCED' %}border-info text-info
+            {% else %}border-danger text-danger{% endif %}" 
+            style="font-family: 'Cinzel', serif;">GRID {{ grid_name }}</h4>
+        
+        <!-- Container de Rolagem Horizontal -->
+        <div class="d-flex overflow-auto pb-4 px-2" style="gap: 20px;">
+            {% for pilot in pilots_by_grid[grid_name] %}
+            <a href="{{ url_for('public.public_profile', pilot_id=pilot.id) }}" class="text-decoration-none">
+                <div class="card bg-dark border-silver pilot-card shadow" style="min-width: 200px; width: 200px; transition: all 0.3s ease;">
+                    
+                    <!-- Foto do Piloto -->
+                    <div class="card-img-top bg-secondary d-flex align-items-center justify-content-center overflow-hidden" style="height: 200px;">
+                        {% if pilot.foto_url %}
+                            <img src="{{ url_for('static', filename='uploads/' + pilot.foto_url) }}" class="w-100 h-100" style="object-fit: cover;" alt="{{ pilot.nickname }}">
+                        {% else %}
+                            <i class="fa-solid fa-user-astronaut fa-4x text-white-50"></i>
+                        {% endif %}
+                    </div>
+
+                    <!-- Informações -->
+                    <div class="card-body text-center p-3">
+                        <h5 class="card-title text-white fw-bold mb-1 text-truncate">{{ pilot.nickname }}</h5>
+                        <p class="card-text text-white-50 small mb-2">{{ pilot.team.nome if pilot.team else 'Sem Equipe' }}</p>
+                        <!-- Badge removida pois o título da seção já indica o grid -->
+                    </div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endfor %}
+
+<!-- 2. DESTAQUE: PÓDIOS DA ÚLTIMA ETAPA -->
+<div class="row mb-5 g-4">
+    {% for grid in ['ELITE', 'ADVANCED', 'INITIAL'] %}
+        {% set race = last_races[grid] %}
+        {% if race %}
+        <div class="col-lg-4">
+            <div class="card bg-dark border-silver shadow h-100">
+                <div class="card-header border-secondary text-center bg-dark">
+                    <span class="badge {% if grid == 'ELITE' %}bg-warning text-dark{% elif grid == 'ADVANCED' %}bg-info text-dark{% else %}bg-danger{% endif %} mb-2">{{ grid }}</span>
+                    <h5 class="text-white fw-bold mb-0"><i class="fa-solid fa-trophy text-warning me-2"></i> GP {{ race.nome_gp }}</h5>
+                    <small class="text-white-50">{{ race.pista }}</small>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush bg-dark">
+                        {% for res in race.results|sort(attribute='posicao') %}
+                            {% if res.posicao in [1, 2, 3] and not res.dsq %}
+                            <li class="list-group-item bg-dark border-secondary d-flex align-items-center justify-content-between">
+                                <div class="d-flex align-items-center">
+                                    {% if res.posicao == 1 %}
+                                        <i class="fa-solid fa-medal text-warning fa-lg me-3"></i>
+                                    {% elif res.posicao == 2 %}
+                                        <i class="fa-solid fa-medal text-silver fa-lg me-3"></i>
+                                    {% elif res.posicao == 3 %}
+                                        <i class="fa-solid fa-medal text-danger fa-lg me-3" style="color: #cd7f32 !important;"></i>
+                                    {% endif %}
+                                    <div>
+                                        <span class="text-white fw-bold d-block">{{ res.pilot.nickname }}</span>
+                                        {% if res.team %}
+                                            <small class="text-white-50" style="font-size: 0.75rem;">{{ res.team.nome }}</small>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% if res.volta_rapida %}<i class="fa-solid fa-stopwatch text-info" title="Volta Rápida"></i>{% endif %}
+                            </li>
+                            {% endif %}
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    {% endfor %}
+</div>
+
+<!-- 3. ABAS PRINCIPAIS: CLASSIFICAÇÃO vs CALENDÁRIO -->
+<ul class="nav nav-tabs border-secondary mb-4" id="mainTab" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active fw-bold" id="standings-tab" data-bs-toggle="tab" data-bs-target="#standings-content" type="button">
+            <i class="fa-solid fa-list-ol me-2"></i> CLASSIFICAÇÃO
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link fw-bold" id="calendar-tab" data-bs-toggle="tab" data-bs-target="#calendar-content" type="button">
+            <i class="fa-solid fa-calendar-days me-2"></i> CALENDÁRIO & RESULTADOS
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="mainTabContent">
+    
+    <!-- CONTEÚDO DA ABA: CLASSIFICAÇÃO (Tabelas Atuais) -->
+    <div class="tab-pane fade show active" id="standings-content" role="tabpanel">
+        <ul class="nav nav-pills nav-fill mb-4" id="gridTabs" role="tablist">
+            {% for grid in ['ELITE', 'ADVANCED', 'INITIAL'] %}
+            <li class="nav-item" role="presentation">
+                <button class="nav-link {% if loop.first %}active{% endif %} border border-secondary mx-1 fw-bold" 
+                        id="tab-{{ grid }}" data-bs-toggle="pill" data-bs-target="#content-{{ grid }}" type="button">{{ grid }}</button>
+            </li>
+            {% endfor %}
+        </ul>
+
+        <div class="tab-content">
+            {% for grid in ['ELITE', 'ADVANCED', 'INITIAL'] %}
+            <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="content-{{ grid }}">
+                <div class="row">
+                    <!-- Pilotos -->
+                    <div class="col-lg-8 mb-4">
+                        <div class="card bg-dark border-silver shadow">
+                            <div class="card-header bg-dark border-secondary"><h5 class="text-white mb-0 fw-bold">Pilotos</h5></div>
+                            <div class="table-responsive">
+                                <table class="table table-dark table-hover align-middle mb-0">
+                                    <thead>
+                                        <tr class="text-white-50 small">
+                                            <th class="text-center">Pos</th>
+                                            <th>Piloto</th>
+                                            <th>Carro (Lastro)</th>
+                                            <th class="text-center">Vitórias</th>
+                                            <th class="text-center">Pts</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for row in standings[grid] %}
+                                        <tr>
+                                            <td class="text-center fw-bold text-secondary">{{ loop.index }}</td>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    {% if row.piloto.foto_url %}
+                                                        <img src="{{ url_for('static', filename='uploads/' + row.piloto.foto_url) }}" class="rounded-circle me-2" width="30" height="30" style="object-fit: cover;">
+                                                    {% else %}
+                                                        <i class="fa-solid fa-circle-user text-secondary me-2 fa-lg"></i>
+                                                    {% endif %}
+                                                    <a href="{{ url_for('public.public_profile', pilot_id=row.piloto.id) }}" class="text-white text-decoration-none fw-bold">{{ row.piloto.nickname }}</a>
+                                                </div>
+                                            </td>
+                                            <td class="small text-white-50">{{ row.carro }}</td>
+                                            <td class="text-center text-muted">{{ row.vitorias }}</td>
+                                            <td class="text-center fw-bold text-warning">{{ row.pontos|int if row.pontos.is_integer() else row.pontos }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Construtores -->
+                    <div class="col-lg-4">
+                        <div class="card bg-dark border-silver shadow">
+                            <div class="card-header bg-dark border-secondary"><h5 class="text-white mb-0 fw-bold">Construtores</h5></div>
+                            <div class="table-responsive">
+                                <table class="table table-dark table-hover align-middle mb-0">
+                                    <thead>
+                                        <tr class="text-white-50 small">
+                                            <th class="text-center">Pos</th>
+                                            <th>Equipe</th>
+                                            <th class="text-center">Pts</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for row in constructors[grid] %}
+                                        <tr>
+                                            <td class="text-center fw-bold text-secondary">{{ loop.index }}</td>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    {% if row.equipe.logo_url %}
+                                                        <img src="{{ url_for('static', filename='uploads/' + row.equipe.logo_url) }}" class="me-2 rounded-circle" width="25" height="25">
+                                                    {% endif %}
+                                                    <a href="{{ url_for('public.team_profile', team_id=row.equipe.id) }}" class="text-white text-decoration-none small fw-bold">{{ row.equipe.nome }}</a>
+                                                </div>
+                                            </td>
+                                            <td class="text-center fw-bold text-info">{{ row.pontos|int if row.pontos.is_integer() else row.pontos }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- CONTEÚDO DA ABA: CALENDÁRIO (Novo) -->
+    <div class="tab-pane fade" id="calendar-content" role="tabpanel">
+        <ul class="nav nav-pills nav-fill mb-4" id="calTabs" role="tablist">
+            {% for grid in ['ELITE', 'ADVANCED', 'INITIAL'] %}
+            <li class="nav-item" role="presentation">
+                <button class="nav-link {% if loop.first %}active{% endif %} border border-secondary mx-1 fw-bold" 
+                        id="cal-tab-{{ grid }}" data-bs-toggle="pill" data-bs-target="#cal-content-{{ grid }}" type="button">{{ grid }}</button>
+            </li>
+            {% endfor %}
+        </ul>
+
+        <div class="tab-content">
+            {% for grid in ['ELITE', 'ADVANCED', 'INITIAL'] %}
+            <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="cal-content-{{ grid }}">
+                <div class="card bg-dark border-silver shadow">
+                    <div class="table-responsive">
+                        <table class="table table-dark table-hover align-middle mb-0">
+                            <thead>
+                                <tr class="text-white-50 small">
+                                    <th class="ps-4">Etapa</th>
+                                    <th>GP / Pista</th>
+                                    <th>Data</th>
+                                    <th class="text-center">Status</th>
+                                    <th class="text-end pe-4">Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for race in calendar[grid] %}
+                                <tr>
+                                    <td class="ps-4 text-secondary fw-bold">#{{ loop.index }}</td>
+                                    <td>
+                                        {% if race.status == 'Concluida' %}
+                                            <div role="button" data-bs-toggle="modal" data-bs-target="#modalRace{{ race.id }}">
+                                                <strong class="d-block text-info"><i class="fa-solid fa-magnifying-glass-plus me-1"></i> {{ race.nome_gp }}</strong>
+                                                <small class="text-white-50">{{ race.pista }}</small>
+                                            </div>
+                                        {% else %}
+                                            <strong class="d-block text-white">{{ race.nome_gp }}</strong>
+                                            <small class="text-white-50">{{ race.pista }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-white-50">{{ race.data_corrida.strftime('%d/%m') if race.data_corrida else 'TBA' }}</td>
+                                    <td class="text-center">
+                                        {% if race.status == 'Concluida' %}
+                                            <span class="badge bg-success">Concluída</span>
+                                        {% elif race.status == 'Agendada' %}
+                                            <span class="badge bg-secondary">Agendada</span>
+                                        {% else %}
+                                            <span class="badge bg-warning text-dark">Aberta</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end pe-4">
+                                        {% if race.status == 'Concluida' %}
+                                            <button class="btn btn-sm btn-info fw-bold text-dark" data-bs-toggle="modal" data-bs-target="#modalRace{{ race.id }}">
+                                                <i class="fa-solid fa-list"></i> Ver Súmula
+                                            </button>
+                                        {% else %}
+                                            <span class="text-muted small">-</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="5" class="text-center py-4 text-muted">Nenhuma corrida agendada.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            {% endfor %}
+        </div>
+    </div>
+
+</div>
+
+<!-- MODALS DE RESULTADOS (Movidos para fora das abas para evitar erros de sobreposição) -->
+{% for grid in ['ELITE', 'ADVANCED', 'INITIAL'] %}
+    {% for race in calendar[grid] %}
+                {% if race.status == 'Concluida' %}
+                <div class="modal fade" id="modalRace{{ race.id }}" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-lg modal-dialog-centered">
+                        <div class="modal-content bg-dark border-silver text-white">
+                            <div class="modal-header border-secondary">
+                                <h5 class="modal-title fw-bold"><i class="fa-solid fa-flag-checkered text-danger me-2"></i> Resultado: GP {{ race.nome_gp }}</h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body p-0">
+                                <table class="table table-dark table-striped mb-0 small">
+                                    <thead>
+                                        <tr class="text-warning">
+                                            <th class="ps-3">Pos</th>
+                                            <th>Piloto</th>
+                                            <th>Equipe</th>
+                                            <th class="text-center">Pts</th>
+                                            <th class="text-center">Extras</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for res in race.results|sort(attribute='posicao') %}
+                                        {% if not res.ausencia %}
+                                        <tr>
+                                            <td class="ps-3 fw-bold">
+                                                {% if res.dsq %} <span class="badge bg-danger">DSQ</span>
+                                                {% elif res.dnf %} <span class="badge bg-secondary">DNF</span>
+                                                {% else %} {{ res.posicao }}º {% endif %}
+                                            </td>
+                                            <td class="fw-bold">{{ res.pilot.nickname }}</td>
+                                            <td class="text-white-50">{{ res.team.nome if res.team else '-' }}</td>
+                                            <td class="text-center fw-bold text-info">{{ res.pontos_ganhos|int if res.pontos_ganhos.is_integer() else res.pontos_ganhos }}</td>
+                                            <td class="text-center">
+                                                {% if res.volta_rapida %}<span class="badge bg-primary me-1" title="Volta Rápida">VR</span>{% endif %}
+                                                {% if res.piloto_do_dia %}<span class="badge bg-warning text-dark" title="Piloto do Dia">DOTD</span>{% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endif %}
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+    {% endfor %}
+{% endfor %}
+
+{% endif %}
+
+<style>
+    /* Correção de cores das abas para o tema escuro */
+    .nav-tabs .nav-link.active {
+        background-color: #1E1E1E !important; /* Fundo escuro igual ao card */
+        color: #E60000 !important; /* Texto vermelho */
+        border-color: #6c757d #6c757d #1E1E1E !important;
+    }
+    .nav-pills .nav-link.active {
+        background-color: #E60000 !important; /* Fundo vermelho */
+        color: #fff !important;
+    }
+
+    /* Estilo do Card de Piloto */
+    .pilot-card {
+        border: 1px solid #C0C0C0;
+    }
+    
+    /* Efeito Hover: Crescer e Borda Dourada */
+    .pilot-card:hover {
+        transform: scale(1.1);
+        border-color: #D4AF37 !important; /* Dourado */
+        box-shadow: 0 10px 20px rgba(212, 175, 55, 0.3) !important;
+        z-index: 10;
+    }
+</style>
+{% endblock %}

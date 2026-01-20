@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="mb-4">
+    <h2 class="text-white fw-bold">Lançar Resultados: {{ race.nome_gp }}</h2>
+    <span class="badge bg-danger text-white">{{ race.grid }}</span>
+</div>
+
+<form method="POST">
+    
+    <div class="card shadow border-secondary mb-5">
+        <div class="card-header bg-dark border-secondary">
+            <h5 class="text-white fw-bold mb-0"><i class="fa-solid fa-user-check me-2"></i> PILOTOS TITULARES (Check-in Automático)</h5>
+        </div>
+        <div class="card-body bg-dark p-0">
+            <div class="table-responsive">
+                <table class="table table-dark table-hover mb-0 align-middle">
+                    <thead>
+                        <tr class="small text-white-50">
+                            <th>Piloto / Equipe</th>
+                            <th class="text-center">Status Check-in</th>
+                            <th class="text-center">Presença</th>
+                            <th class="text-center">Posição</th>
+                            <th class="text-center">Status</th>
+                            <th class="text-center">Bônus</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for piloto in titulares %}
+                        {% set registro = checkin_map.get(piloto.id) %}
+                        {% set status_inicial = 'PENDENTE' %}
+                        {% if registro %}{% set status_inicial = registro.status %}{% endif %}
+
+                        <tr>
+                            <td class="ps-4">
+                                <div class="d-flex align-items-center">
+                                    {% if piloto.foto_url %}
+                                        <img src="{{ url_for('static', filename='uploads/' + piloto.foto_url) }}" alt="Foto" width="42" height="42" class="me-3" style="object-fit: cover;">
+                                    {% else %}
+                                        <div class="me-3 bg-secondary d-flex align-items-center justify-content-center" style="width: 42px; height: 42px;">
+                                            <i class="fa-solid fa-user text-white-50"></i>
+                                        </div>
+                                    {% endif %}
+                                    <div>
+                                        <strong class="text-white d-block">{{ piloto.nickname }}</strong>
+                                        <small class="text-white-50">{{ piloto.team.nome }}</small>
+                                        <input type="hidden" name="titular_id" value="{{ piloto.id }}">
+                                    </div>
+                                </div>
+                            </td>
+                            
+                            <td class="text-center">
+                                {% if status_inicial == 'CONFIRMADO' %}
+                                    <span class="badge bg-success" title="Confirmou Presença"><i class="fa-solid fa-check"></i></span>
+                                {% elif status_inicial == 'JUSTIFICADO' %}
+                                    <span class="badge bg-warning text-dark" data-bs-toggle="tooltip" title="Motivo: {{ registro.justificativa }}">
+                                        <i class="fa-solid fa-comment-dots"></i> Justificou
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-secondary opacity-50">Sem Resposta</span>
+                                {% endif %}
+                            </td>
+
+                            <td class="text-center">
+                                <div class="btn-group" role="group">
+                                    <input type="radio" class="btn-check" name="status_{{ piloto.id }}" id="ok_{{ piloto.id }}" value="OK" 
+                                           {% if status_inicial == 'CONFIRMADO' or status_inicial == 'PENDENTE' %}checked{% endif %} 
+                                           onchange="toggleRow('{{ piloto.id }}', true)">
+                                    <label class="btn btn-outline-success btn-sm" for="ok_{{ piloto.id }}">OK</label>
+
+                                    <input type="radio" class="btn-check" name="status_{{ piloto.id }}" id="fj_{{ piloto.id }}" value="FJ" 
+                                           {% if status_inicial == 'JUSTIFICADO' %}checked{% endif %} 
+                                           onchange="toggleRow('{{ piloto.id }}', false)">
+                                    <label class="btn btn-outline-warning btn-sm" for="fj_{{ piloto.id }}">FJ</label>
+
+                                    <input type="radio" class="btn-check" name="status_{{ piloto.id }}" id="fnj_{{ piloto.id }}" value="FNJ" 
+                                           onchange="toggleRow('{{ piloto.id }}', false)">
+                                    <label class="btn btn-outline-danger btn-sm" for="fnj_{{ piloto.id }}">FNJ</label>
+                                </div>
+                            </td>
+                            
+                            <td class="text-center">
+                                <input type="number" name="pos_{{ piloto.id }}" id="pos_{{ piloto.id }}" class="form-control bg-secondary text-white border-0 text-center mx-auto" style="width: 70px;" min="0">
+                            </td>
+                            <td class="text-center">
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" name="dnf_{{ piloto.id }}" id="dnf_{{ piloto.id }}">
+                                    <label class="form-check-label text-white small" for="dnf_{{ piloto.id }}">DNF</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" name="dsq_{{ piloto.id }}" id="dsq_{{ piloto.id }}">
+                                    <label class="form-check-label text-danger small fw-bold" for="dsq_{{ piloto.id }}">DSQ</label>
+                                </div>
+                            </td>
+                            <td class="text-center">
+                                <div class="form-check form-check-inline" title="Volta Rápida (+1)">
+                                    <input class="form-check-input" type="checkbox" name="vr_{{ piloto.id }}">
+                                    <i class="fa-solid fa-stopwatch text-white"></i>
+                                </div>
+                                <div class="form-check form-check-inline" title="Piloto do Dia (+1)">
+                                    <input class="form-check-input" type="checkbox" name="dotd_{{ piloto.id }}">
+                                    <i class="fa-solid fa-star text-warning"></i>
+                                </div>
+                                <div class="form-check form-check-inline" title="Destaque da Live (+1)">
+                                    <input class="form-check-input" type="checkbox" name="fan_{{ piloto.id }}">
+                                    <i class="fa-solid fa-comment-dots text-light"></i>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow border-silver mb-4">
+        <div class="card-header bg-dark border-silver">
+            <h5 class="text-danger fw-bold mb-0"><i class="fa-solid fa-user-plus me-2"></i> ADICIONAR RESERVAS (Substitutos)</h5>
+        </div>
+        <div class="card-body bg-dark">
+            <div id="reserva-container">
+                {% for i in range(3) %}
+                <div class="row align-items-center mb-3 pb-3 border-bottom border-secondary">
+                    <div class="col-md-3">
+                        <label class="small text-white-50">Piloto Reserva</label>
+                        <select name="reserva_pilot" class="form-select bg-secondary text-white border-0">
+                            <option value="">-- Selecione --</option>
+                            {% for r in reservas %}
+                                <option value="{{ r.id }}">{{ r.nickname }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="small text-white-50">Equipe</label>
+                        <select name="reserva_team" class="form-select bg-secondary text-white border-0">
+                            <option value="">-- Selecione --</option>
+                            {% for t in equipes %}
+                                <option value="{{ t.id }}">{{ t.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-1">
+                        <label class="small text-white-50">Pos</label>
+                        <input type="number" name="reserva_pos" class="form-control bg-secondary text-white border-0 text-center" min="0">
+                    </div>
+                    
+                    <div class="col-md-3 text-center">
+                        <label class="small text-white-50 d-block">Status</label>
+                        <div class="pt-2">
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" name="reserva_dnf_{{ i }}" id="reserva_dnf_{{ i }}">
+                                <label class="form-check-label text-white small" for="reserva_dnf_{{ i }}">DNF</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" name="reserva_dsq_{{ i }}" id="reserva_dsq_{{ i }}">
+                                <label class="form-check-label text-danger small fw-bold" for="reserva_dsq_{{ i }}">DSQ</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3 text-center">
+                        <label class="small text-white-50 d-block">Bônus</label>
+                        <div class="pt-2">
+                            <div class="form-check form-check-inline" title="Volta Rápida (+1)">
+                                <input class="form-check-input" type="checkbox" name="reserva_vr_{{ i }}">
+                                <i class="fa-solid fa-stopwatch text-white"></i>
+                            </div>
+                            <div class="form-check form-check-inline" title="Piloto do Dia (+1)">
+                                <input class="form-check-input" type="checkbox" name="reserva_dotd_{{ i }}">
+                                <i class="fa-solid fa-star text-warning"></i>
+                            </div>
+                            <div class="form-check form-check-inline" title="Destaque da Live (+1)">
+                                <input class="form-check-input" type="checkbox" name="reserva_fan_{{ i }}">
+                                <i class="fa-solid fa-comment-dots text-light"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <p class="text-white-50 small">* Selecione o piloto reserva e a equipe que ele representou nesta corrida.</p>
+        </div>
+    </div>
+
+    <div class="d-grid pb-5">
+        <button type="submit" class="btn btn-red btn-lg fw-bold">SALVAR RESULTADOS</button>
+    </div>
+</form>
+
+<script>
+    function toggleRow(pid, enable) {
+        const posInput = document.getElementById('pos_' + pid);
+        const dnfInput = document.getElementById('dnf_' + pid);
+        const dsqInput = document.getElementById('dsq_' + pid);
+        
+        if (enable) {
+            posInput.disabled = false;
+            dnfInput.disabled = false;
+            dsqInput.disabled = false;
+            posInput.classList.remove('opacity-25');
+        } else {
+            posInput.value = '';
+            posInput.disabled = true;
+            dnfInput.disabled = true;
+            dsqInput.disabled = true;
+            dnfInput.checked = false;
+            dsqInput.checked = false;
+            posInput.classList.add('opacity-25');
+        }
+    }
+    // Ativa tooltips do Bootstrap (para mostrar justificativa)
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+      return new bootstrap.Tooltip(tooltipTriggerEl)
+    })
+</script>
+{% endblock %}

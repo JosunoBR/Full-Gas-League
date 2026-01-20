@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow border-secondary">
+            <div class="card-header bg-dark border-secondary d-flex justify-content-between align-items-center">
+                <h5 class="text-white mb-0">Grid Oficial: {{ race.nome_gp }}</h5>
+                <a href="{{ url_for('admin.manage_season', season_id=race.season_id) }}" class="btn btn-sm btn-outline-light">Voltar</a>
+            </div>
+            <div class="card-body bg-dark text-white">
+                
+                {% if not usar_lastro %}
+                    <div class="alert alert-info fw-bold text-center">
+                        <i class="fa-solid fa-flag-checkered"></i> ETAPA COM DESEMPENHO IGUAL (LIVRE/SORTEIO)
+                    </div>
+                {% else %}
+                    <div class="alert alert-warning fw-bold text-center">
+                        <i class="fa-solid fa-weight-hanging"></i> ETAPA COM LASTRO INVERTIDO
+                    </div>
+                {% endif %}
+
+                <label class="text-muted small mb-2">Texto para WhatsApp / Discord:</label>
+                <textarea id="gridContent" class="form-control bg-secondary text-white border-0 mb-3" rows="15" readonly>
+🏁 GRID OFICIAL - {{ race.nome_gp }} 🏁
+Categoria: {{ race.grid }}
+{% if usar_lastro %}⚠️ Lastro Invertido (Baseado na Classificação){% else %}🚀 Desempenho Igual (Sem Lastro){% endif %}
+
+{% for item in lista %}
+P{{ item.pos }} | {{ item.nickname }} ➡ {{ item.carro }}
+{% endfor %}
+
+www.fullgasracing.com
+</textarea>
+
+                <div class="d-grid">
+                    <button onclick="copyGrid()" class="btn btn-success fw-bold">
+                        <i class="fa-regular fa-copy"></i> COPIAR LISTA
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function copyGrid() {
+    var copyText = document.getElementById("gridContent");
+    copyText.select();
+    copyText.setSelectionRange(0, 99999); 
+    navigator.clipboard.writeText(copyText.value);
+    alert("Lista copiada para a área de transferência!");
+}
+</script>
+{% endblock %}

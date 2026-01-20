@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow border-danger">
+            <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
+                <h4 class="mb-0"><i class="fa-solid fa-gavel"></i> Abrir Protesto</h4>
+                <small>Direção de Prova</small>
+            </div>
+            <div class="card-body bg-dark text-white p-4">
+                
+                <div class="alert alert-warning border-0">
+                    <i class="fa-solid fa-triangle-exclamation"></i> 
+                    <strong>Regra de Ouro:</strong> Denúncias sem vídeo ou com vídeo privado serão automaticamente indeferidas.
+                </div>
+
+                <form method="POST">
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label text-warning">Qual foi a Corrida?</label>
+                            <select name="race_id" class="form-select bg-secondary text-white border-0" required>
+                                <option value="" selected disabled>Selecione a Etapa...</option>
+                                {% for r in races %}
+                                <option value="{{ r.id }}">
+                                    {{ r.data_corrida.strftime('%d/%m') if r.data_corrida else '' }} - {{ r.nome_gp }} ({{ r.grid }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-warning">Piloto Infrator</label>
+                            <select name="acusado_id" class="form-select bg-secondary text-white border-0" required>
+                                <option value="" selected disabled>Quem te prejudicou?</option>
+                                {% for p in pilots %}
+                                <option value="{{ p.id }}">{{ p.nickname }} ({{ p.nome_real }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Link do Vídeo (YouTube / Drive / Twitch)</label>
+                        <input type="url" name="video" class="form-control bg-secondary text-white border-0" placeholder="https://youtube.com/watch?v=..." required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Minuto do Incidente</label>
+                        <input type="text" name="minuto" class="form-control bg-secondary text-white border-0" placeholder="Ex: 15:30 ou Volta 12, Curva 4" required>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">Descrição do Ocorrido</label>
+                        <textarea name="descricao" class="form-control bg-secondary text-white border-0" rows="5" placeholder="Descreva detalhadamente o que aconteceu. Seja técnico e evite ofensas." required></textarea>
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('public.my_profile') }}" class="btn btn-outline-light">Cancelar</a>
+                        <button type="submit" class="btn btn-danger btn-lg fw-bold px-5">
+                            <i class="fa-solid fa-paper-plane"></i> ENVIAR DENÚNCIA
+                        </button>
+                    </div>
+
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

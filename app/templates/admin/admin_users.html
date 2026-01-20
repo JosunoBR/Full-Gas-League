@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="text-white"><i class="fa-solid fa-users-gear text-danger"></i> Gestão de Admins</h2>
+    <div>
+        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary me-2">Voltar</a>
+        <a href="{{ url_for('admin.create_admin') }}" class="btn btn-red fw-bold">
+            <i class="fa-solid fa-user-plus"></i> NOVO ADMIN
+        </a>
+    </div>
+</div>
+
+<div class="card shadow border-silver">
+    <div class="card-body bg-dark p-0">
+        <div class="table-responsive">
+            <table class="table table-dark table-hover mb-0 align-middle">
+                <thead>
+                    <tr class="text-white-50">
+                        <th class="ps-4">Usuário</th>
+                        <th>E-mail</th>
+                        <th>Nível</th>
+                        <th>Resetar Senha</th>
+                        <th class="text-end pe-4">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for admin in admins %}
+                    <tr>
+                        <td class="ps-4 fw-bold text-white">
+                            <i class="fa-solid fa-user-shield me-2 {% if admin.role == 'SUPER_ADM' %}text-danger{% else %}text-info{% endif %}"></i>
+                            {{ admin.username }}
+                        </td>
+                        <td class="text-white-50">{{ admin.email }}</td>
+                        <td>
+                            {% if admin.id == current_user.id or admin.username == 'Admin' %}
+                                {% if admin.role == 'SUPER_ADM' %}
+                                    <span class="badge bg-danger text-white">SUPER ADM</span>
+                                {% else %}
+                                    <span class="badge bg-info text-dark">ADM</span>
+                                {% endif %}
+                            {% else %}
+                                <form action="{{ url_for('admin.update_admin_role', user_id=admin.id) }}" method="POST">
+                                    <select name="role" class="form-select form-select-sm bg-dark text-white border-secondary" onchange="this.form.submit()">
+                                        <option value="ADM" {% if admin.role == 'ADM' %}selected{% endif %}>ADM</option>
+                                        <option value="SUPER_ADM" {% if admin.role == 'SUPER_ADM' %}selected{% endif %}>SUPER ADM</option>
+                                    </select>
+                                </form>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <form action="{{ url_for('admin.reset_admin_password', user_id=admin.id) }}" method="POST" class="d-flex align-items-center">
+                                <input type="text" name="new_password" class="form-control form-control-sm bg-secondary text-white border-0 me-2" placeholder="Nova Senha" style="width: 150px;">
+                                <button type="submit" class="btn btn-sm btn-outline-light" title="Salvar Nova Senha">
+                                    <i class="fa-solid fa-save"></i>
+                                </button>
+                            </form>
+                        </td>
+                        <td class="text-end pe-4">
+                            {% if admin.id == current_user.id %}
+                                <span class="text-muted small">Você</span>
+                            {% elif admin.username == 'Admin' %}
+                                <span class="text-white-50 small" title="Conta Principal Protegida"><i class="fa-solid fa-lock"></i></span>
+                            {% else %}
+                                <form action="{{ url_for('admin.delete_admin', user_id=admin.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Tem certeza que deseja excluir este administrador?');">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger border-0" title="Excluir Admin">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

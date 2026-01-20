@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center mb-5">
+    <div class="col-lg-10 text-center">
+        <h1 class="text-white fw-bold display-4 mb-3" style="font-family: 'Cinzel', serif;">TRANSPARÊNCIA & INTEGRIDADE</h1>
+        <p class="lead text-white-50">
+            Na Full Gas League, levamos o Fair Play a sério. Nosso sistema foi desenvolvido para garantir que 
+            regras, pontuações e punições sejam aplicadas com precisão matemática, eliminando erros humanos e parcialidade.
+        </p>
+    </div>
+</div>
+
+<!-- SEÇÃO 1: O SISTEMA CENTRAL -->
+<div class="row g-4 mb-5">
+    <div class="col-md-4">
+        <div class="card bg-dark border-silver h-100 shadow">
+            <div class="card-body text-center p-4">
+                <i class="fa-solid fa-robot fa-3x text-info mb-3"></i>
+                <h4 class="text-white fw-bold">Automação Total</h4>
+                <p class="text-white-50 small">
+                    A tabela de classificação não é feita em Excel. O sistema calcula automaticamente cada ponto, 
+                    vitória e critério de desempate baseando-se nos resultados inseridos. Isso garante 100% de precisão na matemática do campeonato.
+                </p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-dark border-silver h-100 shadow">
+            <div class="card-body text-center p-4">
+                <i class="fa-solid fa-scale-balanced fa-3x text-warning mb-3"></i>
+                <h4 class="text-white fw-bold">Lastro de Desempenho</h4>
+                <p class="text-white-50 small">
+                    Para equilibrar o grid, o sistema distribui os carros automaticamente. 
+                    Quem está liderando recebe carros de menor performance (ex: Haas), e quem está atrás recebe os melhores (ex: Red Bull). 
+                    Ninguém escolhe "na amizade", é mérito puro.
+                </p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-dark border-silver h-100 shadow">
+            <div class="card-body text-center p-4">
+                <i class="fa-solid fa-shield-halved fa-3x text-success mb-3"></i>
+                <h4 class="text-white fw-bold">Segurança de Dados</h4>
+                <p class="text-white-50 small">
+                    Todas as ações críticas ficam registradas. O histórico de corridas, punições e carreiras de pilotos 
+                    são armazenados em banco de dados seguro, permitindo auditoria e preservação da história da liga.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<hr class="border-secondary my-5">
+
+<!-- SEÇÃO 2: O TRIBUNAL E PUNIÇÕES -->
+<div class="row align-items-center mb-5">
+    <div class="col-lg-6">
+        <h2 class="text-danger fw-bold mb-3"><i class="fa-solid fa-gavel"></i> O Tribunal Digital</h2>
+        <p class="text-white">
+            Sabemos que incidentes acontecem. Por isso, desenvolvemos um fluxo de julgamento estruturado para garantir o direito de defesa e a imparcialidade.
+        </p>
+        <ul class="list-unstyled text-white-50 mt-3">
+            <li class="mb-3">
+                <i class="fa-solid fa-check-circle text-danger me-2"></i>
+                <strong>Direito de Defesa:</strong> Ao receber um protesto, o sistema notifica o piloto, que pode enviar sua versão e vídeo diretamente pela plataforma.
+            </li>
+            <li class="mb-3">
+                <i class="fa-solid fa-check-circle text-danger me-2"></i>
+                <strong>Votação dos Comissários:</strong> Os administradores analisam as evidências e votam no sistema.
+            </li>
+            <li class="mb-3">
+                <i class="fa-solid fa-check-circle text-danger me-2"></i>
+                <strong>Aplicação Automática:</strong> Assim que o veredito é fechado (Leve, Média ou Grave), o sistema desconta os pontos da CNH e da Corrida automaticamente. Não há "esquecimento".
+            </li>
+        </ul>
+    </div>
+    <div class="col-lg-6">
+        <div class="card bg-dark border-danger shadow">
+            <div class="card-header bg-danger text-white fw-bold text-center">
+                TABELA DE PUNIÇÕES PADRONIZADA
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-dark table-striped mb-0 text-center">
+                    <thead>
+                        <tr>
+                            <th>Gravidade</th>
+                            <th>Consequência</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="badge bg-warning text-dark">LEVE</span></td>
+                            <td>-3 Pontos na CNH</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge bg-orange text-white" style="background-color: #fd7e14;">MÉDIA</span></td>
+                            <td>-5 Pontos na CNH</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge bg-danger">GRAVE</span></td>
+                            <td>-10 Pontos na CNH</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge bg-secondary">W.O. (Falta)</span></td>
+                            <td>-5 Pontos (Automático)</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="card-footer bg-dark border-top border-secondary text-center">
+                <small class="text-white-50">
+                    <i class="fa-solid fa-triangle-exclamation text-warning me-1"></i>
+                    Se a CNH chegar a <strong>0 pontos</strong>, o sistema bloqueia automaticamente o piloto de realizar Check-in para corridas.
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="text-center mt-5">
+    <a href="{{ url_for('public.rules') }}" class="btn btn-outline-light px-4">Ler Regulamento Completo</a>
+    <a href="{{ url_for('public.register') }}" class="btn btn-red px-4 ms-3">Junte-se a Nós</a>
+</div>
+{% endblock %}

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h4 class="mb-0 fw-bold"><i class="fa-solid fa-shield-halved"></i> Sua Defesa é Necessária</h4>
+            </div>
+            <div class="card-body bg-dark text-white p-4">
+                
+                <div class="alert alert-secondary">
+                    <h5 class="alert-heading fw-bold">Detalhes da Ocorrência</h5>
+                    <p class="mb-1"><strong>Acusador:</strong> {{ protesto.acusador.nickname }}</p>
+                    <p class="mb-1"><strong>Etapa:</strong> {{ protesto.etapa.nome_gp }}</p>
+                    <p class="mb-1"><strong>Momento:</strong> {{ protesto.minuto }}</p>
+                    <hr>
+                    <p class="mb-0 fst-italic">"{{ protesto.descricao }}"</p>
+                </div>
+
+                <p class="text-danger small">
+                    * Você não tem acesso ao vídeo da acusação para garantir a integridade do seu relato.
+                    Envie a sua visão dos fatos.
+                </p>
+
+                <form method="POST">
+                    <div class="mb-3">
+                        <label class="form-label text-warning">Link do Seu Vídeo (Obrigatório)</label>
+                        <input type="url" name="video_defesa" class="form-control bg-secondary text-white border-warning" placeholder="YouTube / Twitch / Drive" required>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label text-warning">Seus Argumentos</label>
+                        <textarea name="argumento_defesa" class="form-control bg-secondary text-white border-warning" rows="5" placeholder="Explique o que aconteceu do seu ponto de vista..." required></textarea>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-warning btn-lg fw-bold">ENVIAR DEFESA E IR A JULGAMENTO</button>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

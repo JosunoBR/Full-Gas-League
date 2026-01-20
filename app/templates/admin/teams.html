@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="text-danger fw-bold mb-0">Gestão de Equipes</h2>
+    <a href="{{ url_for('admin.create_team') }}" class="btn btn-red fw-bold">
+        <i class="fa-solid fa-plus"></i> NOVA EQUIPE
+    </a>
+</div>
+
+<ul class="nav nav-pills justify-content-center mb-4" id="gridTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active fw-bold px-4" id="elite-tab" data-bs-toggle="pill" data-bs-target="#elite" type="button" role="tab">ELITE</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link fw-bold px-4" id="advanced-tab" data-bs-toggle="pill" data-bs-target="#advanced" type="button" role="tab">ADVANCED</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link fw-bold px-4" id="initial-tab" data-bs-toggle="pill" data-bs-target="#initial" type="button" role="tab">INITIAL</button>
+    </li>
+</ul>
+
+<div class="tab-content" id="gridTabsContent">
+    {% for grid in ['ELITE', 'ADVANCED', 'INITIAL'] %}
+    <div class="tab-pane fade {% if grid == 'ELITE' %}show active{% endif %}" id="{{ grid|lower }}" role="tabpanel">
+        <div class="card shadow border-silver">
+            <div class="card-body bg-dark p-0">
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover mb-0 align-middle">
+                        <thead>
+                            <tr class="text-white-50">
+                                <th class="ps-4">Status</th>
+                                <th>Equipe</th>
+                                <th>Pilotos Atuais</th>
+                                <th class="text-end pe-4">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for team in teams if team.grid == grid %}
+                            <tr class="{% if not team.ativa %}opacity-50{% endif %}">
+                                <td class="ps-4">
+                                    {% if team.ativa %}
+                                        <span class="badge bg-success">ATIVA</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">ARQUIVADA</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if team.logo_url %}
+                                    <img src="{{ url_for('static', filename='uploads/' + team.logo_url) }}" width="25" height="25" class="rounded-circle me-2" style="object-fit: cover;">
+                                    {% endif %}
+                                    <strong class="text-white">{{ team.nome }}</strong>
+                                </td>
+                                <td>
+                                    {% for p in team.pilots %}
+                                        <div class="d-inline-block me-2 mb-1">
+                                            {% if p.foto_url %}
+                                                <img src="{{ url_for('static', filename='uploads/' + p.foto_url) }}" width="20" height="20" class="rounded-circle me-1" style="object-fit: cover;">
+                                            {% endif %}
+                                            <span class="badge bg-secondary text-white border border-secondary">{{ p.nickname }}</span>
+                                        </div>
+                                    {% else %}
+                                        <span class="text-white-50 small">Vaga</span>
+                                    {% endfor %}
+                                </td>
+                                <td class="text-end pe-4">
+                                    <a href="{{ url_for('admin.edit_team', team_id=team.id) }}" class="btn btn-sm btn-outline-danger me-2" title="Editar / Reativar">
+                                        <i class="fa-solid fa-pen"></i>
+                                    </a>
+                                    {% if current_user.role == 'SUPER_ADM' %}
+                                    <form action="{{ url_for('admin.delete_team', team_id=team.id) }}" method="POST" class="d-inline" onsubmit="return confirm('ATENÇÃO: Isso excluirá a equipe permanentemente do banco de dados. Prefira apenas ARQUIVAR se quiser manter histórico. Continuar?');">
+                                        <button class="btn btn-sm btn-outline-danger border-0" title="Excluir Definitivamente"><i class="fa-solid fa-trash"></i></button>
+                                    </form>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center py-4 text-muted">Nenhuma equipe cadastrada neste grid.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<style>
+    .nav-pills .nav-link { color: #aaa; transition: all 0.3s ease; }
+    .nav-pills .nav-link:hover { color: #fff; }
+    .nav-pills .nav-link.active { background-color: #E60000; color: #fff; }
+</style>
+{% endblock %}

@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card bg-dark border-silver shadow">
+            <div class="card-header border-secondary">
+                <h4 class="text-white fw-bold mb-0"><i class="fa-solid fa-pen-nib text-danger me-2"></i> Publicar Notícia</h4>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST" enctype="multipart/form-data">
+                    
+                    <div class="mb-3">
+                        <label class="form-label text-white-50 small fw-bold">TÍTULO DA MANCHETE</label>
+                        <input type="text" class="form-control bg-dark text-white border-secondary" name="titulo" required maxlength="150">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-white-50 small fw-bold">SUBTÍTULO (RESUMO)</label>
+                        <input type="text" class="form-control bg-dark text-white border-secondary" name="subtitulo" maxlength="300">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-white-50 small fw-bold">IMAGEM DE CAPA (BANNER)</label>
+                        <input type="file" class="form-control bg-dark text-white border-secondary" name="foto" accept="image/*">
+                        <div class="form-text text-white-50 small">Recomendado: 1200x400px (Formato paisagem).</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label text-white-50 small fw-bold">CONTEÚDO DA NOTÍCIA</label>
+                        <textarea class="form-control bg-dark text-white border-secondary" name="texto" rows="6" required></textarea>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('admin.list_news') }}" class="btn btn-outline-secondary">Cancelar</a>
+                        <button type="submit" class="btn btn-red fw-bold px-4">PUBLICAR AGORA</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

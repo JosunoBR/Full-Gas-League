@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center align-items-center" style="min-height: 60vh;">
+    <div class="col-md-6 col-lg-5">
+        <div class="card bg-dark border-silver shadow">
+            <div class="card-header border-secondary text-center py-3">
+                <h4 class="text-white fw-bold mb-0" style="font-family: 'Cinzel', serif;">
+                    <i class="fa-solid fa-user-plus text-danger me-2"></i>REGISTRO
+                </h4>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST" action="{{ url_for('public.register') }}">
+                    
+                    <div class="mb-3">
+                        <label for="token" class="form-label text-white-50 small fw-bold">CÓDIGO DE CONVITE (TOKEN)</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-dark border-secondary text-white-50"><i class="fa-solid fa-key"></i></span>
+                            <input type="text" class="form-control bg-dark text-white border-secondary" id="token" name="token" placeholder="Ex: A1B2C3" required>
+                        </div>
+                        <div class="form-text text-white-50 small">Solicite seu token à administração.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="nickname" class="form-label text-white-50 small fw-bold">NICKNAME (PILOTO)</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-dark border-secondary text-white-50"><i class="fa-solid fa-helmet-safety"></i></span>
+                            <input type="text" class="form-control bg-dark text-white border-secondary" id="nickname" name="nickname" placeholder="Seu nome na pista" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="telefone" class="form-label text-white-50 small fw-bold">TELEFONE (WHATSAPP)</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-dark border-secondary text-white-50"><i class="fa-solid fa-phone"></i></span>
+                            <input type="text" class="form-control bg-dark text-white border-secondary" id="telefone" name="telefone" placeholder="(00) 00000-0000" oninput="maskPhone(this)" maxlength="15">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="email" class="form-label text-white-50 small fw-bold">E-MAIL</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-dark border-secondary text-white-50"><i class="fa-solid fa-envelope"></i></span>
+                            <input type="email" class="form-control bg-dark text-white border-secondary" id="email" name="email" placeholder="seu@email.com" required>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="password" class="form-label text-white-50 small fw-bold">SENHA</label>
+                            <input type="password" class="form-control bg-dark text-white border-secondary" id="password" name="password" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="confirm_password" class="form-label text-white-50 small fw-bold">CONFIRMAR</label>
+                            <input type="password" class="form-control bg-dark text-white border-secondary" id="confirm_password" name="confirm_password" required>
+                        </div>
+                    </div>
+
+                    <div class="d-grid mt-4">
+                        <button type="submit" class="btn btn-red fw-bold py-2">CRIAR CONTA</button>
+                    </div>
+                </form>
+            </div>
+            <div class="card-footer bg-dark border-secondary text-center py-3">
+                <small class="text-white-50">Já possui cadastro? <a href="{{ url_for('public.login') }}" class="text-danger text-decoration-none fw-bold">Fazer Login</a></small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

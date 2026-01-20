@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="text-white fw-bold" style="font-family: 'Cinzel', serif;">TEMPORADAS</h2>
+    <button class="btn btn-warning fw-bold text-dark" data-bs-toggle="modal" data-bs-target="#newSeasonModal">
+        <i class="fa-solid fa-plus me-2"></i> NOVA TEMPORADA
+    </button>
+</div>
+
+<div class="row g-4">
+    {% for s in seasons %}
+    <div class="col-md-6 col-lg-4">
+        <div class="card h-100 bg-dark border {% if s.ativa %}border-success{% else %}border-secondary{% endif %} shadow">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h4 class="card-title text-white fw-bold mb-0">{{ s.nome }}</h4>
+                    {% if s.ativa %}
+                        <span class="badge bg-success text-white">ATIVA</span>
+                    {% else %}
+                        <span class="badge bg-secondary text-white-50">ENCERRADA</span>
+                    {% endif %}
+                </div>
+                
+                <p class="card-text text-white-50 small">
+                    <i class="fa-regular fa-calendar me-2"></i>Início: {{ s.data_inicio.strftime('%d/%m/%Y') }}
+                </p>
+                
+                <div class="d-grid mt-4">
+                    <a href="{{ url_for('admin.manage_season', season_id=s.id) }}" class="btn btn-outline-light fw-bold">
+                        GERENCIAR CALENDÁRIO
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-12">
+        <div class="alert alert-dark border-secondary text-white-50 text-center">
+            Nenhuma temporada criada.
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="modal fade" id="newSeasonModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark border-warning">
+            <div class="modal-header border-warning">
+                <h5 class="modal-title text-white fw-bold">Nova Temporada</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('admin.create_season') }}" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label text-white">Nome da Temporada</label>
+                        <input type="text" name="nome" class="form-control bg-secondary text-white border-0" placeholder="Ex: Season 2 2026" required>
+                    </div>
+                </div>
+                <div class="modal-footer border-warning">
+                    <button type="button" class="btn btn-secondary text-white" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-warning fw-bold text-dark">CRIAR</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

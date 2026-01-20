@@ -1,0 +1,337 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="row mb-5 text-center">
+    <div class="col-12">
+        <h1 class="display-4 fw-bold text-white" style="font-family: 'Cinzel', serif;">
+            REGULAMENTO <span class="text-warning">OFICIAL</span>
+        </h1>
+        <p class="lead text-white-50">Diretrizes e Normas da Temporada 2 | Full Gas Racing</p>
+        <div class="mx-auto mt-3" style="width: 100px; height: 3px; background-color: #D4AF37; box-shadow: 0 0 10px #D4AF37;"></div>
+    </div>
+</div>
+
+<div class="row justify-content-center mb-5">
+    <div class="col-md-10">
+        
+        <div class="accordion shadow-lg" id="accordionRegulamento">
+
+            <div class="accordion-item bg-dark border-secondary">
+                <h2 class="accordion-header" id="headingOne">
+                    <button class="accordion-button bg-dark text-white fw-bold collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne">
+                        <i class="fa-solid fa-flag-checkered text-warning me-3"></i> 1. Formato do Campeonato
+                    </button>
+                </h2>
+                <div id="collapseOne" class="accordion-collapse collapse" data-bs-parent="#accordionRegulamento">
+                    <div class="accordion-body text-white-50 border-top border-secondary">
+                        <ul class="list-unstyled mb-0">
+                            <li class="mb-3"><i class="fa-solid fa-calendar-days text-warning me-2"></i> <strong>Estrutura:</strong> O campeonato terá 10 etapas oficiais.</li>
+                            <li class="mb-3"><i class="fa-solid fa-clock text-warning me-2"></i> <strong>Duração:</strong> Corridas com 50% da distância real.</li>
+                            <li class="mb-3"><i class="fa-solid fa-stopwatch text-warning me-2"></i> <strong>Qualificação:</strong> 18 minutos (Sessão Curta).</li>
+                            <li class="mb-3"><i class="fa-solid fa-cloud-sun-rain text-warning me-2"></i> <strong>Clima/Horário:</strong> Dinâmico e Realista.</li>
+                            <li class="mb-3"><i class="fa-solid fa-wrench text-warning me-2"></i> <strong>Assistências:</strong> Todas liberadas, exceto entrada/saída automática dos boxes.</li>
+                            <li class="mb-3"><i class="fa-solid fa-car-burst text-warning me-2"></i> <strong>Danos:</strong> Padrão.</li>
+                            <li class="mb-0"><i class="fa-solid fa-users text-warning me-2"></i> <strong>Quórum Mínimo:</strong> Mínimo de 13 pilotos. Caso contrário, a etapa é adiada para o final da temporada.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="accordion-item bg-dark border-secondary">
+                <h2 class="accordion-header" id="headingTwo">
+                    <button class="accordion-button bg-dark text-white fw-bold collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo">
+                        <i class="fa-solid fa-star text-info me-3"></i> 2. Etapas Especiais & Surpresas
+                    </button>
+                </h2>
+                <div id="collapseTwo" class="accordion-collapse collapse" data-bs-parent="#accordionRegulamento">
+                    <div class="accordion-body text-white-50 border-top border-secondary">
+                        
+                        <div class="p-3 mb-3 rounded bg-dark border border-info text-info">
+                            <i class="fa-solid fa-circle-info me-2"></i> O campeonato contará com 2 etapas especiais.
+                        </div>
+                        
+                        <h6 class="text-white fw-bold mt-4"><i class="fa-solid fa-layer-group text-white-50"></i> Etapa de 3 Compostos Obrigatórios</h6>
+                        <p class="small">Uso obrigatório de pneus <strong>Macios, Médios e Duros</strong> na corrida. O descumprimento acarreta em <span class="text-danger fw-bold">DESCLASSIFICAÇÃO</span>.</p>
+                        
+                        <hr class="border-secondary">
+
+                        <h6 class="text-white fw-bold"><i class="fa-solid fa-bolt text-warning"></i> Etapa Sprint</h6>
+                        <ul class="small mb-3">
+                            <li><strong>Qualificação:</strong> Apenas 1 volta lançada.</li>
+                            <li><strong>Corrida Sprint:</strong> 25% de duração e 50% da pontuação.</li>
+                            <li><strong>Grid Principal:</strong> Resultado da Sprint <strong>INVERTIDO</strong> (Vencedor larga em último).</li>
+                            <li><strong>Abandonos na Sprint:</strong> Largam nas últimas posições da Principal (atrás do vencedor da Sprint).</li>
+                        </ul>
+
+                        <hr class="border-secondary">
+
+                        <h6 class="text-white fw-bold"><i class="fa-solid fa-flag-checkered text-success"></i> Última Etapa (Final)</h6>
+                        <p class="small mb-0">Pontuação Dobrada, Grid Invertido (baseado no campeonato), Sem Classificação e Desempenho Igual.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="accordion-item bg-dark border-secondary">
+                <h2 class="accordion-header" id="headingThree">
+                    <button class="accordion-button bg-dark text-white fw-bold collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree">
+                        <i class="fa-solid fa-list-ol text-success me-3"></i> 3. Sistema de Pontuação
+                    </button>
+                </h2>
+                <div id="collapseThree" class="accordion-collapse collapse" data-bs-parent="#accordionRegulamento">
+                    <div class="accordion-body text-white-50 border-top border-secondary">
+                        <p class="small">Todos os pilotos que completarem a corrida recebem pontos (P1 ao P20). Pilotos "Não Classificados" (NC/DNF) não pontuam.</p>
+                        
+                        <div class="table-responsive">
+                            <table class="table table-dark table-bordered border-secondary text-center align-middle">
+                                <thead>
+                                    <tr class="text-warning">
+                                        <th>Posição</th>
+                                        <th>Pontos</th>
+                                        <th>Posição</th>
+                                        <th>Pontos</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td class="fw-bold text-white">1º (P1)</td> <td class="text-success fw-bold">35</td>
+                                        <td class="text-white-50">11º (P11)</td> <td class="text-white-50">10</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-bold text-white">2º (P2)</td> <td class="text-success fw-bold">30</td>
+                                        <td class="text-white-50">12º (P12)</td> <td class="text-white-50">9</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-bold text-white">3º (P3)</td> <td class="text-success fw-bold">27</td>
+                                        <td class="text-white-50">13º (P13)</td> <td class="text-white-50">8</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-bold text-white">4º (P4)</td> <td class="text-white">24</td>
+                                        <td class="text-white-50">14º (P14)</td> <td class="text-white-50">7</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-bold text-white">5º (P5)</td> <td class="text-white">22</td>
+                                        <td class="text-white-50">15º (P15)</td> <td class="text-white-50">6</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-bold text-white">6º (P6)</td> <td class="text-white">20</td>
+                                        <td class="text-white-50">16º (P16)</td> <td class="text-white-50">5</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-bold text-white">7º (P7)</td> <td class="text-white">18</td>
+                                        <td class="text-white-50">17º (P17)</td> <td class="text-white-50">4</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-bold text-white">8º (P8)</td> <td class="text-white">16</td>
+                                        <td class="text-white-50">18º (P18)</td> <td class="text-white-50">3</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-bold text-white">9º (P9)</td> <td class="text-white">14</td>
+                                        <td class="text-white-50">19º (P19)</td> <td class="text-white-50">2</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-bold text-white">10º (P10)</td> <td class="text-white">12</td>
+                                        <td class="text-white-50">20º (P20)</td> <td class="text-white-50">1</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="row g-2 mt-2">
+                            <div class="col-md-4">
+                                <div class="p-2 border border-secondary bg-dark text-center rounded">
+                                    <small class="d-block text-white-50">Volta Rápida</small>
+                                    <strong class="text-warning">+1 Ponto</strong>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="p-2 border border-secondary bg-dark text-center rounded">
+                                    <small class="d-block text-white-50">Piloto do Dia</small>
+                                    <strong class="text-warning">+1 Ponto</strong>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="p-2 border border-secondary bg-dark text-center rounded">
+                                    <small class="d-block text-white-50">Piloto da Torcida</small>
+                                    <strong class="text-warning">+1 Ponto</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="accordion-item bg-dark border-secondary">
+                <h2 class="accordion-header" id="headingFour">
+                    <button class="accordion-button bg-dark text-white fw-bold collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFour">
+                        <i class="fa-solid fa-scale-unbalanced text-danger me-3"></i> 4. Lastro Invertido
+                    </button>
+                </h2>
+                <div id="collapseFour" class="accordion-collapse collapse" data-bs-parent="#accordionRegulamento">
+                    <div class="accordion-body text-white-50 border-top border-secondary">
+                        <p class="small">Para equilibrar o grid, utilizamos Lastro Invertido da Etapa 2 até a 9. Os líderes usam os carros mais lentos.</p>
+                        
+                        <ul class="list-group list-group-flush bg-dark">
+                            <li class="list-group-item bg-dark text-white border-secondary d-flex justify-content-between">
+                                <span>1º e 2º Colocados</span> <span class="badge bg-success border border-white text-white">Sauber</span>
+                            </li>
+                            <li class="list-group-item bg-dark text-white border-secondary d-flex justify-content-between">
+                                <span>3º e 4º Colocados</span> <span class="badge bg-white text-dark border border-secondary">Haas</span>
+                            </li>
+                            <li class="list-group-item bg-dark text-white border-secondary d-flex justify-content-between">
+                                <span>5º e 6º Colocados</span> <span class="badge bg-primary text-white border border-white">Alpine</span>
+                            </li>
+                            <li class="list-group-item bg-dark text-white border-secondary d-flex justify-content-between">
+                                <span>7º e 8º Colocados</span> <span class="badge bg-primary text-white border border-white">Racing Bulls</span>
+                            </li>
+                            <li class="list-group-item bg-dark text-white border-secondary d-flex justify-content-between">
+                                <span>9º e 10º Colocados</span> <span class="badge bg-primary text-white border border-white">Williams</span>
+                            </li>
+                            <li class="list-group-item bg-dark text-white border-secondary d-flex justify-content-between">
+                                <span>11º e 12º Colocados</span> <span class="badge bg-success text-white border border-white">Aston Martin</span>
+                            </li>
+                            <li class="list-group-item bg-dark text-white border-secondary d-flex justify-content-between">
+                                <span>13º e 14º Colocados</span> <span class="badge bg-danger text-white border border-white">Ferrari</span>
+                            </li>
+                            <li class="list-group-item bg-dark text-white border-secondary d-flex justify-content-between">
+                                <span>15º e 16º Colocados</span> <span class="badge bg-secondary text-white border border-white">Mercedes</span>
+                            </li>
+                            <li class="list-group-item bg-dark text-white border-secondary d-flex justify-content-between">
+                                <span>17º e 18º Colocados</span> <span class="badge bg-primary text-white border border-white">Red Bull</span>
+                            </li>
+                            <li class="list-group-item bg-dark text-white border-secondary d-flex justify-content-between">
+                                <span>19º e 20º Colocados</span> <span class="badge bg-warning text-dark border border-white">McLaren</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="accordion-item bg-dark border-secondary">
+                <h2 class="accordion-header" id="headingFive">
+                    <button class="accordion-button bg-dark text-white fw-bold collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFive">
+                        <i class="fa-solid fa-gavel text-warning me-3"></i> 5. Punições e CNH
+                    </button>
+                </h2>
+                <div id="collapseFive" class="accordion-collapse collapse" data-bs-parent="#accordionRegulamento">
+                    <div class="accordion-body text-white-50 border-top border-secondary">
+                        
+                        <div class="p-3 mb-3 rounded bg-dark border border-danger text-danger">
+                            <i class="fa-solid fa-video me-2"></i> <strong>GRAVAÇÃO OBRIGATÓRIA:</strong> O piloto deve gravar sua própria visão (POV) da corrida. Falhar em apresentar vídeo quando solicitado gera Advertência.
+                        </div>
+
+                        <p class="small">O piloto inicia com <strong>25 Pontos na CNH</strong>. Zerar a CNH resulta em desclassificação.</p>
+
+                        <table class="table table-dark table-bordered border-secondary mb-3 align-middle">
+                            <thead>
+                                <tr class="text-warning text-center">
+                                    <th>Infração</th>
+                                    <th>Penalidade (Tabela)</th>
+                                    <th>Penalidade (CNH)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong class="text-white">Lance de Corrida</strong></td>
+                                    <td class="text-white-50 text-center">-</td>
+                                    <td class="text-white-50 text-center">-</td>
+                                </tr>
+                                <tr>
+                                    <td><strong class="text-info">Advertência</strong><br><small>Manobra perigosa sem contato.</small></td>
+                                    <td class="text-white-50 text-center">Aviso Verbal</td>
+                                    <td class="text-white-50 text-center">3 adv = Punição Leve</td>
+                                </tr>
+                                <tr>
+                                    <td><strong class="text-warning">Punição Leve</strong><br><small>Rodar adversário sem dano físico.</small></td>
+                                    <td class="text-danger text-center fw-bold">-3 Pts</td>
+                                    <td class="text-danger text-center fw-bold">-3 Pts</td>
+                                </tr>
+                                <tr>
+                                    <td><strong class="text-danger">Punição Média</strong><br><small>Causar danos ao carro adversário.</small></td>
+                                    <td class="text-danger text-center fw-bold">-5 Pts + Qualy Ban</td>
+                                    <td class="text-danger text-center fw-bold">-5 Pts</td>
+                                </tr>
+                                <tr>
+                                    <td><strong class="text-danger">Punição Grave</strong><br><small>Causar abandono (DNF) a outro.</small></td>
+                                    <td class="text-danger text-center fw-bold">-10 Pts + Qualy Ban</td>
+                                    <td class="text-danger text-center fw-bold">-10 Pts</td>
+                                </tr>
+                                <tr>
+                                    <td><strong class="text-white">Falta Sem Justificativa</strong></td>
+                                    <td class="text-danger text-center fw-bold">Qualy Ban</td>
+                                    <td class="text-danger text-center fw-bold">-2 Pts</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="accordion-item bg-dark border-secondary">
+                <h2 class="accordion-header" id="headingSix">
+                    <button class="accordion-button bg-dark text-white fw-bold collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSix">
+                        <i class="fa-solid fa-handshake text-info me-3"></i> 6. Reservas e Diversos
+                    </button>
+                </h2>
+                <div id="collapseSix" class="accordion-collapse collapse" data-bs-parent="#accordionRegulamento">
+                    <div class="accordion-body text-white-50 border-top border-secondary">
+                        <h6 class="text-white fw-bold">Pilotos Reservas</h6>
+                        <p class="small">Pilotos podem ser reservas no grid SUPERIOR ao seu (Ex: Advanced corre no Elite).
+                        <br>Taxa de inscrição para reserva: <strong>R$ 10,00</strong>.
+                        <br>Haverá premiação exclusiva (medalha) para o melhor reserva.</p>
+                        
+                        <h6 class="text-white fw-bold mt-3">Comunicação</h6>
+                        <p class="small">É proibido estar em chamada (party/discord) com pilotos de outras equipes durante a corrida. Proibido discutir incidentes no grupo geral.</p>
+
+                        <h6 class="text-white fw-bold mt-3">Direitos de Imagem</h6>
+                        <p class="small mb-0">Ao se inscrever, o piloto cede os direitos de imagem para uso em transmissões e divulgação da Full Gas Racing.</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="text-center mt-5">
+            <p class="text-white-50 small fst-italic">"A FULL GAS RACING preza pelo respeito, competitividade e diversão acima de tudo."</p>
+            <p class="text-white-50 small">Regulamento sujeito a alterações pela diretoria visando o equilíbrio da liga.</p>
+            
+            {% if not current_user.is_authenticated %}
+            <a href="{{ url_for('auth.register') }}" class="btn btn-gold fw-bold px-5 py-3 mt-3 shadow-lg">
+                <i class="fa-solid fa-pen-nib me-2"></i> CONCORDO E QUERO ME INSCREVER
+            </a>
+            {% endif %}
+        </div>
+
+    </div>
+</div>
+
+<style>
+    /* Estilização Manual do Accordion para o Tema Carbon */
+    .accordion-item {
+        background-color: #1E1E1E !important;
+    }
+    .accordion-button {
+        background-color: #121212 !important;
+        color: #fff !important;
+        border-bottom: 1px solid #333;
+    }
+    /* Quando o item está aberto */
+    .accordion-button:not(.collapsed) {
+        background-color: #333 !important;
+        color: #D4AF37 !important; /* Texto Dourado */
+        box-shadow: inset 0 -1px 0 rgba(0,0,0,.125);
+    }
+    /* Ícone da seta (Accordion) */
+    .accordion-button::after {
+        filter: invert(1) grayscale(100%) brightness(200%); /* Deixa a seta branca */
+    }
+    .accordion-button:not(.collapsed)::after {
+        filter: invert(50%) sepia(100%) saturate(500%) hue-rotate(0deg) brightness(90%) contrast(90%); /* Tenta deixar dourado */
+    }
+    .accordion-button:focus {
+        box-shadow: none;
+        border-color: #D4AF37;
+    }
+</style>
+
+{% endblock %}
