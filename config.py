@@ -1,10 +1,16 @@
 import os
 
+# Pega o caminho absoluto da pasta onde este arquivo (config.py) está
 basedir = os.path.abspath(os.path.dirname(__file__))
 
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'chave-super-secreta-fullgas-2026'
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///' + os.path.join(basedir, 'f1_league.db')
+    
+    # No SQLite, o prefixo 'sqlite:///' seguido de um caminho absoluto (que começa com / no Linux) 
+    # resulta nas 4 barras necessárias para o PythonAnywhere.
+    db_path = os.path.join(basedir, 'f1_league.db')
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or f'sqlite:///{db_path}'
+
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # --- CONFIGURAÇÃO DE UPLOAD ---

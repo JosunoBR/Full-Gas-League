@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <nav aria-label="breadcrumb" class="mb-4">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('public.home') }}" class="text-danger text-decoration-none">Home</a></li>
+                    <li class="breadcrumb-item active text-white-50" aria-current="page">Notícia</li>
+                </ol>
+            </nav>
+
+            <div class="card bg-dark border-silver shadow-lg overflow-hidden">
+                {% if noticia.imagem_url %}
+                    <img src="{{ url_for('static', filename='uploads/' + noticia.imagem_url) }}" class="img-fluid w-100" style="max-height: 500px; object-fit: cover;" alt="{{ noticia.titulo }}">
+                {% endif %}
+                
+                <div class="card-body p-4 p-md-5">
+                    <h1 class="text-white fw-bold mb-3">{{ noticia.titulo }}</h1>
+                    <p class="lead text-white-50 mb-4">{{ noticia.subtitulo }}</p>
+                    
+                    <div class="d-flex align-items-center mb-4 pb-4 border-bottom border-secondary">
+                        <div class="bg-danger rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
+                            <i class="fa-solid fa-user text-white"></i>
+                        </div>
+                        <div>
+                            <span class="text-white d-block fw-bold">Direção de Prova</span>
+                            <small class="text-white-50">{{ noticia.data_publicacao.strftime('%d/%m/%Y') }}</small>
+                        </div>
+                    </div>
+
+                    <div class="text-white news-content" style="line-height: 1.8; font-size: 1.1rem; white-space: pre-wrap;">
+                        {{ noticia.texto }}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="text-center mt-5">
+                <a href="{{ url_for('public.home') }}" class="btn btn-outline-light">
+                    <i class="fa-solid fa-arrow-left me-2"></i> Voltar para Home
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .news-content { color: #e0e0e0; }
+</style>
+{% endblock %}

@@ -28,8 +28,14 @@
                     <tbody>
                         {% for piloto in titulares %}
                         {% set registro = checkin_map.get(piloto.id) %}
+                        {% set resultado = results_map.get(piloto.id) %}
+                        
                         {% set status_inicial = 'PENDENTE' %}
                         {% if registro %}{% set status_inicial = registro.status %}{% endif %}
+                        
+                        {# Se já existe resultado, o status de presença vem do resultado gravado #}
+                        {% set presenca_final = status_inicial %}
+                        {% if resultado %}{% set presenca_final = resultado.ausencia if resultado.ausencia else 'OK' %}{% endif %}
 
                         <tr>
                             <td class="ps-4">
@@ -64,45 +70,46 @@
                             <td class="text-center">
                                 <div class="btn-group" role="group">
                                     <input type="radio" class="btn-check" name="status_{{ piloto.id }}" id="ok_{{ piloto.id }}" value="OK" 
-                                           {% if status_inicial == 'CONFIRMADO' or status_inicial == 'PENDENTE' %}checked{% endif %} 
+                                           {% if presenca_final == 'OK' or presenca_final == 'CONFIRMADO' or presenca_final == 'PENDENTE' %}checked{% endif %} 
                                            onchange="toggleRow('{{ piloto.id }}', true)">
                                     <label class="btn btn-outline-success btn-sm" for="ok_{{ piloto.id }}">OK</label>
 
                                     <input type="radio" class="btn-check" name="status_{{ piloto.id }}" id="fj_{{ piloto.id }}" value="FJ" 
-                                           {% if status_inicial == 'JUSTIFICADO' %}checked{% endif %} 
+                                           {% if presenca_final == 'FJ' or presenca_final == 'JUSTIFICADO' %}checked{% endif %} 
                                            onchange="toggleRow('{{ piloto.id }}', false)">
                                     <label class="btn btn-outline-warning btn-sm" for="fj_{{ piloto.id }}">FJ</label>
 
                                     <input type="radio" class="btn-check" name="status_{{ piloto.id }}" id="fnj_{{ piloto.id }}" value="FNJ" 
+                                           {% if presenca_final == 'FNJ' %}checked{% endif %}
                                            onchange="toggleRow('{{ piloto.id }}', false)">
                                     <label class="btn btn-outline-danger btn-sm" for="fnj_{{ piloto.id }}">FNJ</label>
                                 </div>
                             </td>
                             
                             <td class="text-center">
-                                <input type="number" name="pos_{{ piloto.id }}" id="pos_{{ piloto.id }}" class="form-control bg-secondary text-white border-0 text-center mx-auto" style="width: 70px;" min="0">
+                                <input type="number" name="pos_{{ piloto.id }}" id="pos_{{ piloto.id }}" class="form-control bg-secondary text-white border-0 text-center mx-auto {% if presenca_final != 'OK' and presenca_final != 'CONFIRMADO' and presenca_final != 'PENDENTE' %}opacity-25{% endif %}" style="width: 70px;" min="0" value="{{ resultado.posicao if resultado and resultado.posicao > 0 else '' }}" {% if presenca_final != 'OK' and presenca_final != 'CONFIRMADO' and presenca_final != 'PENDENTE' %}disabled{% endif %}>
                             </td>
                             <td class="text-center">
                                 <div class="form-check form-check-inline">
-                                    <input class="form-check-input" type="checkbox" name="dnf_{{ piloto.id }}" id="dnf_{{ piloto.id }}">
+                                    <input class="form-check-input" type="checkbox" name="dnf_{{ piloto.id }}" id="dnf_{{ piloto.id }}" {% if resultado and resultado.dnf %}checked{% endif %} {% if presenca_final != 'OK' and presenca_final != 'CONFIRMADO' and presenca_final != 'PENDENTE' %}disabled{% endif %}>
                                     <label class="form-check-label text-white small" for="dnf_{{ piloto.id }}">DNF</label>
                                 </div>
                                 <div class="form-check form-check-inline">
-                                    <input class="form-check-input" type="checkbox" name="dsq_{{ piloto.id }}" id="dsq_{{ piloto.id }}">
+                                    <input class="form-check-input" type="checkbox" name="dsq_{{ piloto.id }}" id="dsq_{{ piloto.id }}" {% if resultado and resultado.dsq %}checked{% endif %} {% if presenca_final != 'OK' and presenca_final != 'CONFIRMADO' and presenca_final != 'PENDENTE' %}disabled{% endif %}>
                                     <label class="form-check-label text-danger small fw-bold" for="dsq_{{ piloto.id }}">DSQ</label>
                                 </div>
                             </td>
                             <td class="text-center">
                                 <div class="form-check form-check-inline" title="Volta Rápida (+1)">
-                                    <input class="form-check-input" type="checkbox" name="vr_{{ piloto.id }}">
+                                    <input class="form-check-input" type="checkbox" name="vr_{{ piloto.id }}" {% if resultado and resultado.volta_rapida %}checked{% endif %}>
                                     <i class="fa-solid fa-stopwatch text-white"></i>
                                 </div>
                                 <div class="form-check form-check-inline" title="Piloto do Dia (+1)">
-                                    <input class="form-check-input" type="checkbox" name="dotd_{{ piloto.id }}">
+                                    <input class="form-check-input" type="checkbox" name="dotd_{{ piloto.id }}" {% if resultado and resultado.piloto_do_dia %}checked{% endif %}>
                                     <i class="fa-solid fa-star text-warning"></i>
                                 </div>
                                 <div class="form-check form-check-inline" title="Destaque da Live (+1)">
-                                    <input class="form-check-input" type="checkbox" name="fan_{{ piloto.id }}">
+                                    <input class="form-check-input" type="checkbox" name="fan_{{ piloto.id }}" {% if resultado and resultado.piloto_torcida %}checked{% endif %}>
                                     <i class="fa-solid fa-comment-dots text-light"></i>
                                 </div>
                             </td>
@@ -120,14 +127,15 @@
         </div>
         <div class="card-body bg-dark">
             <div id="reserva-container">
-                {% for i in range(3) %}
+                {% for i in range(5) %}
+                {% set res_existente = reservas_que_correram[i] if i < reservas_que_correram|length else None %}
                 <div class="row align-items-center mb-3 pb-3 border-bottom border-secondary">
                     <div class="col-md-3">
                         <label class="small text-white-50">Piloto Reserva</label>
                         <select name="reserva_pilot" class="form-select bg-secondary text-white border-0">
                             <option value="">-- Selecione --</option>
                             {% for r in reservas %}
-                                <option value="{{ r.id }}">{{ r.nickname }}</option>
+                                <option value="{{ r.id }}" {% if res_existente and res_existente.pilot_id == r.id %}selected{% endif %}>{{ r.nickname }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -136,24 +144,24 @@
                         <select name="reserva_team" class="form-select bg-secondary text-white border-0">
                             <option value="">-- Selecione --</option>
                             {% for t in equipes %}
-                                <option value="{{ t.id }}">{{ t.nome }}</option>
+                                <option value="{{ t.id }}" {% if res_existente and res_existente.team_id == t.id %}selected{% endif %}>{{ t.nome }}</option>
                             {% endfor %}
                         </select>
                     </div>
                     <div class="col-md-1">
                         <label class="small text-white-50">Pos</label>
-                        <input type="number" name="reserva_pos" class="form-control bg-secondary text-white border-0 text-center" min="0">
+                        <input type="number" name="reserva_pos" class="form-control bg-secondary text-white border-0 text-center" min="0" value="{{ res_existente.posicao if res_existente and res_existente.posicao > 0 else '' }}">
                     </div>
                     
                     <div class="col-md-3 text-center">
                         <label class="small text-white-50 d-block">Status</label>
                         <div class="pt-2">
                             <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="checkbox" name="reserva_dnf_{{ i }}" id="reserva_dnf_{{ i }}">
+                                <input class="form-check-input" type="checkbox" name="reserva_dnf_{{ i }}" id="reserva_dnf_{{ i }}" {% if res_existente and res_existente.dnf %}checked{% endif %}>
                                 <label class="form-check-label text-white small" for="reserva_dnf_{{ i }}">DNF</label>
                             </div>
                             <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="checkbox" name="reserva_dsq_{{ i }}" id="reserva_dsq_{{ i }}">
+                                <input class="form-check-input" type="checkbox" name="reserva_dsq_{{ i }}" id="reserva_dsq_{{ i }}" {% if res_existente and res_existente.dsq %}checked{% endif %}>
                                 <label class="form-check-label text-danger small fw-bold" for="reserva_dsq_{{ i }}">DSQ</label>
                             </div>
                         </div>
@@ -163,15 +171,15 @@
                         <label class="small text-white-50 d-block">Bônus</label>
                         <div class="pt-2">
                             <div class="form-check form-check-inline" title="Volta Rápida (+1)">
-                                <input class="form-check-input" type="checkbox" name="reserva_vr_{{ i }}">
+                                <input class="form-check-input" type="checkbox" name="reserva_vr_{{ i }}" {% if res_existente and res_existente.volta_rapida %}checked{% endif %}>
                                 <i class="fa-solid fa-stopwatch text-white"></i>
                             </div>
                             <div class="form-check form-check-inline" title="Piloto do Dia (+1)">
-                                <input class="form-check-input" type="checkbox" name="reserva_dotd_{{ i }}">
+                                <input class="form-check-input" type="checkbox" name="reserva_dotd_{{ i }}" {% if res_existente and res_existente.piloto_do_dia %}checked{% endif %}>
                                 <i class="fa-solid fa-star text-warning"></i>
                             </div>
                             <div class="form-check form-check-inline" title="Destaque da Live (+1)">
-                                <input class="form-check-input" type="checkbox" name="reserva_fan_{{ i }}">
+                                <input class="form-check-input" type="checkbox" name="reserva_fan_{{ i }}" {% if res_existente and res_existente.piloto_torcida %}checked{% endif %}>
                                 <i class="fa-solid fa-comment-dots text-light"></i>
                             </div>
                         </div>

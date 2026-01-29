@@ -51,7 +51,7 @@
                                 <option value="">-- Vago --</option>
                                 {% for p in pilots %}
                                     <option value="{{ p.id }}" {% if p.team_id == team.id and loop.index0 == 0 %}selected{% endif %}>
-                                        {{ p.nickname }}
+                                        {{ p.nome_real }} ({{ p.nickname }})
                                     </option>
                                 {% endfor %}
                             </select>
@@ -62,7 +62,7 @@
                                 <option value="">-- Vago --</option>
                                 {% for p in pilots %}
                                     <option value="{{ p.id }}" {% if p.team_id == team.id and loop.index0 > 0 %}selected{% endif %}>
-                                        {{ p.nickname }}
+                                        {{ p.nome_real }} ({{ p.nickname }})
                                     </option>
                                 {% endfor %}
                             </select>

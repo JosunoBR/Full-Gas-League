@@ -23,9 +23,10 @@ Se for a primeira vez subindo o projeto para o GitHub:
 
 ### Atualizando o Banco de Dados (Migrações)
 Sempre que alterar o arquivo `models.py`, você deve atualizar a estrutura do banco:
-1. `$env:FLASK_APP = "run.py"` (No PowerShell) ou `set FLASK_APP=run.py` (No CMD)
-2. `python -m flask db migrate -m "Descrição da mudança"`
-3. `python -m flask db upgrade`
+1. **Windows:** `$env:FLASK_APP = "run.py"` | **Linux:** `export FLASK_APP=run.py`
+2. Garanta que está na raiz do projeto: `cd caminho/do/projeto`
+3. `python -m flask db migrate -m "Descrição da mudança"`
+4. `python -m flask db upgrade`
 
 ## Deploy (Hospedagem)
 Este projeto está configurado para o **PythonAnywhere**.
@@ -34,7 +35,14 @@ Este projeto está configurado para o **PythonAnywhere**.
 1. No PythonAnywhere, use **Manual Configuration**.
 2. Aponte o **WSGI file** para o objeto `app` no arquivo `run.py`.
 3. Mapeie `/static/` para `app/static/` na aba Web.
-4. Certifique-se de que a variável `UPLOAD_FOLDER` no `config.py` use caminhos absolutos baseados em `/home/seu-usuario/`.
+4. Certifique-se de que a variável `UPLOAD_FOLDER` no `config.py` use caminhos absolutos baseados em `/home/fullgasleague/`.
+
+### Como atualizar o site (Deploy)
+1. No computador local: `git push origin main`
+2. No console do PythonAnywhere:
+   - `cd ~/Sistema-FullGas`
+   - `git pull origin main`
+3. Na aba **Web** do PythonAnywhere: Clicar em **Reload**.
 
 ### Persistência de Dados
 O banco de dados SQLite (`f1_league.db`) e a pasta `app/static/uploads/` estão no `.gitignore`. 

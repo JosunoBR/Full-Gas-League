@@ -17,7 +17,7 @@ def get_standings(grid):
     pilotos = PilotProfile.query.filter_by(grid=grid.upper()).all()
     ranking = []
     for p in pilotos:
-        pts = sum(r.pontos_ganhos for r in p.race_results if r.race.season_id == season.id)
+        pts = float(sum(r.pontos_ganhos for r in p.race_results if r.race.season_id == season.id))
         ranking.append({
             'id': p.id,
             'nickname': p.nickname,

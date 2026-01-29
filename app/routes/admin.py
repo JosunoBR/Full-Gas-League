@@ -70,7 +70,7 @@ def overview():
         for p in pilotos:
             if p.grid in dados_grids:
                 resultados_season = [r for r in p.race_results if r.race.season_id == season_ativa.id]
-                pontos = sum(r.pontos_ganhos for r in resultados_season)
+                pontos = float(sum(r.pontos_ganhos for r in resultados_season))
                 vitorias = sum(1 for r in resultados_season if r.posicao == 1 and not r.dsq)
                 podios = sum(1 for r in resultados_season if r.posicao in [1, 2, 3] and not r.dsq)
                 
@@ -156,8 +156,8 @@ def create_admin():
         return redirect(url_for('admin.dashboard'))
         
     if request.method == 'POST':
-        username = request.form.get('username')
-        email = request.form.get('email')
+        username = (request.form.get('username') or '')
+        email = (request.form.get('email') or '').lower()
         password = request.form.get('password')
         role = request.form.get('role')
         
@@ -600,12 +600,22 @@ def race_results(race_id):
     checkins = RaceRegistration.query.filter_by(race_id=race.id).all()
     checkin_map = { r.pilot_id: r for r in checkins }
     
+    # 5. Resultados já gravados (Para edição/visualização)
+    resultados_existentes = RaceResult.query.filter_by(race_id=race.id).all()
+    results_map = { r.pilot_id: r for r in resultados_existentes }
+    
+    # Identificar reservas que correram (não são titulares do grid)
+    titulares_ids = [t.id for t in titulares]
+    reservas_que_correram = [r for r in resultados_existentes if r.pilot_id not in titulares_ids]
+    
     return render_template('admin/race_results.html', 
                            race=race, 
                            titulares=titulares, 
                            reservas=reservas_disponiveis,
                            equipes=equipes,
-                           checkin_map=checkin_map)
+                           checkin_map=checkin_map,
+                           results_map=results_map,
+                           reservas_que_correram=reservas_que_correram)
 
 # --- GESTÃO DE PILOTOS E CONVITES ---
 
@@ -613,7 +623,21 @@ def race_results(race_id):
 def list_pilots():
     # Mostra todos os pilotos, inclusive ADMs, para gestão de Grid/CNH
     pilots = PilotProfile.query.join(User).order_by(PilotProfile.nickname).all()
-    return render_template('admin/pilots.html', pilots=pilots)
+
+    # Agrupar pilotos por grid para facilitar a exibição em abas
+    pilots_by_grid = {
+        'ELITE': [],
+        'ADVANCED': [],
+        'INITIAL': [],
+        'RESERVA': [],
+        'SEM_GRID': []
+    }
+
+    for p in pilots:
+        grid_key = p.grid if p.grid in pilots_by_grid else 'SEM_GRID'
+        pilots_by_grid[grid_key].append(p)
+
+    return render_template('admin/pilots.html', pilots_by_grid=pilots_by_grid, total_count=len(pilots))
 
 @admin_bp.route('/pilots/edit/<int:pilot_id>', methods=['GET', 'POST'])
 def edit_pilot(pilot_id):
@@ -625,7 +649,9 @@ def edit_pilot(pilot_id):
         return redirect(url_for('admin.list_pilots'))
         
     if request.method == 'POST':
-        pilot.nickname = request.form.get('nickname')[:50]
+        new_nickname = (request.form.get('nickname') or '')[:50]
+        pilot.nickname = new_nickname
+        pilot.user.username = new_nickname # Sincroniza o login do usuário
         pilot.nome_real = request.form.get('nome_real')[:100] # Garante salvar Nome Real
         pilot.grid = request.form.get('grid')           # Garante salvar Grid
         pilot.telefone = request.form.get('telefone')[:20] if request.form.get('telefone') else None
@@ -635,6 +661,14 @@ def edit_pilot(pilot_id):
             if pontos: pilot.pontos_cnh = int(pontos)
         except ValueError:
             flash('Valor de CNH inválido.', 'danger')
+
+        # --- PENALIDADE ADMINISTRATIVA (NOVO) ---
+        penalidade = request.form.get('penalidade_campeonato')
+        try:
+            pilot.penalidade_campeonato = float(penalidade or 0)
+            pilot.motivo_penalidade = request.form.get('motivo_penalidade')
+        except ValueError:
+            flash('Valor de penalidade inválido.', 'danger')
         
         # --- RESET DE SENHA (NOVO) ---
         nova_senha = request.form.get('nova_senha')
@@ -824,11 +858,10 @@ def edit_team(team_id):
         flash('Equipe atualizada!', 'success')
         return redirect(url_for('admin.list_teams'))
 
-    # Filtra Super ADM
+    # LÓGICA: Apenas pilotos que já pertencem ao MESMO GRID da equipe aparecem aqui (incluindo ADMs).
     pilotos_disponiveis = PilotProfile.query.join(User).filter(
-        User.role != 'SUPER_ADM',
-        PilotProfile.grid == team.grid,
-        (PilotProfile.team_id == None) | (PilotProfile.team_id == team.id)
+        PilotProfile.grid == team.grid, # Filtro estrito por Grid
+        (PilotProfile.team_id == None) | (PilotProfile.team_id == team.id) # Disponíveis ou já na equipe
     ).all()
     
     return render_template('admin/edit_team.html', team=team, pilots=pilotos_disponiveis)
@@ -913,7 +946,7 @@ def seletiva():
             
         return redirect(url_for('admin.seletiva'))
 
-    # Listar pilotos disponíveis (Sem Grid) e Entradas atuais
+    # LÓGICA: Aqui aparecem TODOS os pilotos que ainda não foram classificados (SEM_GRID)
     pilotos_sem_grid = PilotProfile.query.filter_by(grid='SEM_GRID').order_by(PilotProfile.nickname).all()
     entradas = SeletivaEntry.query.order_by(SeletivaEntry.tempo_ms.asc()).all()
     
@@ -953,7 +986,12 @@ def close_seletiva():
 
 @admin_bp.route('/protests')
 def protests():
-    # CORREÇÃO: Buscando dados reais em vez de listas vazias
+    # Conta o total de administradores aptos a votar
+    total_admins = User.query.filter(User.role.in_(['ADM', 'SUPER_ADM'])).count()
+
+    # Obtém a lista de IDs de protestos onde o administrador atual já votou
+    voted_protest_ids = [v.protesto_id for v in VotoComissario.query.filter_by(admin_id=current_user.id).all()]
+
     aguardando = Protesto.query.filter_by(status='AGUARDANDO_DEFESA').order_by(Protesto.data_criacao.desc()).all()
     em_votacao = Protesto.query.filter_by(status='EM_VOTACAO').order_by(Protesto.data_criacao.desc()).all()
     concluidos = Protesto.query.filter_by(status='CONCLUIDO').order_by(Protesto.data_fechamento.desc()).limit(10).all()
@@ -961,7 +999,9 @@ def protests():
     return render_template('admin/protests.html', 
                            aguardando=aguardando, 
                            pendentes=em_votacao, 
-                           concluidos=concluidos)
+                           concluidos=concluidos,
+                           total_admins=total_admins,
+                           voted_protest_ids=voted_protest_ids)
 
 @admin_bp.route('/protests/<int:protest_id>', methods=['GET', 'POST'])
 def view_protest(protest_id):

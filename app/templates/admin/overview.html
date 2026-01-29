@@ -53,12 +53,12 @@
                                 <tr>
                                     <td class="text-center fw-bold ps-3 text-secondary">{{ loop.index }}º</td>
                                     <td class="fw-bold">{{ row.piloto.nickname }}</td>
-                                    <td class="text-center text-muted small">{{ row.vitorias }}</td>
-                                    <td class="text-center text-muted small">{{ row.podios }}</td>
-                                    <td class="text-center fw-bold pe-3 fs-6">{{ row.pontos|int if row.pontos.is_integer() else row.pontos }}</td>
+                                    <td class="text-center text-white small">{{ row.vitorias }}</td>
+                                    <td class="text-center text-white small">{{ row.podios }}</td>
+                                    <td class="text-center fw-bold pe-3 fs-6">{{ '%g' | format(row.pontos|float) }}</td>
                                 </tr>
                                 {% else %}
-                                <tr><td colspan="5" class="text-center py-3 text-muted">Sem dados.</td></tr>
+                                <tr><td colspan="5" class="text-center py-3 text-white">Sem dados.</td></tr>
                                 {% endfor %}
                             </tbody>
                         </table>
@@ -92,10 +92,10 @@
                                             <span class="text-success">{{ row.cnh }}</span> {% endif %}
                                     </td>
                                     
-                                    <td class="text-center pe-3 text-muted">{{ row.advertencias }}</td>
+                                    <td class="text-center pe-3 text-white">{{ row.advertencias }}</td>
                                 </tr>
                                 {% else %}
-                                <tr><td colspan="3" class="text-center py-3 text-muted">Sem dados.</td></tr>
+                                <tr><td colspan="3" class="text-center py-3 text-white">Sem dados.</td></tr>
                                 {% endfor %}
                             </tbody>
                         </table>

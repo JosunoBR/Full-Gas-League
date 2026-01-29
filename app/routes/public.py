@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from flask import Blueprint, render_template, request, flash, redirect, url_for, current_app
 from flask_login import login_required, current_user, login_user, logout_user
 from werkzeug.security import check_password_hash
+from sqlalchemy import func, case
 from app.models import db, Season, Race, PilotProfile, Protesto, RaceResult, VotoComissario, Team, RaceRegistration, User, Invite, News
 from app.utils import allowed_file, get_embed_url, ORDEM_CARROS
 
@@ -26,10 +27,21 @@ def home():
         for p in pilotos:
             if p.grid in standings:
                 resultados = [r for r in p.race_results if r.race.season_id == season_ativa.id]
-                pontos_totais = sum(r.pontos_ganhos for r in resultados)
+                pontos_totais = float(sum(r.pontos_ganhos for r in resultados)) - float(p.penalidade_campeonato or 0)
                 vitorias = sum(1 for r in resultados if r.posicao == 1 and not r.dsq)
+                
+                # Lógica de Quali Ban: Verifica se a última punição concluída foi Média ou Grave
+                ultimo_p = Protesto.query.filter_by(acusado_id=p.id, status='CONCLUIDO')\
+                    .order_by(Protesto.data_fechamento.desc()).first()
+                quali_ban = False
+                if ultimo_p and ultimo_p.veredito_final in ['MEDIA', 'GRAVE']:
+                    ultima_res = RaceResult.query.join(Race).filter(RaceResult.pilot_id == p.id, Race.status == 'Concluida').order_by(Race.data_corrida.desc()).first()
+                    # Se ele ainda não correu após o fechamento do protesto, o ban está ativo
+                    if not ultima_res or ultimo_p.data_fechamento.date() >= ultima_res.race.data_corrida:
+                        quali_ban = True
+
                 # Adiciona placeholder para o carro
-                standings[p.grid].append({'piloto': p, 'pontos': pontos_totais, 'vitorias': vitorias, 'carro': ''})
+                standings[p.grid].append({'piloto': p, 'pontos': pontos_totais, 'vitorias': vitorias, 'carro': '', 'quali_ban': quali_ban})
         
         # 2. Ordenar e Aplicar Lastro (Carro)
         for grid in standings: 
@@ -43,16 +55,28 @@ def home():
                     item['carro'] = "McLaren (Extra)"
 
         # 3. Calcular Construtores
+        # Otimização: Agregação no banco de dados para evitar N+1 queries
+        stats_query = db.session.query(
+            RaceResult.team_id,
+            func.sum(RaceResult.pontos_ganhos).label('total_pontos'),
+            func.sum(case(( (RaceResult.posicao == 1) & (RaceResult.dsq == False), 1 ), else_=0)).label('total_vitorias')
+        ).join(Race).filter(
+            Race.season_id == season_ativa.id,
+            RaceResult.team_id != None
+        ).group_by(RaceResult.team_id).all()
+        
+        team_stats = { s.team_id: {'pontos': float(s.total_pontos or 0), 'vitorias': int(s.total_vitorias or 0)} for s in stats_query }
+
         teams = Team.query.filter_by(ativa=True).all()
         for t in teams:
             if t.grid in constructors:
-                resultados_equipe = RaceResult.query.join(Race).filter(
-                    RaceResult.team_id == t.id,
-                    Race.season_id == season_ativa.id
-                ).all()
-                pts_equipe = sum(r.pontos_ganhos for r in resultados_equipe)
-                vitorias_equipe = sum(1 for r in resultados_equipe if r.posicao == 1 and not r.dsq)
-                constructors[t.grid].append({'equipe': t, 'pontos': pts_equipe, 'vitorias': vitorias_equipe})
+                stats = team_stats.get(t.id, {'pontos': 0.0, 'vitorias': 0})
+                
+                # Subtrai penalidades administrativas dos pilotos ATUAIS da equipe
+                penalidades_pilotos = sum(float(p.penalidade_campeonato or 0) for p in t.pilots)
+                pontos_finais = stats['pontos'] - penalidades_pilotos
+                
+                constructors[t.grid].append({'equipe': t, 'pontos': pontos_finais, 'vitorias': stats['vitorias']})
         
         for grid in constructors: constructors[grid].sort(key=lambda x: x['pontos'], reverse=True)
         
@@ -86,7 +110,7 @@ def login():
         return redirect(url_for('public.home'))
 
     if request.method == 'POST':
-        email = request.form.get('email')
+        email = (request.form.get('email') or '').lower()
         password = request.form.get('password')
         remember = True if request.form.get('remember') else False
 
@@ -114,8 +138,8 @@ def register():
 
     if request.method == 'POST':
         token_input = request.form.get('token')
-        email = request.form.get('email')
-        nickname = request.form.get('nickname')
+        email = (request.form.get('email') or '').lower()
+        nickname = (request.form.get('nickname') or '')
         telefone = request.form.get('telefone')
         password = request.form.get('password')
         confirm_password = request.form.get('confirm_password')
@@ -177,6 +201,11 @@ def rules():
 def transparency():
     return render_template('public/how_it_works.html')
 
+@public_bp.route('/news/<int:news_id>')
+def news_detail(news_id):
+    noticia = News.query.get_or_404(news_id)
+    return render_template('public/news_detail.html', noticia=noticia)
+
 # --- PERFIL DO PILOTO ---
 
 @public_bp.route('/piloto/<int:pilot_id>')
@@ -193,7 +222,7 @@ def public_profile(pilot_id):
     meus_pontos_camp = 0
     desempenho_temporada = []
     if season_ativa:
-        meus_pontos_camp = sum(r.pontos_ganhos for r in perfil.race_results if r.race.season_id == season_ativa.id)
+        meus_pontos_camp = float(sum(r.pontos_ganhos for r in perfil.race_results if r.race.season_id == season_ativa.id)) - float(perfil.penalidade_campeonato or 0)
         corridas = Race.query.filter_by(season_id=season_ativa.id, grid=perfil.grid).order_by(Race.data_corrida).all()
         for race in corridas:
             resultado = next((r for r in race.results if r.pilot_id == perfil.id), None)
@@ -204,6 +233,15 @@ def public_profile(pilot_id):
                 'pontos': resultado.pontos_ganhos if resultado else 0,
                 'dnf': resultado.dnf if resultado else False, 'dsq': resultado.dsq if resultado else False
             })
+
+    # Verificação de Quali Ban para o Perfil Público
+    ultimo_p = Protesto.query.filter_by(acusado_id=perfil.id, status='CONCLUIDO')\
+        .order_by(Protesto.data_fechamento.desc()).first()
+    quali_ban = False
+    if ultimo_p and ultimo_p.veredito_final in ['MEDIA', 'GRAVE']:
+        ultima_res = RaceResult.query.join(Race).filter(RaceResult.pilot_id == perfil.id, Race.status == 'Concluida').order_by(Race.data_corrida.desc()).first()
+        if not ultima_res or ultimo_p.data_fechamento.date() >= ultima_res.race.data_corrida:
+            quali_ban = True
 
     # Histórico de Carreira
     seasons_fechadas = Season.query.filter_by(ativa=False).order_by(Season.id.desc()).all()
@@ -228,7 +266,8 @@ def public_profile(pilot_id):
                            total_punicoes=0,
                            historico_carreira=historico_carreira,
                            checkin_race=None,
-                           registro_atual=None)
+                           registro_atual=None,
+                           quali_ban=quali_ban)
 
 @public_bp.route('/meu-perfil')
 @login_required
@@ -271,7 +310,7 @@ def my_profile():
     meus_pontos_camp = 0
     desempenho_temporada = []
     if season_ativa:
-        meus_pontos_camp = sum(r.pontos_ganhos for r in perfil.race_results if r.race.season_id == season_ativa.id)
+        meus_pontos_camp = float(sum(r.pontos_ganhos for r in perfil.race_results if r.race.season_id == season_ativa.id)) - float(perfil.penalidade_campeonato or 0)
         corridas = Race.query.filter_by(season_id=season_ativa.id, grid=perfil.grid).order_by(Race.data_corrida).all()
         for race in corridas:
             resultado = next((r for r in race.results if r.pilot_id == perfil.id), None)
@@ -285,7 +324,13 @@ def my_profile():
 
     # Protestos e Defesas
     meus_protestos = Protesto.query.filter_by(acusador_id=perfil.id).order_by(Protesto.data_criacao.desc()).all()
-    defesas_pendentes = Protesto.query.filter_by(acusado_id=perfil.id, status='AGUARDANDO_DEFESA').all()
+    
+    # Busca defesas onde o piloto é o acusado, o caso não está concluído e ele ainda não enviou o argumento
+    defesas_pendentes = Protesto.query.filter(
+        Protesto.acusado_id == perfil.id,
+        Protesto.status.in_(['AGUARDANDO_DEFESA', 'EM_VOTACAO']),
+        Protesto.argumento_defesa == None
+    ).all()
     
     # Histórico de Punições e Cálculo Total
     historico_punicoes = Protesto.query.filter(Protesto.acusado_id == perfil.id, Protesto.status != 'AGUARDANDO_DEFESA').order_by(Protesto.data_fechamento.desc()).all()
@@ -308,6 +353,15 @@ def my_profile():
             grid_predominante = max(set(grids_corridos), key=grids_corridos.count) if grids_corridos else "N/A"
             historico_carreira.append({'season_nome': s.nome, 'grid': grid_predominante, 'pontos': pts, 'vitorias': vitorias})
 
+    # Verificação de Quali Ban para o Perfil Privado
+    ultimo_p = Protesto.query.filter_by(acusado_id=perfil.id, status='CONCLUIDO')\
+        .order_by(Protesto.data_fechamento.desc()).first()
+    quali_ban = False
+    if ultimo_p and ultimo_p.veredito_final in ['MEDIA', 'GRAVE']:
+        ultima_res = RaceResult.query.join(Race).filter(RaceResult.pilot_id == perfil.id, Race.status == 'Concluida').order_by(Race.data_corrida.desc()).first()
+        if not ultima_res or ultimo_p.data_fechamento.date() >= ultima_res.race.data_corrida:
+            quali_ban = True
+
     return render_template('pilot/profile.html', 
                            perfil=perfil,
                            is_owner=True,
@@ -319,7 +373,8 @@ def my_profile():
                            total_punicoes=total_punicoes,
                            historico_carreira=historico_carreira,
                            checkin_race=checkin_race,
-                           registro_atual=registro_atual)
+                           registro_atual=registro_atual,
+                           quali_ban=quali_ban)
 
 # --- AÇÕES DE CHECK-IN ---
 
@@ -415,8 +470,10 @@ def delete_protest(protest_id):
 @login_required
 def update_profile():
     if not current_user.pilot_profile: return redirect(url_for('public.home'))
+    new_nickname = (request.form.get('nickname') or '')[:50]
     current_user.pilot_profile.nome_real = request.form.get('nome_real')[:100]
-    current_user.pilot_profile.nickname = request.form.get('nickname')[:50]
+    current_user.pilot_profile.nickname = new_nickname
+    current_user.username = new_nickname # Mantém o login em sincronia
     current_user.pilot_profile.telefone = request.form.get('telefone')[:20] if request.form.get('telefone') else None
     
     # TROCA DE SENHA PELO USUÁRIO
@@ -463,6 +520,15 @@ def open_protest():
         db.session.commit()
         return redirect(url_for('public.my_profile'))
     season_ativa = Season.query.filter_by(ativa=True).first()
-    races = Race.query.filter_by(season_id=season_ativa.id).all() if season_ativa else []
-    pilots = PilotProfile.query.filter(PilotProfile.id != current_user.pilot_profile.id).order_by(PilotProfile.nickname).all()
+
+    user_grid = current_user.pilot_profile.grid
+    # Se o piloto pertence a um grid principal, filtramos para não poluir a lista.
+    # Pilotos RESERVA ou SEM_GRID continuam vendo tudo, pois podem ter participado de qualquer grid.
+    if user_grid in ['ELITE', 'ADVANCED', 'INITIAL']:
+        races = Race.query.filter_by(season_id=season_ativa.id, grid=user_grid).all() if season_ativa else []
+        pilots = PilotProfile.query.filter(PilotProfile.id != current_user.pilot_profile.id, PilotProfile.grid == user_grid).order_by(PilotProfile.nickname).all()
+    else:
+        races = Race.query.filter_by(season_id=season_ativa.id).all() if season_ativa else []
+        pilots = PilotProfile.query.filter(PilotProfile.id != current_user.pilot_profile.id).order_by(PilotProfile.nickname).all()
+
     return render_template('pilot/protest.html', races=races, pilots=pilots)

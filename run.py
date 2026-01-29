@@ -51,7 +51,7 @@ with app.app_context():
         os.makedirs(app.config['UPLOAD_FOLDER'])
 
     # Cria Super Admin se não existir
-    if not User.query.filter_by(username='Admin').first():
+    if not User.query.filter_by(email='admin@fullgas.com').first():
         super_admin = User(username='Admin', email='admin@fullgas.com', role='SUPER_ADM')
         super_admin.set_password('admin123')
         db.session.add(super_admin)

@@ -50,6 +50,9 @@ class PilotProfile(db.Model):
     pontos_cnh = db.Column(db.Integer, default=25)
     advertencias_acumuladas = db.Column(db.Integer, default=0)
     
+    penalidade_campeonato = db.Column(db.Float, default=0.0)
+    motivo_penalidade = db.Column(db.Text, nullable=True)
+
     team_id = db.Column(db.Integer, db.ForeignKey('team.id'), nullable=True)
     team = db.relationship('Team', back_populates='pilots')
 
@@ -164,6 +167,8 @@ class Protesto(db.Model):
     
     data_criacao = db.Column(db.DateTime, default=datetime.utcnow)
     data_fechamento = db.Column(db.DateTime, nullable=True)
+
+    votos = db.relationship('VotoComissario', backref='protesto_rel', lazy=True)
 
 class VotoComissario(db.Model):
     id = db.Column(db.Integer, primary_key=True)

@@ -87,6 +87,9 @@
 
                 <h3 class="fw-bold mb-0 text-white">
                     {{ perfil.nickname }}
+                    {% if quali_ban %}
+                        <span class="badge bg-danger text-white ms-2 fs-6 align-middle" title="Quali Ban Ativo"><i class="fa-solid fa-ban"></i></span>
+                    {% endif %}
                     {% if perfil.user.role in ['ADM', 'SUPER_ADM'] %}
                         <span class="badge bg-danger text-white ms-2 fs-6 align-middle" title="Administrador do Sistema"><i class="fa-solid fa-user-shield"></i> ADM</span>
                     {% endif %}
@@ -105,7 +108,7 @@
                     <div class="col-4">
                         <div class="p-2 border border-secondary rounded bg-dark h-100">
                             <small class="text-white-50" style="font-size:0.7rem">PONTOS</small><br>
-                            <span class="fs-4 fw-bold text-white">{{ meus_pontos_camp|int }}</span>
+                            <span class="fs-4 fw-bold text-white">{{ '%g' | format(meus_pontos_camp|float) }}</span>
                         </div>
                     </div>
                     <div class="col-4">
@@ -123,6 +126,13 @@
                         </div>
                     </div>
                 </div>
+
+                {% if perfil.penalidade_campeonato and perfil.penalidade_campeonato > 0 %}
+                <div class="alert alert-warning p-2 mb-3" style="font-size: 0.75rem;">
+                    <i class="fa-solid fa-triangle-exclamation me-1"></i> 
+                    <strong>-{{ '%g' | format(perfil.penalidade_campeonato) }} pts:</strong> {{ perfil.motivo_penalidade }}
+                </div>
+                {% endif %}
 
                 {% if is_owner %}
                 <div class="d-grid gap-2 mt-auto">
@@ -245,7 +255,15 @@
                                 <span class="d-block small text-white-50">Contra: {{ p.acusado.nickname }}</span>
                             </div>
                             {% if p.status == 'CONCLUIDO' %}
-                                <span class="badge bg-secondary text-white">Concluído</span>
+                                {% if p.veredito_final == 'INOCENTE' %}
+                                    <span class="badge bg-success text-white">Inocente</span>
+                                {% elif p.veredito_final == 'INCIDENTE_CORRIDA' %}
+                                    <span class="badge bg-secondary text-white">Incidente de Corrida</span>
+                                {% elif p.veredito_final == 'ADVERTENCIA' %}
+                                    <span class="badge bg-warning text-dark">Advertência</span>
+                                {% else %}
+                                    <span class="badge bg-danger text-white">{{ p.veredito_final }}</span>
+                                {% endif %}
                             {% elif p.status == 'AGUARDANDO_DEFESA' %}
                                 <span class="badge bg-danger text-white fw-bold">Aguardando Defesa</span>
                             {% else %}
@@ -253,6 +271,12 @@
                             {% endif %}
                         </div>
                         
+                        {% if p.status == 'CONCLUIDO' and p.justificativa_texto %}
+                        <p class="small text-white-50 mb-0 mt-2 border-top border-secondary pt-2">
+                            <strong>Veredito:</strong> <em>"{{ p.justificativa_texto }}"</em>
+                        </p>
+                        {% endif %}
+
                         {% if p.status != 'CONCLUIDO' %}
                         <div class="mt-2 text-end">
                             <form action="{{ url_for('public.delete_protest', protest_id=p.id) }}" method="POST" onsubmit="return confirm('Cancelar este protesto?');">
@@ -329,6 +353,7 @@
 </div>
 {% endif %}
 
+{% if is_owner %}
 <div class="modal fade" id="editProfileModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content bg-dark border-secondary">
@@ -340,15 +365,15 @@
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label text-white-50">Nome Real</label>
-                        <input type="text" name="nome_real" class="form-control bg-secondary text-white border-0" value="{{ current_user.pilot_profile.nome_real }}" required>
+                        <input type="text" name="nome_real" class="form-control bg-secondary text-white border-0" value="{{ perfil.nome_real }}" required>
                     </div>
                     <div class="mb-3">
                         <label class="form-label text-white-50">Nickname (Pista)</label>
-                        <input type="text" name="nickname" class="form-control bg-secondary text-white border-0" value="{{ current_user.pilot_profile.nickname }}" required>
+                        <input type="text" name="nickname" class="form-control bg-secondary text-white border-0" value="{{ perfil.nickname }}" required>
                     </div>
                     <div class="mb-3">
                         <label class="form-label text-white-50">Telefone (WhatsApp)</label>
-                        <input type="text" name="telefone" class="form-control bg-secondary text-white border-0" value="{{ current_user.pilot_profile.telefone or '' }}" placeholder="(00) 00000-0000" oninput="maskPhone(this)" maxlength="15">
+                        <input type="text" name="telefone" class="form-control bg-secondary text-white border-0" value="{{ perfil.telefone or '' }}" placeholder="(00) 00000-0000" oninput="maskPhone(this)" maxlength="15">
                     </div>
                     <div class="mb-3">
                         <label class="form-label text-white-50">Alterar Foto</label>
@@ -375,6 +400,7 @@
         </div>
     </div>
 </div>
+{% endif %}
 
 <style>
     .animate-alert {

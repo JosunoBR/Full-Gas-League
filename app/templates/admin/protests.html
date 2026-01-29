@@ -19,6 +19,7 @@
                         <th class="ps-3">GP / Pista</th>
                         <th>Envolvidos (Acusador vs Acusado)</th>
                         <th class="text-center">Status</th>
+                        <th class="text-center">Votos</th>
                         <th class="text-end pe-3">Ação</th>
                     </tr>
                 </thead>
@@ -33,6 +34,11 @@
                         </td>
                         <td class="text-center">
                             <span class="badge bg-warning text-dark">Aguardando Piloto</span>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge {% if p.id in voted_protest_ids %}bg-success{% else %}bg-secondary{% endif %}">
+                                {{ p.votos|length }} / {{ total_admins }}
+                            </span>
                         </td>
                         <td class="text-end pe-3">
                             <a href="{{ url_for('admin.view_protest', protest_id=p.id) }}" class="btn btn-sm btn-outline-light">
@@ -66,6 +72,7 @@
                         <th class="ps-3">GP / Pista</th>
                         <th>Envolvidos</th>
                         <th class="text-center">Status</th>
+                        <th class="text-center">Votos</th>
                         <th class="text-end pe-3">Ação</th>
                     </tr>
                 </thead>
@@ -78,6 +85,11 @@
                         </td>
                         <td class="text-center">
                             <span class="badge bg-info text-dark">Votação em Andamento</span>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge {% if p.id in voted_protest_ids %}bg-success{% else %}bg-secondary{% endif %}">
+                                {{ p.votos|length }} / {{ total_admins }}
+                            </span>
                         </td>
                         <td class="text-end pe-3">
                             <a href="{{ url_for('admin.view_protest', protest_id=p.id) }}" class="btn btn-sm btn-info fw-bold text-dark">
@@ -92,7 +104,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="4" class="text-center py-4 text-white-50">Não há protestos pendentes de votação no momento.</td>
+                        <td colspan="5" class="text-center py-4 text-white-50">Não há protestos pendentes de votação no momento.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -113,6 +125,7 @@
                         <th class="ps-3">GP</th>
                         <th>Envolvidos</th>
                         <th class="text-center">Veredito Final</th>
+                        <th class="text-center">Votos</th>
                         <th class="text-end pe-3">Detalhes</th>
                     </tr>
                 </thead>
@@ -134,6 +147,11 @@
                                 <span class="badge bg-danger text-white">{{ p.veredito_final }}</span>
                             {% endif %}
                         </td>
+                        <td class="text-center">
+                            <span class="badge {% if p.id in voted_protest_ids %}bg-success{% else %}bg-secondary{% endif %}">
+                                {{ p.votos|length }} / {{ total_admins }}
+                            </span>
+                        </td>
                         <td class="text-end pe-3">
                             <a href="{{ url_for('admin.view_protest', protest_id=p.id) }}" class="btn btn-sm btn-outline-secondary text-white">
                                 <i class="fa-solid fa-eye"></i> Ver
@@ -147,7 +165,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="4" class="text-center py-4 text-muted">Nenhum caso arquivado ainda.</td>
+                        <td colspan="5" class="text-center py-4 text-muted">Nenhum caso arquivado ainda.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
