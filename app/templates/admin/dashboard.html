@@ -83,15 +83,11 @@
     <div class="col-md-4 col-lg-3">
         <div class="card shadow border-silver h-100 bg-dark hover-effect">
             <div class="card-body text-center p-4">
-                <i class="fa-solid fa-stopwatch fa-3x {% if season_ativa %}text-secondary{% else %}text-danger{% endif %} mb-3"></i>
+                <i class="fa-solid fa-stopwatch fa-3x text-danger mb-3"></i>
                 <h5 class="card-title text-white fw-bold">Seletiva</h5>
                 <p class="card-text text-white-50 small">Time Trial para definição de grids.</p>
                 <div class="d-grid mt-3">
-                    {% if season_ativa %}
-                        <button type="button" class="btn btn-outline-secondary btn-sm text-white-50 fw-bold" onclick="alert('não é permitido criar uma seletiva com uma season em andamento')" style="cursor: not-allowed;">ABRIR SELETIVA</button>
-                    {% else %}
-                        <a href="{{ url_for('admin.seletiva') }}" class="btn btn-outline-danger btn-sm text-white fw-bold">ABRIR SELETIVA</a>
-                    {% endif %}
+                    <a href="{{ url_for('admin.seletiva') }}" class="btn btn-outline-danger btn-sm text-white fw-bold">ABRIR SELETIVA</a>
                 </div>
             </div>
         </div>

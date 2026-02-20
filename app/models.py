@@ -44,7 +44,7 @@ class PilotProfile(db.Model):
     nickname = db.Column(db.String(50), nullable=False)
     nome_real = db.Column(db.String(100), nullable=False)
     foto_url = db.Column(db.String(200), nullable=True)
-    grid = db.Column(db.String(20), nullable=False) 
+    grid = db.Column(db.String(200), nullable=False, default='SEM_GRID') 
     
     telefone = db.Column(db.String(20), nullable=True)
     pontos_cnh = db.Column(db.Integer, default=25)
@@ -211,3 +211,9 @@ class News(db.Model):
             'data': self.data_publicacao.strftime('%d/%m/%Y'),
             'texto': self.texto
         }
+
+class GridConfig(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nome = db.Column(db.String(50), nullable=False, unique=True)
+    vagas = db.Column(db.Integer, nullable=False, default=20)
+    ordem = db.Column(db.Integer, default=0)

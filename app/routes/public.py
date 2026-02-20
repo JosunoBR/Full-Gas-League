@@ -4,7 +4,7 @@ from flask import Blueprint, render_template, request, flash, redirect, url_for,
 from flask_login import login_required, current_user, login_user, logout_user
 from werkzeug.security import check_password_hash
 from sqlalchemy import func, case
-from app.models import db, Season, Race, PilotProfile, Protesto, RaceResult, VotoComissario, Team, RaceRegistration, User, Invite, News
+from app.models import db, Season, Race, PilotProfile, Protesto, RaceResult, VotoComissario, Team, RaceRegistration, User, Invite, News, GridConfig
 from app.utils import allowed_file, get_embed_url, ORDEM_CARROS
 
 public_bp = Blueprint('public', __name__)
@@ -13,39 +13,89 @@ public_bp = Blueprint('public', __name__)
 
 @public_bp.route('/')
 def home():
-    season_ativa = Season.query.filter_by(ativa=True).first()
-    standings = { 'ELITE': [], 'ADVANCED': [], 'INITIAL': [] }
-    constructors = { 'ELITE': [], 'ADVANCED': [], 'INITIAL': [] }
-    calendar = { 'ELITE': [], 'ADVANCED': [], 'INITIAL': [] }
-    last_races = { 'ELITE': None, 'ADVANCED': None, 'INITIAL': None }
-    noticias = News.query.order_by(News.data_publicacao.desc()).limit(5).all()
-    pilots_by_grid = { 'ELITE': [], 'ADVANCED': [], 'INITIAL': [] }
+    all_active_seasons = Season.query.filter_by(ativa=True).order_by(Season.id.desc()).all()
     
+    # Permite selecionar a temporada via parâmetro 's' na URL
+    selected_season_id = request.args.get('s', type=int)
+    season_ativa = None
+    if selected_season_id:
+        season_ativa = next((s for s in all_active_seasons if s.id == selected_season_id), None)
+    
+    # Se nenhuma temporada foi selecionada ou a selecionada não é ativa, usa a mais recente como padrão
+    if not season_ativa and all_active_seasons:
+        season_ativa = all_active_seasons[0]
+    
+    # Filtra os grids que realmente possuem atividade nesta temporada
     if season_ativa:
+        grids_com_corrida = [r[0] for r in db.session.query(Race.grid).filter_by(season_id=season_ativa.id).distinct().all()]
+        configs = GridConfig.query.order_by(GridConfig.ordem).all()
+        
+        if not grids_com_corrida:
+            if configs:
+                grid_names = [c.nome for c in configs]
+            else:
+                # Fallback inteligente: Busca grids usados pelos pilotos ativos
+                all_pilots = PilotProfile.query.filter(PilotProfile.grid != 'SEM_GRID').all()
+                found_grids = set()
+                for p in all_pilots:
+                    p_grids = [g.strip() for g in p.grid.split(',')]
+                    for g in p_grids:
+                        if g not in ['SEM_GRID', 'RESERVA']:
+                            found_grids.add(g)
+                
+                if found_grids:
+                    # Ordena tentando respeitar a hierarquia padrão se existir, senão alfabético
+                    default_order = ['ELITE', 'ADVANCED', 'INITIAL']
+                    grid_names = sorted(list(found_grids), key=lambda x: (default_order.index(x) if x in default_order else 999, x))
+                else:
+                    grid_names = ['ELITE', 'ADVANCED', 'INITIAL']
+        else:
+            # Apenas grids que têm corrida nesta temporada, ordenados pela configuração
+            # Isso evita que grids criados na seletiva (para o futuro) apareçam na temporada atual
+            all_relevant_grids = sorted(list(set(grids_com_corrida)), 
+                                        key=lambda x: next((c.ordem for c in configs if c.nome == x), 999))
+            grid_names = all_relevant_grids
+    else:
+        configs = GridConfig.query.order_by(GridConfig.ordem).all()
+        grid_names = [c.nome for c in configs] if configs else ['ELITE', 'ADVANCED', 'INITIAL']
+    
+    standings = { name: [] for name in grid_names }
+    constructors = { name: [] for name in grid_names }
+    calendar = { name: [] for name in grid_names }
+    last_races = { name: None for name in grid_names }
+    noticias = News.query.order_by(News.data_publicacao.desc()).limit(5).all()
+    pilots_by_grid = { name: [] for name in grid_names }
+    
+    if season_ativa: # Só busca dados se houver uma temporada ativa selecionada
         # 1. Calcular Pontos dos Pilotos
         pilotos = PilotProfile.query.join(User).all()
         for p in pilotos:
-            if p.grid in standings:
-                resultados = [r for r in p.race_results if r.race.season_id == season_ativa.id]
-                pontos_totais = float(sum(r.pontos_ganhos for r in resultados)) - float(p.penalidade_campeonato or 0)
-                vitorias = sum(1 for r in resultados if r.posicao == 1 and not r.dsq)
-                
-                # Lógica de Quali Ban: Verifica se a última punição concluída foi Média ou Grave
-                ultimo_p = Protesto.query.filter_by(acusado_id=p.id, status='CONCLUIDO')\
-                    .order_by(Protesto.data_fechamento.desc()).first()
-                quali_ban = False
-                if ultimo_p and ultimo_p.veredito_final in ['MEDIA', 'GRAVE']:
-                    ultima_res = RaceResult.query.join(Race).filter(RaceResult.pilot_id == p.id, Race.status == 'Concluida').order_by(Race.data_corrida.desc()).first()
-                    # Se ele ainda não correu após o fechamento do protesto, o ban está ativo
-                    if not ultima_res or ultimo_p.data_fechamento.date() >= ultima_res.race.data_corrida:
-                        quali_ban = True
+            resultados = [r for r in p.race_results if r.race.season_id == season_ativa.id]
+            
+            # Lógica ajustada: Apenas pilotos titulares aparecem na tabela (Reservas pontuam apenas para equipe)
+            p_grids = set([g.strip() for g in p.grid.split(',') if g.strip()])
 
-                # Adiciona placeholder para o carro
-                standings[p.grid].append({'piloto': p, 'pontos': pontos_totais, 'vitorias': vitorias, 'carro': '', 'quali_ban': quali_ban})
+            for gname in p_grids:
+                if gname in standings:
+                    # Filtra resultados apenas deste grid específico
+                    res_no_grid = [r for r in resultados if r.race.grid == gname]
+                    pontos_totais = float(sum(r.pontos_ganhos for r in res_no_grid)) - float(p.penalidade_campeonato or 0)
+                    vitorias = sum(1 for r in res_no_grid if r.posicao == 1 and not r.dsq)
+                    
+                    # Lógica de Quali Ban
+                    ultimo_p = Protesto.query.filter_by(acusado_id=p.id, status='CONCLUIDO')\
+                        .order_by(Protesto.data_fechamento.desc()).first()
+                    quali_ban = False
+                    if ultimo_p and ultimo_p.veredito_final in ['MEDIA', 'GRAVE']:
+                        ultima_res = RaceResult.query.join(Race).filter(RaceResult.pilot_id == p.id, Race.status == 'Concluida').order_by(Race.data_corrida.desc()).first()
+                        if not ultima_res or ultimo_p.data_fechamento.date() >= ultima_res.race.data_corrida:
+                            quali_ban = True
+
+                    standings[gname].append({'piloto': p, 'pontos': pontos_totais, 'vitorias': vitorias, 'carro': '', 'quali_ban': quali_ban})
         
         # 2. Ordenar e Aplicar Lastro (Carro)
         for grid in standings: 
-            standings[grid].sort(key=lambda x: x['pontos'], reverse=True)
+            standings[grid].sort(key=lambda x: (x['pontos'], x['vitorias']), reverse=True)
             
             # Distribui os carros baseados na posição
             for i, item in enumerate(standings[grid]):
@@ -78,7 +128,7 @@ def home():
                 
                 constructors[t.grid].append({'equipe': t, 'pontos': pontos_finais, 'vitorias': stats['vitorias']})
         
-        for grid in constructors: constructors[grid].sort(key=lambda x: x['pontos'], reverse=True)
+        for grid in constructors: constructors[grid].sort(key=lambda x: (x['pontos'], x['vitorias']), reverse=True)
         
         # 4. Calendário e Últimas Corridas (Pódio)
         all_races = Race.query.filter_by(season_id=season_ativa.id).order_by(Race.data_corrida).all()
@@ -93,12 +143,14 @@ def home():
                 last_races[grid] = concluidas[-1] # Pega a última da lista (mais recente)
         
         # 5. Lista de Pilotos por Grid (Exclui Reservas)
-        pilots_query = PilotProfile.query.join(User).filter(PilotProfile.grid.in_(['ELITE', 'ADVANCED', 'INITIAL'])).order_by(PilotProfile.nickname).all()
+        pilots_query = PilotProfile.query.join(User).filter(PilotProfile.grid != 'SEM_GRID').order_by(PilotProfile.nickname).all()
         for p in pilots_query:
-            if p.grid in pilots_by_grid:
-                pilots_by_grid[p.grid].append(p)
+            p_grids = [g.strip() for g in p.grid.split(',')]
+            for g in p_grids:
+                if g in pilots_by_grid:
+                    pilots_by_grid[g].append(p)
 
-    return render_template('home.html', standings=standings, constructors=constructors, calendar=calendar, last_races=last_races, season_ativa=season_ativa, noticias=noticias, pilots_by_grid=pilots_by_grid)
+    return render_template('home.html', standings=standings, constructors=constructors, calendar=calendar, last_races=last_races, season_ativa=season_ativa, noticias=noticias, pilots_by_grid=pilots_by_grid, grid_names=grid_names, all_active_seasons=all_active_seasons)
 
 @public_bp.route('/login', methods=['GET', 'POST'])
 def login():
@@ -110,7 +162,7 @@ def login():
         return redirect(url_for('public.home'))
 
     if request.method == 'POST':
-        email = (request.form.get('email') or '').lower()
+        email = (request.form.get('email') or '').strip().lower()
         password = request.form.get('password')
         remember = True if request.form.get('remember') else False
 
@@ -138,7 +190,7 @@ def register():
 
     if request.method == 'POST':
         token_input = request.form.get('token')
-        email = (request.form.get('email') or '').lower()
+        email = (request.form.get('email') or '').strip().lower()
         nickname = (request.form.get('nickname') or '')
         telefone = request.form.get('telefone')
         password = request.form.get('password')
@@ -166,7 +218,7 @@ def register():
             flash('Este e-mail já está cadastrado.', 'warning')
             return redirect(url_for('public.register'))
         
-        new_user = User(email=email, username=nickname, role='PILOTO')
+        new_user = User(email=email, username=nickname[:50], role='PILOTO')
         new_user.set_password(password)
         db.session.add(new_user)
         db.session.flush()
@@ -195,7 +247,7 @@ def logout():
 
 @public_bp.route('/regulamento')
 def rules():
-    return render_template('regulamento.html')
+    return render_template('public/regulamento.html')
 
 @public_bp.route('/transparencia')
 def transparency():
@@ -216,14 +268,59 @@ def public_profile(pilot_id):
     if current_user.is_authenticated and current_user.pilot_profile and current_user.pilot_profile.id == perfil.id:
         return redirect(url_for('public.my_profile'))
 
-    season_ativa = Season.query.filter_by(ativa=True).first()
+    # Identifica contextos (Temporada + Grid) ativos para este piloto
+    active_seasons = Season.query.filter_by(ativa=True).order_by(Season.id.desc()).all()
+    available_contexts = []
+    p_grids = [g.strip() for g in perfil.grid.split(',')] if perfil.grid else []
+
+    for s in active_seasons:
+        # Grids onde o piloto já tem resultados nesta temporada
+        grids_res = db.session.query(Race.grid).join(RaceResult).filter(
+            RaceResult.pilot_id == perfil.id,
+            Race.season_id == s.id
+        ).distinct().all()
+        grids = [g[0] for g in grids_res]
+        
+        # Filtra grids válidos para esta temporada (evita mostrar grids de outras temporadas)
+        season_races_grids = [r[0] for r in db.session.query(Race.grid).filter_by(season_id=s.id).distinct().all()]
+        valid_season_grids = set(season_races_grids)
+        if not season_races_grids:
+             configs = GridConfig.query.all()
+             if configs:
+                 valid_season_grids = set(c.nome for c in configs)
+             else:
+                 valid_season_grids = set(p_grids)
+
+        # Inclui todos os grids onde o piloto está registrado
+        for pg in p_grids:
+            if pg not in grids and pg in valid_season_grids:
+                grids.append(pg)
+        
+        for g in grids:
+            available_contexts.append({'season_id': s.id, 'season_nome': s.nome, 'grid': g})
+
+    sel_season_id = request.args.get('s', type=int) # Mantém o 's' para seleção de temporada
+    sel_grid = request.args.get('g')
+    
+    current_context = None
+    if sel_season_id and sel_grid:
+        current_context = next((c for c in available_contexts if c['season_id'] == sel_season_id and c['grid'] == sel_grid), None)
+    
+    if not current_context and available_contexts:
+        default_grid = p_grids[0] if p_grids else 'SEM_GRID' # Tenta usar o primeiro grid do perfil como padrão
+        current_context = next((c for c in available_contexts if c['grid'] == default_grid), available_contexts[0])
     
     # Estatísticas da Temporada
     meus_pontos_camp = 0
     desempenho_temporada = []
-    if season_ativa:
-        meus_pontos_camp = float(sum(r.pontos_ganhos for r in perfil.race_results if r.race.season_id == season_ativa.id)) - float(perfil.penalidade_campeonato or 0)
-        corridas = Race.query.filter_by(season_id=season_ativa.id, grid=perfil.grid).order_by(Race.data_corrida).all()
+    if current_context:
+        s_id = current_context['season_id']
+        g_name = current_context['grid']
+        
+        resultados_contexto = [r for r in perfil.race_results if r.race.season_id == s_id and r.race.grid == g_name]
+        meus_pontos_camp = float(sum(r.pontos_ganhos for r in resultados_contexto)) - float(perfil.penalidade_campeonato or 0)
+        
+        corridas = Race.query.filter_by(season_id=s_id, grid=g_name).order_by(Race.data_corrida).all()
         for race in corridas:
             resultado = next((r for r in race.results if r.pilot_id == perfil.id), None)
             desempenho_temporada.append({
@@ -267,7 +364,9 @@ def public_profile(pilot_id):
                            historico_carreira=historico_carreira,
                            checkin_race=None,
                            registro_atual=None,
-                           quali_ban=quali_ban)
+                           quali_ban=quali_ban,
+                           available_contexts=available_contexts,
+                           current_context=current_context)
 
 @public_bp.route('/meu-perfil')
 @login_required
@@ -282,7 +381,47 @@ def my_profile():
     else:
         return redirect(url_for('public.home'))
 
-    season_ativa = Season.query.filter_by(ativa=True).first()
+    # Identifica contextos (Temporada + Grid) ativos para este piloto
+    active_seasons = Season.query.filter_by(ativa=True).order_by(Season.id.desc()).all()
+    available_contexts = []
+    p_grids = [g.strip() for g in perfil.grid.split(',')] if perfil.grid else []
+
+    for s in active_seasons:
+        # Grids onde o piloto já tem resultados nesta temporada
+        grids_res = db.session.query(Race.grid).join(RaceResult).filter(
+            RaceResult.pilot_id == perfil.id,
+            Race.season_id == s.id
+        ).distinct().all()
+        grids = [g[0] for g in grids_res]
+        
+        # Filtra grids válidos para esta temporada (evita mostrar grids de outras temporadas)
+        season_races_grids = [r[0] for r in db.session.query(Race.grid).filter_by(season_id=s.id).distinct().all()]
+        valid_season_grids = set(season_races_grids)
+        if not season_races_grids:
+             configs = GridConfig.query.all()
+             if configs:
+                 valid_season_grids = set(c.nome for c in configs)
+             else:
+                 valid_season_grids = set(p_grids)
+
+        # Inclui todos os grids onde o piloto está registrado
+        for pg in p_grids:
+            if pg not in grids and pg in valid_season_grids:
+                grids.append(pg)
+        
+        for g in grids:
+            available_contexts.append({'season_id': s.id, 'season_nome': s.nome, 'grid': g})
+
+    sel_season_id = request.args.get('s', type=int) # Mantém o 's' para seleção de temporada
+    sel_grid = request.args.get('g')
+    
+    current_context = None
+    if sel_season_id and sel_grid:
+        current_context = next((c for c in available_contexts if c['season_id'] == sel_season_id and c['grid'] == sel_grid), None)
+    
+    if not current_context and available_contexts:
+        default_grid = p_grids[0] if p_grids else 'SEM_GRID' # Tenta usar o primeiro grid do perfil como padrão
+        current_context = next((c for c in available_contexts if c['grid'] == default_grid), available_contexts[0])
     
     if perfil.esta_banido():
         flash('ALERTA: Sua CNH está zerada ou negativa. Você está suspenso das atividades de pista.', 'danger')
@@ -290,28 +429,34 @@ def my_profile():
     checkin_race = None
     registro_atual = None
     
-    # Lógica de Check-in
-    if season_ativa:
-        hoje = datetime.utcnow().date()
-        corridas_futuras = Race.query.filter(
-            Race.season_id == season_ativa.id,
-            Race.grid == perfil.grid,
+    # Lógica de Check-in vinculada ao contexto selecionado
+    hoje = datetime.utcnow().date()
+    if current_context:
+        proxima = Race.query.filter(
+            Race.season_id == current_context['season_id'],
+            Race.grid == current_context['grid'],
             Race.status != 'Concluida',
             Race.data_corrida >= hoje
-        ).order_by(Race.data_corrida).all()
-        
-        if corridas_futuras:
-            proxima = corridas_futuras[0]
-            if proxima.data_corrida and (proxima.data_corrida - hoje).days <= 2: 
+        ).order_by(Race.data_corrida).first()
+
+        if proxima and proxima.data_corrida and (proxima.data_corrida - hoje).days <= 2:
+            reg = RaceRegistration.query.filter_by(race_id=proxima.id, pilot_id=perfil.id).first()
+            # Só exibe o bloco de check-in se ainda não houver resposta confirmada ou justificada
+            if not reg or reg.status not in ['CONFIRMADO', 'JUSTIFICADO']:
                 checkin_race = proxima
-                registro_atual = RaceRegistration.query.filter_by(race_id=proxima.id, pilot_id=perfil.id).first()
+                registro_atual = reg
 
     # Estatísticas da Temporada
     meus_pontos_camp = 0
     desempenho_temporada = []
-    if season_ativa:
-        meus_pontos_camp = float(sum(r.pontos_ganhos for r in perfil.race_results if r.race.season_id == season_ativa.id)) - float(perfil.penalidade_campeonato or 0)
-        corridas = Race.query.filter_by(season_id=season_ativa.id, grid=perfil.grid).order_by(Race.data_corrida).all()
+    if current_context:
+        s_id = current_context['season_id']
+        g_name = current_context['grid']
+        
+        resultados_contexto = [r for r in perfil.race_results if r.race.season_id == s_id and r.race.grid == g_name]
+        meus_pontos_camp = float(sum(r.pontos_ganhos for r in resultados_contexto)) - float(perfil.penalidade_campeonato or 0)
+        
+        corridas = Race.query.filter_by(season_id=s_id, grid=g_name).order_by(Race.data_corrida).all()
         for race in corridas:
             resultado = next((r for r in race.results if r.pilot_id == perfil.id), None)
             desempenho_temporada.append({
@@ -374,7 +519,9 @@ def my_profile():
                            historico_carreira=historico_carreira,
                            checkin_race=checkin_race,
                            registro_atual=registro_atual,
-                           quali_ban=quali_ban)
+                           quali_ban=quali_ban,
+                           available_contexts=available_contexts,
+                           current_context=current_context)
 
 # --- AÇÕES DE CHECK-IN ---
 
@@ -507,26 +654,31 @@ def open_protest():
     if not current_user.pilot_profile: return redirect(url_for('public.home'))
     if request.method == 'POST':
         novo = Protesto(
-            etapa_id=request.form.get('race_id'), 
+            etapa_id=request.form.get('race_id'),
             acusador_id=current_user.pilot_profile.id,
-            acusado_id=request.form.get('acusado_id'), 
-            video_link=request.form.get('video'), 
+            acusado_id=request.form.get('acusado_id'),
+            video_link=request.form.get('video'),
             minuto=request.form.get('minuto'),
-            descricao=request.form.get('descricao'), 
-            status='AGUARDANDO_DEFESA', 
+            descricao=request.form.get('descricao'),
+            status='AGUARDANDO_DEFESA',
             data_criacao=datetime.utcnow()
         )
         db.session.add(novo)
         db.session.commit()
         return redirect(url_for('public.my_profile'))
-    season_ativa = Season.query.filter_by(ativa=True).first()
+    season_ativa = Season.query.filter_by(ativa=True).order_by(Season.id.desc()).first()
 
-    user_grid = current_user.pilot_profile.grid
+    configs = GridConfig.query.all()
+    grid_names = [c.nome for c in configs] if configs else ['ELITE', 'ADVANCED', 'INITIAL']
+
+    user_grids = [g.strip() for g in current_user.pilot_profile.grid.split(',')] if current_user.pilot_profile.grid else []
     # Se o piloto pertence a um grid principal, filtramos para não poluir a lista.
     # Pilotos RESERVA ou SEM_GRID continuam vendo tudo, pois podem ter participado de qualquer grid.
-    if user_grid in ['ELITE', 'ADVANCED', 'INITIAL']:
-        races = Race.query.filter_by(season_id=season_ativa.id, grid=user_grid).all() if season_ativa else []
-        pilots = PilotProfile.query.filter(PilotProfile.id != current_user.pilot_profile.id, PilotProfile.grid == user_grid).order_by(PilotProfile.nickname).all()
+    is_main_grid = any(g in grid_names for g in user_grids)
+    if is_main_grid:
+        races = Race.query.filter(Race.season_id == season_ativa.id, Race.grid.in_(user_grids)).all() if season_ativa else []
+        all_pilots = PilotProfile.query.filter(PilotProfile.id != current_user.pilot_profile.id).all()
+        pilots = [p for p in all_pilots if any(g in user_grids for g in p.grid.split(','))]
     else:
         races = Race.query.filter_by(season_id=season_ativa.id).all() if season_ativa else []
         pilots = PilotProfile.query.filter(PilotProfile.id != current_user.pilot_profile.id).order_by(PilotProfile.nickname).all()

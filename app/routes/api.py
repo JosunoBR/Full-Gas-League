@@ -10,7 +10,7 @@ def get_news():
 
 @api_bp.route('/standings/<grid>', methods=['GET'])
 def get_standings(grid):
-    season = Season.query.filter_by(ativa=True).first()
+    season = Season.query.filter_by(ativa=True).order_by(Season.id.desc()).first()
     if not season:
         return jsonify([])
     
@@ -32,7 +32,7 @@ def get_standings(grid):
 
 @api_bp.route('/calendar/<grid>', methods=['GET'])
 def get_calendar(grid):
-    season = Season.query.filter_by(ativa=True).first()
+    season = Season.query.filter_by(ativa=True).order_by(Season.id.desc()).first()
     if not season:
         return jsonify([])
     

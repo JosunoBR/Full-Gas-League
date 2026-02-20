@@ -1,0 +1,303 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center mb-5">
+    <div class="col-lg-10 text-center">
+        <h1 class="text-white fw-bold display-4 mb-3" style="font-family: 'Cinzel', serif;">REGULAMENTO OFICIAL</h1>
+        <p class="lead text-white-50">
+            FULL GAS RACING | TEMPORADA 2
+        </p>
+        <div class="mx-auto mt-3" style="width: 100px; height: 3px; background-color: #E60000;"></div>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card bg-dark border-silver shadow">
+            <div class="card-body p-5 text-white">
+                
+                <!-- INTRODUÇÃO -->
+                <div class="mb-5">
+                    <h3 class="fw-bold text-danger mb-3">INTRODUÇÃO</h3>
+                    <p class="text-white-50">
+                        A Full Gas Racing (FGR) é uma liga de Fórmula 1 virtual organizada para promover competições equilibradas, justas e profissionais. Este regulamento rege integralmente a Segunda Temporada da liga, em todos os grids, sendo de cumprimento obrigatório. Ao se inscrever, o piloto declara ciência e concordância total com as normas.
+                    </p>
+                </div>
+
+                <hr class="border-secondary my-4">
+
+                <!-- 1. Formato do Campeonato -->
+                <div class="mb-5">
+                    <h3 class="fw-bold text-danger mb-3">1. Formato do Campeonato</h3>
+                    <p class="text-white-50">O campeonato terá 10 etapas.</p>
+                    <ul class="list-unstyled text-white-50">
+                        <li class="mb-2"><i class="fa-solid fa-cloud-sun-rain me-2"></i> Clima dinâmico e horário realista em todas as corridas.</li>
+                        <li class="mb-2"><i class="fa-solid fa-clock me-2"></i> Duração das corridas: 50% da distância real.</li>
+                        <li class="mb-2"><i class="fa-solid fa-stopwatch me-2"></i> Qualificação: 18 minutos (formato oficial de sessão curta).</li>
+                        <li class="mb-2"><i class="fa-solid fa-wrench me-2"></i> Assistências: todas liberadas, exceto entrada e saída automática dos boxes.</li>
+                        <li class="mb-2"><i class="fa-solid fa-car-burst me-2"></i> Dano Padrão.</li>
+                    </ul>
+                    <p class="text-white-50 mt-3">
+                        A última etapa terá pontuação dobrada, grid invertido, sem classificação e desempenho igual.
+                    </p>
+
+                    <h5 class="fw-bold text-white mt-4">ETAPAS SURPRESA</h5>
+                    <p class="text-white-50">O campeonato contará com 2 (duas) etapas especiais.</p>
+                    
+                    <div class="ps-3 border-start border-danger mb-3">
+                        <strong class="text-white">Uma etapa com Uso Obrigatório dos 3 compostos de Pneus</strong><br>
+                        <span class="text-white-50">Uso obrigatório de pneus macios, médios e duros durante a corrida, o não cumprimento da obrigação resultará em DESCLASSIFICAÇÃO da etapa.</span>
+                    </div>
+
+                    <div class="ps-3 border-start border-danger">
+                        <strong class="text-white">Uma etapa com Sprint</strong>
+                        <ul class="list-unstyled text-white-50 mt-1">
+                            <li>Classificação: 1 volta</li>
+                            <li>Sprint: 25% de duração e 50% da pontuação</li>
+                            <li>Grid da corrida principal: Resultado da Sprint INVERTIDO (Vencedor da Sprint larga em último)</li>
+                            <li>Abandonos largam atrás do vencedor da Sprint, nas últimas colocações, evitando assim que pilotos abandonem propositalmente para largarem na frente na corrida principal.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <hr class="border-secondary my-4">
+
+                <!-- 2. Sistema de Pontuação -->
+                <div class="mb-5">
+                    <h3 class="fw-bold text-danger mb-3">2. Sistema de Pontuação</h3>
+                    <p class="text-white-50">
+                        A pontuação varia conforme o tamanho do grid (20 ou 22 carros).<br>
+                        Pilotos que não completarem a corrida (NC), não pontuam.
+                    </p>
+                    
+                    <ul class="nav nav-pills mb-3" id="pills-tab" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active btn-sm fw-bold" id="pills-20-tab" data-bs-toggle="pill" data-bs-target="#pills-20" type="button">Grid Padrão (20)</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link btn-sm fw-bold" id="pills-22-tab" data-bs-toggle="pill" data-bs-target="#pills-22" type="button">Grid Cheio (22)</button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content" id="pills-tabContent">
+                        <!-- TABELA 20 PILOTOS -->
+                        <div class="tab-pane fade show active" id="pills-20" role="tabpanel">
+                            <div class="table-responsive">
+                                <table class="table table-dark table-bordered table-sm text-center">
+                                    <thead><tr class="text-warning"><th>Pos</th><th>Pts</th><th>Pos</th><th>Pts</th><th>Pos</th><th>Pts</th><th>Pos</th><th>Pts</th></tr></thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>P1</td><td class="fw-bold text-success">35</td>
+                                            <td>P6</td><td>20</td>
+                                            <td>P11</td><td>10</td>
+                                            <td>P16</td><td>5</td>
+                                        </tr>
+                                        <tr>
+                                            <td>P2</td><td class="fw-bold text-success">30</td>
+                                            <td>P7</td><td>18</td>
+                                            <td>P12</td><td>9</td>
+                                            <td>P17</td><td>4</td>
+                                        </tr>
+                                        <tr>
+                                            <td>P3</td><td class="fw-bold text-success">27</td>
+                                            <td>P8</td><td>16</td>
+                                            <td>P13</td><td>8</td>
+                                            <td>P18</td><td>3</td>
+                                        </tr>
+                                        <tr>
+                                            <td>P4</td><td>24</td>
+                                            <td>P9</td><td>14</td>
+                                            <td>P14</td><td>7</td>
+                                            <td>P19</td><td>2</td>
+                                        </tr>
+                                        <tr>
+                                            <td>P5</td><td>22</td>
+                                            <td>P10</td><td>12</td>
+                                            <td>P15</td><td>6</td>
+                                            <td>P20</td><td>1</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- TABELA 22 PILOTOS -->
+                        <div class="tab-pane fade" id="pills-22" role="tabpanel">
+                            <div class="table-responsive">
+                                <table class="table table-dark table-bordered table-sm text-center">
+                                    <thead><tr class="text-warning"><th>Pos</th><th>Pts</th><th>Pos</th><th>Pts</th><th>Pos</th><th>Pts</th><th>Pos</th><th>Pts</th></tr></thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>P1</td><td class="fw-bold text-success">35</td>
+                                            <td>P6</td><td>20</td>
+                                            <td>P11</td><td>12</td>
+                                            <td>P16</td><td>7</td>
+                                        </tr>
+                                        <tr>
+                                            <td>P2</td><td class="fw-bold text-success">30</td>
+                                            <td>P7</td><td>18</td>
+                                            <td>P12</td><td>11</td>
+                                            <td>P17</td><td>6</td>
+                                        </tr>
+                                        <tr>
+                                            <td>P3</td><td class="fw-bold text-success">27</td>
+                                            <td>P8</td><td>16</td>
+                                            <td>P13</td><td>10</td>
+                                            <td>P18</td><td>5</td>
+                                        </tr>
+                                        <tr>
+                                            <td>P4</td><td>24</td>
+                                            <td>P9</td><td>14</td>
+                                            <td>P14</td><td>9</td>
+                                            <td>P19</td><td>4</td>
+                                        </tr>
+                                        <tr>
+                                            <td>P5</td><td>22</td>
+                                            <td>P10</td><td>13</td>
+                                            <td>P15</td><td>8</td>
+                                            <td>P20</td><td>3</td>
+                                        </tr>
+                                        <tr>
+                                            <td colspan="4" class="bg-dark border-0"></td>
+                                            <td>P21</td><td>2</td>
+                                            <td>P22</td><td>1</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="border-secondary my-4">
+
+                <!-- 3. Lastro Invertido -->
+                <div class="mb-5">
+                    <h3 class="fw-bold text-danger mb-3">3. Lastro Invertido e Distribuição de Equipes</h3>
+                    <p class="text-white-50">
+                        O campeonato utiliza lastro invertido, onde os melhores no campeonato correm com os carros mais fracos e os últimos colocados recebem os carros mais fortes.
+                    </p>
+                    <ul class="list-unstyled text-white-50">
+                        <li>🔹 Etapa 1 e 10: todos correm com desempenho igual.</li>
+                        <li>🔹 A partir da Etapa 2 até a etapa 9, aplica-se o sistema de lastro conforme o jogo.</li>
+                    </ul>
+                    <p class="text-white-50"><strong>Ordem de desempenho (melhor → pior):</strong><br>
+                    McLaren → Red Bull → Mercedes → Ferrari → Aston Martin → Williams → Racing Bulls → Alpine → Haas → Sauber</p>
+
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <ul class="list-group list-group-flush bg-dark">
+                                <li class="list-group-item bg-dark text-white border-secondary">P1 e P2 → Sauber</li>
+                                <li class="list-group-item bg-dark text-white border-secondary">P3 e P4 → Haas</li>
+                                <li class="list-group-item bg-dark text-white border-secondary">P5 e P6 → Alpine</li>
+                                <li class="list-group-item bg-dark text-white border-secondary">P7 e P8 → Racing Bulls</li>
+                                <li class="list-group-item bg-dark text-white border-secondary">P9 e P10 → Williams</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <ul class="list-group list-group-flush bg-dark">
+                                <li class="list-group-item bg-dark text-white border-secondary">P11 e P12 → Aston Martin</li>
+                                <li class="list-group-item bg-dark text-white border-secondary">P13 e P14 → Ferrari</li>
+                                <li class="list-group-item bg-dark text-white border-secondary">P15 e P16 → Mercedes</li>
+                                <li class="list-group-item bg-dark text-white border-secondary">P17 e P18 → Red Bull</li>
+                                <li class="list-group-item bg-dark text-white border-secondary">P19 a P22 → McLaren</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <p class="text-white-50 mt-3 small">
+                        Todos os Grids da Full Gás Racing terão uma premiação em troféu para os 3 primeiros colocados e dupla vencedora do campeonato de Construtores. O frete é por conta do piloto.
+                    </p>
+                </div>
+
+                <hr class="border-secondary my-4">
+
+                <!-- 4. Regras de Conduta -->
+                <div class="mb-5">
+                    <h3 class="fw-bold text-danger mb-3">4. Regras de Conduta e Punições</h3>
+                    <p class="text-white-50">
+                        Todos os pilotos devem respeitar os adversários, evitando contatos desnecessários.<br>
+                        <strong>Gravação Obrigatória:</strong> Os pilotos devem gravar SUA VISÃO DA CORRIDA (HUD visível). Falta de vídeo solicitado gera ADVERTÊNCIA (3 adv = Punição LEVE).<br>
+                        Incidentes devem ser reportados aos administradores com vídeo.
+                    </p>
+
+                    <h5 class="fw-bold text-white mt-3">Tabela de Punições</h5>
+                    <ul class="list-unstyled text-white-50">
+                        <li class="mb-2"><strong>Lance de corrida:</strong> sem punição.</li>
+                        <li class="mb-2"><strong>Advertência:</strong> aviso verbal (movimento perigoso sem contato).</li>
+                        <li class="mb-2"><strong>Punição Leve:</strong> rodar adversário/perda de posições sem danos. <span class="text-danger">(-3 pts tabela, -3 CNH)</span></li>
+                        <li class="mb-2"><strong>Punição Média:</strong> causar danos ao carro adversário. <span class="text-danger">(-5 pts tabela, -5 CNH, Qualy Ban)</span></li>
+                        <li class="mb-2"><strong>Punição Grave:</strong> causar abandono (NC). <span class="text-danger">(-10 pts tabela, -10 CNH, Qualy Ban)</span></li>
+                    </ul>
+
+                    <h5 class="fw-bold text-white mt-3">Presença e Quórum</h5>
+                    <p class="text-white-50">
+                        Faltas não justificadas: Qualy Ban + -2 pts CNH.<br>
+                        <strong>Mínimo de 13 pilotos:</strong> Se não atingir, a etapa é ADIADA para o final da temporada (sem pontos/punições enquanto adiada).
+                    </p>
+                </div>
+
+                <hr class="border-secondary my-4">
+
+                <!-- 5. CNH -->
+                <div class="mb-5">
+                    <h3 class="fw-bold text-danger mb-3">5. Sistema de CNH e Penalidades</h3>
+                    <p class="text-white-50">
+                        Cada piloto inicia com <strong>25 pontos na CNH</strong>.<br>
+                        Penalidades retiram pontos conforme descrito acima.<br>
+                        Ao atingir 0 pontos, o piloto é <strong>desclassificado</strong> da temporada.
+                    </p>
+                </div>
+
+                <hr class="border-secondary my-4">
+
+                <!-- 6. Pontos Bônus -->
+                <div class="mb-5">
+                    <h3 class="fw-bold text-danger mb-3">6. Pontos Bônus</h3>
+                    <ul class="list-unstyled text-white-50">
+                        <li class="mb-2"><i class="fa-solid fa-star text-warning me-2"></i> <strong>Piloto do Dia (jogo):</strong> +1 ponto.</li>
+                        <li class="mb-2"><i class="fa-solid fa-stopwatch text-info me-2"></i> <strong>Volta Mais Rápida:</strong> +1 ponto (se terminar a corrida).</li>
+                        <li class="mb-2"><i class="fa-solid fa-heart text-danger me-2"></i> <strong>Piloto da Torcida:</strong> +1 ponto (Votação por número de PESSOAS na live).</li>
+                    </ul>
+                </div>
+
+                <hr class="border-secondary my-4">
+
+                <!-- 7. Convivência e Reservas -->
+                <div class="mb-5">
+                    <h3 class="fw-bold text-danger mb-3">7. Regras de Convivência, Comunicação e Reservas</h3>
+                    <p class="text-white-50">
+                        Proibido estar em chamada com pilotos de outras equipes durante a corrida.<br>
+                        Proibido discutir incidentes no grupo oficial.
+                    </p>
+                    <h5 class="fw-bold text-white mt-3">Pilotos Reservas</h5>
+                    <p class="text-white-50">
+                        Pilotos podem ser reservas no Grid ACIMA do seu (ex: Advanced no Elite).<br>
+                        Suplentes podem ser reservas no Initial.<br>
+                        Pilotos externos podem ser reservas exclusivos de uma equipe.<br>
+                        <strong>Taxa de inscrição para reserva: R$ 10,00.</strong><br>
+                        Premiação exclusiva (medalha) para o melhor reserva de cada grid.
+                    </p>
+                </div>
+
+                <hr class="border-secondary my-4">
+
+                <!-- 8 e 9. Finais -->
+                <div class="mb-5">
+                    <h3 class="fw-bold text-danger mb-3">8. Direitos de Imagem</h3>
+                    <p class="text-white-50">
+                        A inscrição implica na cessão automática dos direitos de imagem para uso da Full Gas Racing.
+                    </p>
+
+                    <h3 class="fw-bold text-danger mb-3 mt-4">9. Disposições Finais</h3>
+                    <p class="text-white-50">
+                        A diretoria pode ajustar o regulamento para manter o equilíbrio.<br>
+                        Todos os inscritos aceitam automaticamente este regulamento.<br>
+                        <strong>A FULL GAS RACING preza pelo respeito, competitividade e diversão acima de tudo.</strong>
+                    </p>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

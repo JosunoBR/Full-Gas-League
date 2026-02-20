@@ -81,7 +81,7 @@
                         </div>
                     {% endif %}
                     <span class="position-absolute bottom-0 end-0 badge rounded-pill bg-dark text-danger border border-danger fw-bold">
-                        {{ perfil.grid }}
+                        {{ current_context.grid if current_context else perfil.grid }}
                     </span>
                 </div>
 
@@ -150,8 +150,35 @@
     
     <div class="col-md-8 mb-3">
         <div class="card shadow-lg border-secondary h-100">
-             <div class="card-header bg-dark border-secondary">
-                 <h5 class="mb-0 text-danger fw-bold"><i class="fa-solid fa-chart-line me-2"></i> Desempenho na Temporada</h5>
+             <div class="card-header bg-dark border-secondary d-flex justify-content-between align-items-center flex-wrap">
+                 <h5 class="mb-0 text-danger fw-bold me-2"><i class="fa-solid fa-chart-line me-2"></i> Desempenho</h5>
+                 
+                 {% if available_contexts|length > 1 %}
+                 <div class="dropdown">
+                    <button class="btn btn-sm btn-outline-danger dropdown-toggle fw-bold" type="button" data-bs-toggle="dropdown">
+                        <i class="fa-solid fa-filter me-1"></i> 
+                        {% if current_context %}
+                            {{ current_context.season_nome }} - {{ current_context.grid }}
+                        {% else %}
+                            Selecionar Contexto
+                        {% endif %}
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end border-secondary shadow">
+                        {% for ctx in available_contexts %}
+                        <li>
+                            <a class="dropdown-item {% if current_context.season_id == ctx.season_id and current_context.grid == ctx.grid %}active bg-danger{% endif %}" 
+                               href="?s={{ ctx.season_id }}&g={{ ctx.grid }}">
+                                {{ ctx.season_nome }} - {{ ctx.grid }}
+                            </a>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                 </div>
+                 {% else %}
+                    {% if current_context %}
+                        <span class="badge bg-danger text-white fw-bold">{{ current_context.season_nome }} - {{ current_context.grid }}</span>
+                    {% endif %}
+                 {% endif %}
              </div>
              <div class="card-body bg-dark p-0">
                  <div class="table-responsive">
@@ -227,6 +254,9 @@
                 <div class="d-flex justify-content-between align-items-center border-bottom border-secondary pb-2 mb-2">
                     <div>
                         <strong class="text-white">{{ p.etapa.nome_gp }}</strong>
+                        {% if p.minuto %}
+                            <span class="badge bg-secondary text-white ms-1" style="font-size: 0.7rem;">Volta: {{ p.minuto }}</span>
+                        {% endif %}
                         <span class="text-white-50 small ms-2">Acusador: {{ p.acusador.nickname }}</span>
                         <p class="text-white-50 small mb-0 mt-1">"{{ p.descricao }}"</p>
                     </div>
@@ -252,6 +282,9 @@
                         <div class="d-flex justify-content-between align-items-start">
                             <div>
                                 <strong>{{ p.etapa.nome_gp }}</strong>
+                                {% if p.minuto %}
+                                    <span class="badge bg-secondary text-white ms-1" style="font-size: 0.7rem;">Volta: {{ p.minuto }}</span>
+                                {% endif %}
                                 <span class="d-block small text-white-50">Contra: {{ p.acusado.nickname }}</span>
                             </div>
                             {% if p.status == 'CONCLUIDO' %}
@@ -304,7 +337,12 @@
                     {% for h in historico %}
                     <li class="list-group-item bg-dark text-white border-secondary">
                         <div class="d-flex justify-content-between">
-                            <strong>{{ h.etapa.nome_gp }}</strong>
+                            <div>
+                                <strong>{{ h.etapa.nome_gp }}</strong>
+                                {% if h.minuto %}
+                                    <span class="text-white-50 small ms-1">(Volta: {{ h.minuto }})</span>
+                                {% endif %}
+                            </div>
                             {% if h.veredito_final == 'INOCENTE' or h.veredito_final == 'INCIDENTE_CORRIDA' %}
                                 <span class="badge bg-success text-white">{{ h.veredito_final }}</span>
                             {% else %}

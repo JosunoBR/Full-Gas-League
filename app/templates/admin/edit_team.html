@@ -29,9 +29,14 @@
                         <div class="col-md-6 mb-3">
                             <label class="form-label text-white">Grid</label>
                             <select name="grid" class="form-select bg-secondary text-white border-0" required>
-                                <option value="ELITE" {% if team.grid == 'ELITE' %}selected{% endif %}>Elite</option>
-                                <option value="ADVANCED" {% if team.grid == 'ADVANCED' %}selected{% endif %}>Advanced</option>
-                                <option value="INITIAL" {% if team.grid == 'INITIAL' %}selected{% endif %}>Initial</option>
+                                {% for config in grid_configs %}
+                                    <option value="{{ config.nome }}" {% if team.grid == config.nome %}selected{% endif %}>{{ config.nome }}</option>
+                                {% endfor %}
+                                {% if not grid_configs %}
+                                    <option value="ELITE" {% if team.grid == 'ELITE' %}selected{% endif %}>Elite</option>
+                                    <option value="ADVANCED" {% if team.grid == 'ADVANCED' %}selected{% endif %}>Advanced</option>
+                                    <option value="INITIAL" {% if team.grid == 'INITIAL' %}selected{% endif %}>Initial</option>
+                                {% endif %}
                             </select>
                         </div>
                     </div>

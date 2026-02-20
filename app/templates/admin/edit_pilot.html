@@ -54,33 +54,32 @@
 
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label class="form-label text-white">Grid</label>
-                            <select name="grid" class="form-select bg-secondary text-white border-0" required>
-                                <option value="SEM_GRID" {% if pilot.grid == 'SEM_GRID' or not pilot.grid %}selected{% endif %}>Sem grid definido</option>
-                                
-                                <option value="ELITE" {% if pilot.grid == 'ELITE' %}selected{% endif %}>Elite</option>
-                                
-                                <option value="ADVANCED" {% if pilot.grid == 'ADVANCED' %}selected{% endif %}>Advanced</option>
-                                
-                                <option value="INITIAL" {% if pilot.grid == 'INITIAL' %}selected{% endif %}>Initial</option>
-                                
-                                <option value="RESERVA" {% if pilot.grid == 'RESERVA' %}selected{% endif %}>Reserva</option>
-                            </select>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label class="form-label text-white mb-0">Grids Atribuídos</label>
+                                <button type="button" onclick="if(confirm('RESET ABSOLUTO:\n\nIsso removerá o piloto de TODOS os grids, da equipe atual e resetará a CNH para 25 pontos.\n\nDeseja continuar?')) document.getElementById('resetPilotForm').submit();" class="btn btn-danger btn-sm py-0 px-2" style="font-size: 0.75rem;" title="Reset Absoluto (Grids, Equipe e CNH)">
+                                    <i class="fa-solid fa-rotate-left me-1"></i> RESET
+                                </button>
+                            </div>
+                            <div class="dropdown">
+                                <button class="btn btn-secondary dropdown-toggle w-100 text-start bg-secondary border-0" type="button" id="gridDropdown" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+                                    Selecionar Grids...
+                                </button>
+                                <div class="dropdown-menu dropdown-menu-dark w-100 p-3 shadow border-secondary" aria-labelledby="gridDropdown" style="max-height: 250px; overflow-y: auto;">
+                                    {% set current_pilot_grids = pilot.grid.split(',') %}
+                                    {% for grid_name in all_available_grids %}
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" name="grids" value="{{ grid_name }}" id="grid_{{ loop.index }}" {% if grid_name in current_pilot_grids %}checked{% endif %}>
+                                        <label class="form-check-label text-white" for="grid_{{ loop.index }}">
+                                            {{ grid_name }}
+                                        </label>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label text-white">Pontos CNH</label>
                             <input type="number" name="pontos_cnh" class="form-control bg-secondary text-white border-0" value="{{ pilot.pontos_cnh }}">
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label text-white">E-mail</label>
-                            <input type="email" class="form-control bg-secondary text-white-50 border-0" value="{{ pilot.user.email }}" readonly>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label text-white">Telefone (WhatsApp)</label>
-                            <input type="text" name="telefone" class="form-control bg-secondary text-white border-0" value="{{ pilot.telefone or '' }}" placeholder="(00) 00000-0000" oninput="maskPhone(this)" maxlength="15">
                         </div>
                     </div>
 
@@ -112,4 +111,7 @@
         </div>
     </div>
 </div>
+
+<form id="resetPilotForm" action="{{ url_for('admin.reset_pilot_status', pilot_id=pilot.id) }}" method="POST"></form>
+
 {% endblock %}

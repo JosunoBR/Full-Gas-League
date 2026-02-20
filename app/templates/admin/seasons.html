@@ -11,7 +11,7 @@
 <div class="row g-4">
     {% for s in seasons %}
     <div class="col-md-6 col-lg-4">
-        <div class="card h-100 bg-dark border {% if s.ativa %}border-success{% else %}border-secondary{% endif %} shadow">
+        <div class="card h-100 bg-dark border {% if s.ativa %}border-success{% else %}border-secondary{% endif %} shadow position-relative">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h4 class="card-title text-white fw-bold mb-0">{{ s.nome }}</h4>
@@ -28,10 +28,30 @@
                 
                 <div class="d-grid mt-4">
                     <a href="{{ url_for('admin.manage_season', season_id=s.id) }}" class="btn btn-outline-light fw-bold">
-                        GERENCIAR CALENDÁRIO
+                        <i class="fa-solid fa-calendar-check me-2"></i>GERENCIAR CALENDÁRIO
                     </a>
                 </div>
+
+                {% if s.ativa and current_user.role == 'SUPER_ADM' %}
+                <div class="mt-2 text-center">
+                    <form action="{{ url_for('admin.close_season', season_id=s.id) }}" method="POST" onsubmit="return confirm('Isso encerrará a temporada, liberando todos os pilotos e arquivando as equipes. Continuar?');">
+                        <button type="submit" class="btn btn-link text-warning btn-sm p-0 text-decoration-none fw-bold">
+                            <i class="fa-solid fa-lock me-1"></i> Encerrar Temporada
+                        </button>
+                    </form>
+                </div>
+                {% endif %}
             </div>
+
+            {% if current_user.role == 'SUPER_ADM' %}
+            <div class="position-absolute" style="bottom: 5px; right: 10px;">
+                <form action="{{ url_for('admin.delete_season', season_id=s.id) }}" method="POST" onsubmit="return confirm('ATENÇÃO: Isso apagará permanentemente todos os dados desta temporada. Confirmar?');">
+                    <button type="submit" class="btn btn-link text-danger p-0" title="Excluir Temporada">
+                        <i class="fa-solid fa-trash-can" style="font-size: 0.8rem;"></i>
+                    </button>
+                </form>
+            </div>
+            {% endif %}
         </div>
     </div>
     {% else %}

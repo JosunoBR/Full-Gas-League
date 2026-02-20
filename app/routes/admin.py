@@ -4,8 +4,8 @@ from datetime import datetime
 from flask import Blueprint, render_template, request, flash, redirect, url_for, current_app
 from flask_login import login_required, current_user
 from sqlalchemy import func
-from app.models import db, User, PilotProfile, Season, Race, RaceResult, Invite, Protesto, VotoComissario, Team, RaceRegistration, SeletivaEntry, News
-from app.utils import allowed_file, get_embed_url, PONTUACAO_NORMAL, ORDEM_CARROS
+from app.models import db, User, PilotProfile, Season, Race, RaceResult, Invite, Protesto, VotoComissario, Team, RaceRegistration, SeletivaEntry, News, GridConfig
+from app.utils import allowed_file, get_embed_url, PONTUACAO_20, PONTUACAO_22, ORDEM_CARROS
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -56,40 +56,88 @@ def dashboard():
 
 @admin_bp.route('/overview')
 def overview():
-    season_ativa = Season.query.filter_by(ativa=True).first()
-    dados_grids = {
-        'ELITE': {'classificacao': [], 'disciplina': []}, 
-        'ADVANCED': {'classificacao': [], 'disciplina': []}, 
-        'INITIAL': {'classificacao': [], 'disciplina': []}
-    }
+    # Pega a temporada ativa mais recente para exibição
+    all_active_seasons = Season.query.filter_by(ativa=True).order_by(Season.id.desc()).all()
     
+    selected_season_id = request.args.get('s', type=int)
+    season_ativa = None
+    if selected_season_id:
+        season_ativa = next((s for s in all_active_seasons if s.id == selected_season_id), None)
+    
+    if not season_ativa and all_active_seasons:
+        season_ativa = all_active_seasons[0] # Pega a mais recente por padrão
+    
+    # Determina quais grids exibir: apenas os que têm corridas nesta temporada
+    # ou todos os configurados se a temporada for nova (sem corridas ainda)
     if season_ativa:
+        grids_com_corrida = [r[0] for r in db.session.query(Race.grid).filter_by(season_id=season_ativa.id).distinct().all()]
+        configs = GridConfig.query.order_by(GridConfig.ordem).all()
+        
+        if not grids_com_corrida:
+            if configs:
+                grid_names = [c.nome for c in configs]
+            else:
+                # Fallback inteligente: Busca grids usados pelos pilotos ativos
+                all_pilots = PilotProfile.query.filter(PilotProfile.grid != 'SEM_GRID').all()
+                found_grids = set()
+                for p in all_pilots:
+                    p_grids = [g.strip() for g in p.grid.split(',')]
+                    for g in p_grids:
+                        if g not in ['SEM_GRID', 'RESERVA']:
+                            found_grids.add(g)
+                
+                if found_grids:
+                    # Ordena tentando respeitar a hierarquia padrão se existir, senão alfabético
+                    default_order = ['ELITE', 'ADVANCED', 'INITIAL']
+                    grid_names = sorted(list(found_grids), key=lambda x: (default_order.index(x) if x in default_order else 999, x))
+                else:
+                    grid_names = ['ELITE', 'ADVANCED', 'INITIAL']
+        else:
+            # Apenas grids que têm corrida nesta temporada, ordenados pela configuração
+            # Isso evita que grids criados na seletiva (para o futuro) apareçam na temporada atual
+            all_relevant_grids = sorted(list(set(grids_com_corrida)), 
+                                        key=lambda x: next((c.ordem for c in configs if c.nome == x), 999))
+            grid_names = all_relevant_grids
+    else:
+        configs = GridConfig.query.order_by(GridConfig.ordem).all()
+        grid_names = [c.nome for c in configs] if configs else ['ELITE', 'ADVANCED', 'INITIAL']
+
+    dados_grids = {name: {'classificacao': [], 'disciplina': []} for name in grid_names}
+    
+    if season_ativa: # Só busca dados se houver uma temporada ativa selecionada
         # Removemos o filtro de SUPER_ADM para que eles apareçam se tiverem grid definido
         pilotos = PilotProfile.query.join(User).all()
         
         for p in pilotos:
-            if p.grid in dados_grids:
-                resultados_season = [r for r in p.race_results if r.race.season_id == season_ativa.id]
-                pontos = float(sum(r.pontos_ganhos for r in resultados_season))
-                vitorias = sum(1 for r in resultados_season if r.posicao == 1 and not r.dsq)
-                podios = sum(1 for r in resultados_season if r.posicao in [1, 2, 3] and not r.dsq)
-                
-                info = {
-                    'piloto': p, 
-                    'pontos': pontos, 
-                    'vitorias': vitorias, 
-                    'podios': podios, 
-                    'cnh': p.pontos_cnh, 
-                    'advertencias': p.advertencias_acumuladas
-                }
-                dados_grids[p.grid]['classificacao'].append(info)
-                dados_grids[p.grid]['disciplina'].append(info)
+            resultados_season = [r for r in p.race_results if r.race.season_id == season_ativa.id]
+            
+            # Identifica todos os grids diferentes em que este piloto participou nesta temporada
+            grids_participados = set([r.race.grid for r in resultados_season]) if resultados_season else {p.grid}
+
+            for gname in grids_participados:
+                if gname in dados_grids:
+                    # Filtra resultados apenas deste grid específico
+                    res_no_grid = [r for r in resultados_season if r.race.grid == gname]
+                    pontos = float(sum(r.pontos_ganhos for r in res_no_grid))
+                    vitorias = sum(1 for r in res_no_grid if r.posicao == 1 and not r.dsq)
+                    podios = sum(1 for r in res_no_grid if r.posicao in [1, 2, 3] and not r.dsq)
+                    
+                    info = {
+                        'piloto': p, 
+                        'pontos': pontos, 
+                        'vitorias': vitorias, 
+                        'podios': podios, 
+                        'cnh': p.pontos_cnh, 
+                        'advertencias': p.advertencias_acumuladas
+                    }
+                    dados_grids[gname]['classificacao'].append(info)
+                    dados_grids[gname]['disciplina'].append(info)
                 
         for grid in dados_grids:
             dados_grids[grid]['classificacao'].sort(key=lambda x: x['pontos'], reverse=True)
             dados_grids[grid]['disciplina'].sort(key=lambda x: x['cnh'])
             
-    return render_template('admin/overview.html', dados=dados_grids, season=season_ativa)
+    return render_template('admin/overview.html', dados=dados_grids, season=season_ativa, all_active_seasons=all_active_seasons)
 
 @admin_bp.route('/manual')
 def manual():
@@ -164,7 +212,7 @@ def create_admin():
         if User.query.filter_by(email=email).first():
             flash('Este e-mail já está cadastrado.', 'danger')
         else:
-            new_user = User(username=username, email=email, role=role)
+            new_user = User(username=username[:50], email=email, role=role)
             new_user.set_password(password)
             db.session.add(new_user)
             db.session.flush() # Gera o ID do usuário sem finalizar a transação
@@ -327,7 +375,8 @@ def manage_season(season_id):
         flash('Corrida adicionada ao calendário!', 'success')
         return redirect(url_for('admin.manage_season', season_id=season.id))
         
-    return render_template('admin/season_detail.html', season=season, pistas=PISTAS_F1)
+    grid_configs = GridConfig.query.order_by(GridConfig.ordem).all()
+    return render_template('admin/season_detail.html', season=season, pistas=PISTAS_F1, grid_configs=grid_configs)
 
 @admin_bp.route('/season/<int:season_id>/close', methods=['POST'])
 def close_season(season_id):
@@ -338,21 +387,86 @@ def close_season(season_id):
     season = Season.query.get_or_404(season_id)
     season.ativa = False
     
-    # 1. Resetar Disciplina e Demitir Pilotos (Exceto Super ADM)
-    pilotos = PilotProfile.query.join(User).filter(User.role != 'SUPER_ADM').all()
-    for p in pilotos:
-        p.pontos_cnh = 25
-        p.advertencias_acumuladas = 0
-        p.team_id = None # Todos viram Free Agents
-        p.grid = 'SEM_GRID'
-        
-    # 2. Arquivar Equipes
-    equipes = Team.query.all()
-    for t in equipes:
-        t.ativa = False
+    # LIMPEZA INTELIGENTE DE GRIDS:
+    # Remove do perfil dos pilotos apenas os grids que pertencem EXCLUSIVAMENTE à temporada encerrada.
+    # Se um grid (ex: 'ELITE') for usado em outra temporada ativa, ele é mantido.
+
+    # 1. Identifica grids usados na temporada que está fechando
+    grids_season_rows = db.session.query(Race.grid).filter_by(season_id=season.id).distinct().all()
+    grids_in_season = set([r[0] for r in grids_season_rows])
+
+    # 2. Identifica grids usados em outras temporadas que continuam ATIVAS
+    other_active_ids = [s.id for s in Season.query.filter(Season.id != season.id, Season.ativa == True).all()]
+    grids_other_active = set()
+    if other_active_ids:
+        grids_other_rows = db.session.query(Race.grid).filter(Race.season_id.in_(other_active_ids)).distinct().all()
+        grids_other_active = set([r[0] for r in grids_other_rows])
+
+    # 3. Grids que devem ser removidos (Exclusivos da temporada fechada)
+    grids_to_remove = grids_in_season - grids_other_active
+
+    if grids_to_remove:
+        pilots = PilotProfile.query.filter(PilotProfile.grid != 'SEM_GRID').all()
+        for p in pilots:
+            current_grids = set([g.strip() for g in p.grid.split(',')])
+            # Remove apenas os grids exclusivos da temporada fechada
+            new_grids = current_grids - grids_to_remove
+            
+            if not new_grids:
+                p.grid = 'SEM_GRID'
+            else:
+                p.grid = ",".join(sorted(list(new_grids)))
         
     db.session.commit()
-    flash(f'Temporada {season.nome} encerrada! Equipes arquivadas e pilotos liberados.', 'success')
+    flash(f'Temporada {season.nome} encerrada. Grids exclusivos desta temporada foram removidos dos perfis.', 'success')
+    return redirect(url_for('admin.seasons'))
+
+@admin_bp.route('/season/<int:season_id>/delete', methods=['POST'])
+def delete_season(season_id):
+    if current_user.role != 'SUPER_ADM':
+        flash('Apenas o Super ADM pode excluir temporadas.', 'danger')
+        return redirect(url_for('admin.seasons'))
+    
+    season = Season.query.get_or_404(season_id)
+    
+    # --- LIMPEZA DE GRIDS DOS PILOTOS ---
+    # Antes de apagar as corridas, identificamos quais grids pertencem a esta temporada
+    # e removemos esses grids dos pilotos, a menos que estejam ativos em outra temporada.
+    grids_season_rows = db.session.query(Race.grid).filter_by(season_id=season.id).distinct().all()
+    grids_in_season = set([r[0] for r in grids_season_rows])
+
+    other_active_ids = [s.id for s in Season.query.filter(Season.id != season.id, Season.ativa == True).all()]
+    grids_other_active = set()
+    if other_active_ids:
+        grids_other_rows = db.session.query(Race.grid).filter(Race.season_id.in_(other_active_ids)).distinct().all()
+        grids_other_active = set([r[0] for r in grids_other_rows])
+
+    grids_to_remove = grids_in_season - grids_other_active
+
+    if grids_to_remove:
+        pilots = PilotProfile.query.filter(PilotProfile.grid != 'SEM_GRID').all()
+        for p in pilots:
+            current_grids = set([g.strip() for g in p.grid.split(',')])
+            new_grids = current_grids - grids_to_remove
+            p.grid = ",".join(sorted(list(new_grids))) if new_grids else 'SEM_GRID'
+    # ------------------------------------
+
+    # Limpar dependências de todas as corridas da temporada antes de excluí-la
+    for race in season.races:
+        RaceResult.query.filter_by(race_id=race.id).delete()
+        RaceRegistration.query.filter_by(race_id=race.id).delete()
+        
+        protestos = Protesto.query.filter_by(etapa_id=race.id).all()
+        for p in protestos:
+            VotoComissario.query.filter_by(protesto_id=p.id).delete()
+            db.session.delete(p)
+        
+        db.session.delete(race)
+    
+    db.session.delete(season)
+    db.session.commit()
+    
+    flash(f'Temporada "{season.nome}" excluída permanentemente.', 'success')
     return redirect(url_for('admin.seasons'))
 
 @admin_bp.route('/race/<int:race_id>/edit', methods=['GET', 'POST'])
@@ -380,7 +494,8 @@ def edit_race(race_id):
         flash('Corrida atualizada com sucesso!', 'success')
         return redirect(url_for('admin.manage_season', season_id=race.season_id))
         
-    return render_template('admin/edit_race.html', race=race, pistas=PISTAS_F1)
+    grid_configs = GridConfig.query.order_by(GridConfig.ordem).all()
+    return render_template('admin/edit_race.html', race=race, pistas=PISTAS_F1, grid_configs=grid_configs)
 
 @admin_bp.route('/race/<int:race_id>/delete', methods=['POST'])
 def delete_race(race_id):
@@ -397,7 +512,7 @@ def delete_race(race_id):
         if res.ausencia == 'FNJ':
             piloto = PilotProfile.query.get(res.pilot_id)
             if piloto:
-                piloto.pontos_cnh += 5
+                piloto.pontos_cnh += 2
 
     RaceResult.query.filter_by(race_id=race.id).delete()
     RaceRegistration.query.filter_by(race_id=race.id).delete() # Limpa check-ins
@@ -471,7 +586,7 @@ def race_results(race_id):
             if res.ausencia == 'FNJ':
                 piloto_afetado = PilotProfile.query.get(res.pilot_id)
                 if piloto_afetado:
-                    piloto_afetado.pontos_cnh += 5
+                    piloto_afetado.pontos_cnh += 2
 
         # FIX: Snapshot dos times usados nesta corrida antes de apagar
         # Isso impede que, ao editar uma corrida antiga, o piloto "mude de equipe" retroativamente
@@ -480,6 +595,15 @@ def race_results(race_id):
         # Limpa resultados anteriores
         RaceResult.query.filter_by(race_id=race.id).delete()
         
+        # --- DEFINIÇÃO DA PONTUAÇÃO (20 ou 22) ---
+        # Verifica se o grid está configurado para mais de 20 vagas
+        grid_config = GridConfig.query.filter_by(nome=race.grid).first()
+        pontuacao_ativa = PONTUACAO_20 # Padrão
+        
+        if grid_config and grid_config.vagas > 20:
+            pontuacao_ativa = PONTUACAO_22
+        # -----------------------------------------
+
         # 1. PROCESSAR TITULARES
         titulares_ids = request.form.getlist('titular_id')
         for pid in titulares_ids:
@@ -505,7 +629,7 @@ def race_results(race_id):
                 
                 pontos = 0.0
                 if not dsq:
-                    if not dnf and posicao > 0: pontos = float(PONTUACAO_NORMAL.get(posicao, 0))
+                    if not dnf and posicao > 0: pontos = float(pontuacao_ativa.get(posicao, 0))
                     if race.tipo_etapa == 'SPRINT': pontos *= 0.5
                     elif race.tipo_etapa == 'FINAL': pontos *= 2.0
                     if vr and not dnf: pontos += 1.0
@@ -522,7 +646,7 @@ def race_results(race_id):
             else:
                 # FJ ou FNJ
                 if status_presenca == 'FNJ':
-                    piloto.pontos_cnh -= 5 # Punição W.O.
+                    piloto.pontos_cnh -= 2 # Punição W.O. conforme Regulamento T2
                 
                 db.session.add(RaceResult(
                     race_id=race.id, pilot_id=pid, team_id=equipe_id,
@@ -560,7 +684,7 @@ def race_results(race_id):
                 
                 r_pontos = 0.0
                 if not r_dsq:
-                    if not r_dnf and r_pos > 0: r_pontos = float(PONTUACAO_NORMAL.get(r_pos, 0))
+                    if not r_dnf and r_pos > 0: r_pontos = float(pontuacao_ativa.get(r_pos, 0))
                     if race.tipo_etapa == 'SPRINT': r_pontos *= 0.5
                     elif race.tipo_etapa == 'FINAL': r_pontos *= 2.0
                     if r_vr and not r_dnf: r_pontos += 1.0
@@ -583,10 +707,9 @@ def race_results(race_id):
     # --- GET: Preparar dados ---
     
     # 1. Titulares: Apenas do GRID da corrida, COM EQUIPE (Inclui ADMs se tiverem equipe)
-    titulares = PilotProfile.query.join(User).filter(
-        PilotProfile.grid == race.grid, 
-        PilotProfile.team_id != None
-    ).order_by(PilotProfile.nickname).all()
+    # FIX: Filtragem exata via Python para evitar falsos positivos com nomes de grid parecidos
+    all_pilots_with_team = PilotProfile.query.join(User).filter(PilotProfile.team_id != None).order_by(PilotProfile.nickname).all()
+    titulares = [p for p in all_pilots_with_team if race.grid in [g.strip() for g in p.grid.split(',')]]
     
     # 2. Reservas: QUALQUER piloto SEM EQUIPE (Inclui ADMs para correrem de reserva)
     reservas_disponiveis = PilotProfile.query.join(User).filter(
@@ -623,21 +746,42 @@ def race_results(race_id):
 def list_pilots():
     # Mostra todos os pilotos, inclusive ADMs, para gestão de Grid/CNH
     pilots = PilotProfile.query.join(User).order_by(PilotProfile.nickname).all()
-
-    # Agrupar pilotos por grid para facilitar a exibição em abas
-    pilots_by_grid = {
-        'ELITE': [],
-        'ADVANCED': [],
-        'INITIAL': [],
-        'RESERVA': [],
-        'SEM_GRID': []
-    }
+    
+    configs = GridConfig.query.order_by(GridConfig.ordem).all()
+    grid_names = [c.nome for c in configs]
+    if not grid_names: grid_names = ['ELITE', 'ADVANCED', 'INITIAL']
+    
+    # Organiza pilotos por grid (um piloto pode aparecer em vários)
+    pilots_by_grid = {name: [] for name in grid_names + ['RESERVA', 'SEM_GRID']}
 
     for p in pilots:
-        grid_key = p.grid if p.grid in pilots_by_grid else 'SEM_GRID'
-        pilots_by_grid[grid_key].append(p)
+        p_grids = [g.strip() for g in p.grid.split(',') if g.strip()] if p.grid else []
+        if not p_grids: p_grids = ['SEM_GRID']
+        
+        for g in p_grids:
+            if g not in pilots_by_grid:
+                pilots_by_grid[g] = []
+            pilots_by_grid[g].append(p)
 
-    return render_template('admin/pilots.html', pilots_by_grid=pilots_by_grid, total_count=len(pilots))
+    # Reconstrói as abas para incluir grids extras encontrados nos pilotos
+    found_grids = list(pilots_by_grid.keys())
+    
+    sorted_tabs = []
+    for g in grid_names:
+        if g in found_grids:
+            sorted_tabs.append(g)
+            found_grids.remove(g)
+            
+    specials = ['RESERVA', 'SEM_GRID']
+    others = sorted([g for g in found_grids if g not in specials])
+    
+    all_tabs = sorted_tabs + others + specials
+
+    return render_template('admin/pilots.html', 
+                           pilots_by_grid=pilots_by_grid, 
+                           total_count=len(pilots),
+                           all_pilots=pilots,
+                           grid_tabs=all_tabs)
 
 @admin_bp.route('/pilots/edit/<int:pilot_id>', methods=['GET', 'POST'])
 def edit_pilot(pilot_id):
@@ -653,7 +797,8 @@ def edit_pilot(pilot_id):
         pilot.nickname = new_nickname
         pilot.user.username = new_nickname # Sincroniza o login do usuário
         pilot.nome_real = request.form.get('nome_real')[:100] # Garante salvar Nome Real
-        pilot.grid = request.form.get('grid')           # Garante salvar Grid
+        grids = request.form.getlist('grids')
+        pilot.grid = ",".join(grids) if grids else 'SEM_GRID'
         pilot.telefone = request.form.get('telefone')[:20] if request.form.get('telefone') else None
         
         pontos = request.form.get('pontos_cnh')
@@ -697,7 +842,39 @@ def edit_pilot(pilot_id):
         flash('Perfil atualizado com sucesso.', 'success')
         return redirect(url_for('admin.list_pilots'))
         
-    return render_template('admin/edit_pilot.html', pilot=pilot)
+    # Get all unique grid names from GridConfig
+    configured_grids = [c.nome for c in GridConfig.query.order_by(GridConfig.ordem).all()]
+
+    # Get all unique grid names from races in active seasons
+    active_season_ids = [s.id for s in Season.query.filter_by(ativa=True).all()]
+    race_grids = []
+    if active_season_ids:
+        race_grids = [r[0] for r in db.session.query(Race.grid).filter(Race.season_id.in_(active_season_ids)).distinct().all()]
+
+    # Combine all unique grid names, ensuring 'SEM_GRID' and 'RESERVA' are always present
+    all_available_grids = sorted(list(set(configured_grids + race_grids + ['SEM_GRID', 'RESERVA'])))
+
+    return render_template('admin/edit_pilot.html', pilot=pilot, all_available_grids=all_available_grids)
+
+@admin_bp.route('/pilots/reset/<int:pilot_id>', methods=['POST'])
+def reset_pilot_status(pilot_id):
+    if current_user.role != 'SUPER_ADM':
+        flash('Apenas o Super Admin pode realizar reset absoluto.', 'danger')
+        return redirect(url_for('admin.list_pilots'))
+
+    pilot = PilotProfile.query.get_or_404(pilot_id)
+    
+    # Reset Absoluto: Remove de grids, equipe e restaura CNH
+    pilot.grid = 'SEM_GRID'
+    pilot.team_id = None
+    pilot.pontos_cnh = 25
+    pilot.advertencias_acumuladas = 0
+    pilot.penalidade_campeonato = 0.0
+    pilot.motivo_penalidade = None
+    
+    db.session.commit()
+    flash('Reset Absoluto realizado: Grid, Equipe e CNH reiniciados.', 'warning')
+    return redirect(url_for('admin.edit_pilot', pilot_id=pilot.id))
 
 # --- NOVO: ROTA DE EXCLUSÃO DE PILOTO ---
 @admin_bp.route('/pilots/delete/<int:pilot_id>', methods=['POST'])
@@ -800,7 +977,7 @@ def create_team():
         nome = request.form.get('nome')
         grid = request.form.get('grid')
         
-        nova_equipe = Team(nome=nome, grid=grid, ativa=True)
+        nova_equipe = Team(nome=nome[:50], grid=grid, ativa=True)
         db.session.add(nova_equipe)
         db.session.flush() # Gera o ID para usar no nome do arquivo
         
@@ -817,7 +994,8 @@ def create_team():
         flash(f'Equipe {nome} criada!', 'success')
         return redirect(url_for('admin.edit_team', team_id=nova_equipe.id))
         
-    return render_template('admin/create_team.html')
+    grid_configs = GridConfig.query.order_by(GridConfig.ordem).all()
+    return render_template('admin/create_team.html', grid_configs=grid_configs)
 
 @admin_bp.route('/teams/edit/<int:team_id>', methods=['GET', 'POST'])
 def edit_team(team_id):
@@ -863,8 +1041,9 @@ def edit_team(team_id):
         PilotProfile.grid == team.grid, # Filtro estrito por Grid
         (PilotProfile.team_id == None) | (PilotProfile.team_id == team.id) # Disponíveis ou já na equipe
     ).all()
-    
-    return render_template('admin/edit_team.html', team=team, pilots=pilotos_disponiveis)
+
+    grid_configs = GridConfig.query.order_by(GridConfig.ordem).all()
+    return render_template('admin/edit_team.html', team=team, pilots=pilotos_disponiveis, grid_configs=grid_configs)
 
 @admin_bp.route('/teams/delete/<int:team_id>', methods=['POST'])
 def delete_team(team_id):
@@ -901,10 +1080,25 @@ def delete_team(team_id):
 def seletiva():
     if current_user.role not in ['SUPER_ADM', 'ADM']:
         return redirect(url_for('admin.dashboard'))
-        
-    if Season.query.filter_by(ativa=True).first():
-        flash('não é permitido criar uma seletiva com uma season em andamento', 'danger')
-        return redirect(url_for('admin.dashboard'))
+
+    if request.method == 'POST' and 'action' in request.form:
+        action = request.form.get('action')
+        if action == 'config_grid':
+            nome = request.form.get('nome')
+            vagas_input = int(request.form.get('vagas') or 20)
+            vagas = vagas_input if vagas_input in [20, 22] else 20
+            ordem = int(request.form.get('ordem') or 0)
+            
+            existing = GridConfig.query.filter_by(nome=nome).first()
+            if existing:
+                existing.vagas = vagas
+                existing.ordem = ordem
+            else:
+                db.session.add(GridConfig(nome=nome, vagas=vagas, ordem=ordem))
+            
+            db.session.commit()
+            flash(f'Configuração do grid {nome} salva.', 'success')
+            return redirect(url_for('admin.seletiva'))
 
     if request.method == 'POST':
         # Adicionar Tempo
@@ -946,11 +1140,12 @@ def seletiva():
             
         return redirect(url_for('admin.seletiva'))
 
-    # LÓGICA: Aqui aparecem TODOS os pilotos que ainda não foram classificados (SEM_GRID)
-    pilotos_sem_grid = PilotProfile.query.filter_by(grid='SEM_GRID').order_by(PilotProfile.nickname).all()
+    # LÓGICA: Agora aparecem TODOS os pilotos, pois podem participar de múltiplos grids
+    pilotos = PilotProfile.query.order_by(PilotProfile.nickname).all()
     entradas = SeletivaEntry.query.order_by(SeletivaEntry.tempo_ms.asc()).all()
+    grid_configs = GridConfig.query.order_by(GridConfig.ordem).all()
     
-    return render_template('admin/seletiva.html', pilotos=pilotos_sem_grid, entradas=entradas)
+    return render_template('admin/seletiva.html', pilotos=pilotos, entradas=entradas, grid_configs=grid_configs)
 
 @admin_bp.route('/seletiva/delete/<int:entry_id>', methods=['POST'])
 def delete_seletiva_entry(entry_id):
@@ -960,27 +1155,81 @@ def delete_seletiva_entry(entry_id):
     flash('Tempo removido.', 'info')
     return redirect(url_for('admin.seletiva'))
 
+@admin_bp.route('/seletiva/grid/<int:config_id>/delete', methods=['POST'])
+def delete_grid_config(config_id):
+    if current_user.role not in ['SUPER_ADM', 'ADM']:
+        return redirect(url_for('admin.dashboard'))
+    
+    config = GridConfig.query.get_or_404(config_id)
+    db.session.delete(config)
+    db.session.commit()
+    flash(f'Configuração do grid {config.nome} removida.', 'info')
+    return redirect(url_for('admin.seletiva'))
+
 @admin_bp.route('/seletiva/close', methods=['POST'])
 def close_seletiva():
     if current_user.role != 'SUPER_ADM':
         flash('Apenas Super Admin pode aplicar o grid.', 'danger')
         return redirect(url_for('admin.seletiva'))
         
+    season_name = request.form.get('season_name')
+    if not season_name:
+        flash('O nome da temporada é obrigatório para encerrar a seletiva.', 'danger')
+        return redirect(url_for('admin.seletiva'))
+
+    # 1. Criar a nova temporada (sem desativar as anteriores)
+    nova_season = Season(
+        nome=season_name, 
+        ativa=True, 
+        data_inicio=datetime.utcnow().date()
+    )
+    db.session.add(nova_season)
+
     entradas = SeletivaEntry.query.order_by(SeletivaEntry.tempo_ms.asc()).all()
+    configs = GridConfig.query.order_by(GridConfig.ordem).all()
     
-    for i, entry in enumerate(entradas):
-        pos = i + 1
-        if pos <= 20: entry.piloto.grid = 'ELITE'
-        elif pos <= 40: entry.piloto.grid = 'ADVANCED'
-        elif pos <= 60: entry.piloto.grid = 'INITIAL'
-        else: entry.piloto.grid = 'RESERVA'
-        
-    # Opcional: Limpar a tabela de seletiva após aplicar?
-    # Por segurança, vamos manter os dados lá. O admin pode limpar manualmente se quiser.
+    if not configs:
+        # Fallback para o comportamento antigo se não houver configs
+        for i, entry in enumerate(entradas):
+            pos = i + 1
+            # Preserva grids anteriores
+            grids_atuais = set([g.strip() for g in entry.piloto.grid.split(',')]) if entry.piloto.grid and entry.piloto.grid != 'SEM_GRID' else set()
+            
+            if pos <= 20: grids_atuais.add('ELITE')
+            elif pos <= 40: grids_atuais.add('ADVANCED')
+            elif pos <= 60: grids_atuais.add('INITIAL')
+            else: grids_atuais.add('RESERVA')
+            
+            if 'SEM_GRID' in grids_atuais and len(grids_atuais) > 1: grids_atuais.remove('SEM_GRID')
+            entry.piloto.grid = ",".join(sorted(list(grids_atuais)))
+    else:
+        # Lógica dinâmica baseada nas vagas configuradas
+        for i, entry in enumerate(entradas):
+            pos = i + 1
+            alocado = False
+            vagas_acumuladas = 0
+            
+            # Preserva grids anteriores
+            grids_atuais = set([g.strip() for g in entry.piloto.grid.split(',')]) if entry.piloto.grid and entry.piloto.grid != 'SEM_GRID' else set()
+
+            for config in configs:
+                vagas_acumuladas += config.vagas
+                if pos <= vagas_acumuladas:
+                    grids_atuais.add(config.nome)
+                    alocado = True
+                    break
+            if not alocado:
+                grids_atuais.add('RESERVA')
+            
+            if 'SEM_GRID' in grids_atuais and len(grids_atuais) > 1: grids_atuais.remove('SEM_GRID')
+            entry.piloto.grid = ",".join(sorted(list(grids_atuais)))
+
+    # 2. Limpar a tabela de seletiva para o próximo ciclo
+    SeletivaEntry.query.delete()
     
     db.session.commit()
-    flash(f'Seletiva encerrada! {len(entradas)} pilotos foram alocados em seus grids.', 'success')
-    return redirect(url_for('admin.list_pilots'))
+    flash(f'Temporada "{season_name}" criada e {len(entradas)} pilotos alocados com sucesso!', 'success')
+    return redirect(url_for('admin.seasons'))
 
 # --- TRIBUNAL DE PUNIÇÕES (CORRIGIDO: BUSCA NO BANCO) ---
 

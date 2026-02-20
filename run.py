@@ -51,17 +51,19 @@ with app.app_context():
         os.makedirs(app.config['UPLOAD_FOLDER'])
 
     # Cria Super Admin se não existir
-    if not User.query.filter_by(email='admin@fullgas.com').first():
-        super_admin = User(username='Admin', email='admin@fullgas.com', role='SUPER_ADM')
-        super_admin.set_password('admin123')
-        db.session.add(super_admin)
-        db.session.commit()
+    admin_user = User.query.filter_by(email='admin@fullgas.com').first()
+    if not admin_user:
+        admin_user = User(username='Admin', email='admin@fullgas.com', role='SUPER_ADM')
+        db.session.add(admin_user)
+        db.session.flush()
         
-        # Cria perfil de piloto para o Super Admin principal
-        perfil_admin = PilotProfile(user_id=super_admin.id, nickname='Direção de Prova', nome_real='Admin', grid='SEM_GRID')
+        perfil_admin = PilotProfile(user_id=admin_user.id, nickname='Direção de Prova', nome_real='Admin', grid='SEM_GRID')
         db.session.add(perfil_admin)
-        db.session.commit()
-        print("Super Admin criado com sucesso!")
+    
+    # Força a senha padrão para garantir o acesso em ambiente de teste
+    admin_user.set_password('admin123')
+    db.session.commit()
+    print("Acesso Admin garantido: admin@fullgas.com / admin123")
 
 if __name__ == '__main__':
     app.run(debug=True)

@@ -31,9 +31,14 @@
                         <div class="col-md-4">
                             <label class="form-label text-white-50 small fw-bold">GRID</label>
                             <select class="form-select bg-dark text-white border-secondary" name="grid">
-                                <option value="ELITE" {% if race.grid == 'ELITE' %}selected{% endif %}>ELITE</option>
-                                <option value="ADVANCED" {% if race.grid == 'ADVANCED' %}selected{% endif %}>ADVANCED</option>
-                                <option value="INITIAL" {% if race.grid == 'INITIAL' %}selected{% endif %}>INITIAL</option>
+                                {% for config in grid_configs %}
+                                    <option value="{{ config.nome }}" {% if race.grid == config.nome %}selected{% endif %}>{{ config.nome }}</option>
+                                {% endfor %}
+                                {% if not grid_configs %}
+                                    <option value="ELITE" {% if race.grid == 'ELITE' %}selected{% endif %}>ELITE</option>
+                                    <option value="ADVANCED" {% if race.grid == 'ADVANCED' %}selected{% endif %}>ADVANCED</option>
+                                    <option value="INITIAL" {% if race.grid == 'INITIAL' %}selected{% endif %}>INITIAL</option>
+                                {% endif %}
                             </select>
                         </div>
                         <div class="col-md-4">

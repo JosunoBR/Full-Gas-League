@@ -36,9 +36,14 @@
                     <div class="col-md-2">
                         <label class="form-label text-white-50 small">Grid</label>
                         <select name="grid" class="form-select bg-secondary text-white border-0" required>
-                            <option value="ELITE">Elite</option>
-                            <option value="ADVANCED">Advanced</option>
-                            <option value="INITIAL">Initial</option>
+                            {% for config in grid_configs %}
+                                <option value="{{ config.nome }}">{{ config.nome }}</option>
+                            {% endfor %}
+                            {% if not grid_configs %}
+                                <option value="ELITE">Elite</option>
+                                <option value="ADVANCED">Advanced</option>
+                                <option value="INITIAL">Initial</option>
+                            {% endif %}
                         </select>
                     </div>
 
@@ -92,24 +97,29 @@
 {% endif %}
 
 <ul class="nav nav-pills mb-3" id="pills-tab" role="tablist">
+    {% for config in grid_configs %}
     <li class="nav-item" role="presentation">
-        <button class="nav-link active fw-bold" id="pills-elite-tab" data-bs-toggle="pill" data-bs-target="#pills-elite" type="button" role="tab">GRID ELITE</button>
+        <button class="nav-link {% if loop.first %}active{% endif %} fw-bold" id="pills-{{ config.nome|lower }}-tab" data-bs-toggle="pill" data-bs-target="#pills-{{ config.nome|lower }}" type="button" role="tab">GRID {{ config.nome }}</button>
     </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link fw-bold" id="pills-advanced-tab" data-bs-toggle="pill" data-bs-target="#pills-advanced" type="button" role="tab">GRID ADVANCED</button>
-    </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link fw-bold" id="pills-initial-tab" data-bs-toggle="pill" data-bs-target="#pills-initial" type="button" role="tab">GRID INITIAL</button>
-    </li>
+    {% endfor %}
+    {% if not grid_configs %}
+        {% for grid_name in ['ELITE', 'ADVANCED', 'INITIAL'] %}
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if loop.first %}active{% endif %} fw-bold" id="pills-{{ grid_name|lower }}-tab" data-bs-toggle="pill" data-bs-target="#pills-{{ grid_name|lower }}" type="button" role="tab">GRID {{ grid_name }}</button>
+        </li>
+        {% endfor %}
+    {% endif %}
 </ul>
 
 <div class="tab-content" id="pills-tabContent">
-    {% for grid_name in ['ELITE', 'ADVANCED', 'INITIAL'] %}
-    <div class="tab-pane fade {% if grid_name == 'ELITE' %}show active{% endif %}" id="pills-{{ grid_name|lower }}" role="tabpanel">
+    {% set loop_grids = grid_configs if grid_configs else [{'nome': 'ELITE'}, {'nome': 'ADVANCED'}, {'nome': 'INITIAL'}] %}
+    {% for g_item in loop_grids %}
+    {% set g_name = g_item.nome %}
+    <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="pills-{{ g_name|lower }}" role="tabpanel">
         
         <div class="card shadow border-secondary">
             <div class="card-header bg-dark border-secondary">
-                <strong class="text-white">Calendário {{ grid_name }}</strong>
+                <strong class="text-white">Calendário {{ g_name }}</strong>
             </div>
             <div class="card-body bg-dark p-0">
                 <div class="table-responsive">
@@ -124,7 +134,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for race in season.races|sort(attribute='data_corrida') if race.grid == grid_name %}
+                            {% for race in season.races|sort(attribute='data_corrida') if race.grid == g_name %}
                             <tr>
                                 <td class="ps-4 text-white-50 font-monospace">
                                     {{ race.data_corrida.strftime('%d/%m') if race.data_corrida else '--/--' }}
@@ -190,7 +200,7 @@
                             {% else %}
                             <tr>
                                 <td colspan="5" class="text-center py-5 text-white-50">
-                                    Nenhuma corrida cadastrada para o grid {{ grid_name }}.
+                                    Nenhuma corrida cadastrada para o grid {{ g_name }}.
                                 </td>
                             </tr>
                             {% endfor %}

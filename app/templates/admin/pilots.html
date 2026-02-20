@@ -8,19 +8,68 @@
 
 <!-- Abas de Navegação por Grid -->
 <ul class="nav nav-tabs border-secondary mb-4" id="pilotTabs" role="tablist">
-    {% for grid in ['ELITE', 'ADVANCED', 'INITIAL', 'RESERVA', 'SEM_GRID'] %}
     <li class="nav-item" role="presentation">
-        <button class="nav-link {% if loop.first %}active{% endif %} fw-bold" id="tab-{{ grid }}" data-bs-toggle="tab" data-bs-target="#content-{{ grid }}" type="button">
-            {{ grid }} <span class="badge bg-secondary ms-1">{{ pilots_by_grid[grid]|length }}</span>
+        <button class="nav-link active fw-bold" id="tab-ALL" data-bs-toggle="tab" data-bs-target="#content-ALL" type="button">
+            TODOS <span class="badge bg-secondary ms-1">{{ total_count }}</span>
+        </button>
+    </li>
+    {% for grid in grid_tabs %}
+    <li class="nav-item" role="presentation">
+        <button class="nav-link fw-bold" id="tab-{{ grid|replace(' ', '_') }}" data-bs-toggle="tab" data-bs-target="#content-{{ grid|replace(' ', '_') }}" type="button">
+            {{ grid }} <span class="badge bg-secondary ms-1">{{ pilots_by_grid[grid]|length if grid in pilots_by_grid else 0 }}</span>
         </button>
     </li>
     {% endfor %}
 </ul>
 
 <div class="tab-content" id="pilotTabsContent">
-    {% for grid in ['ELITE', 'ADVANCED', 'INITIAL', 'RESERVA', 'SEM_GRID'] %}
-    {% set pilot_list = pilots_by_grid[grid] %}
-    <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="content-{{ grid }}" role="tabpanel">
+    <!-- Aba TODOS -->
+    <div class="tab-pane fade show active" id="content-ALL" role="tabpanel">
+        <div class="card shadow border-secondary">
+            <div class="card-body bg-dark p-0">
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover mb-0 align-middle">
+                        <thead>
+                            <tr class="text-white-50">
+                                <th class="ps-4">Piloto (Nick)</th>
+                                <th>Grids Atuais</th>
+                                <th>CNH</th>
+                                <th class="text-end pe-4">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in all_pilots %}
+                            <tr>
+                                <td class="ps-4 fw-bold text-white">{{ p.nickname }}</td>
+                                <td>
+                                    {% for g in p.grid.split(',') %}
+                                        <span class="badge bg-secondary">{{ g }}</span>
+                                    {% endfor %}
+                                </td>
+                                <td>
+                                    {% if p.pontos_cnh <= 5 %}
+                                        <span class="badge bg-danger text-white">{{ p.pontos_cnh }} pts</span>
+                                    {% else %}
+                                        <span class="badge bg-success text-white">{{ p.pontos_cnh }} pts</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end pe-4">
+                                    <a href="{{ url_for('admin.edit_pilot', pilot_id=p.id) }}" class="btn btn-sm btn-outline-warning me-2 text-white">
+                                        <i class="fa-solid fa-pen"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% for grid in grid_tabs %}
+    {% set pilot_list = pilots_by_grid[grid] if grid in pilots_by_grid else [] %}
+    <div class="tab-pane fade" id="content-{{ grid|replace(' ', '_') }}" role="tabpanel">
         <div class="card shadow border-secondary">
             <div class="card-body bg-dark p-0">
                 <div class="table-responsive">

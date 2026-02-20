@@ -6,6 +6,53 @@
     <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary">Voltar</a>
 </div>
 
+<!-- CONFIGURAÇÃO DE GRIDS -->
+<div class="card shadow border-silver mb-4">
+    <div class="card-header bg-dark border-silver">
+        <h5 class="mb-0 text-white fw-bold"><i class="fa-solid fa-gear text-secondary"></i> Configurar Grids da Temporada</h5>
+    </div>
+    <div class="card-body bg-dark">
+        <form method="POST" class="row g-3 align-items-end">
+            <input type="hidden" name="action" value="config_grid">
+            <div class="col-md-4">
+                <label class="text-white-50 small">Nome do Grid (Ex: ELITE, SÉRIE A)</label>
+                <input type="text" name="nome" class="form-control bg-secondary text-white border-0" placeholder="Nome do Grid" required>
+            </div>
+            <div class="col-md-3">
+                <label class="text-white-50 small">Vagas no Grid</label>
+                <select name="vagas" class="form-select bg-secondary text-white border-0">
+                    <option value="20">20 Pilotos (Padrão)</option>
+                    <option value="22">22 Pilotos (Grid Cheio)</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="text-white-50 small">Ordem (1, 2...)</label>
+                <input type="number" name="ordem" class="form-control bg-secondary text-white border-0" value="1" required>
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-outline-light w-100 fw-bold">SALVAR GRID</button>
+            </div>
+        </form>
+        {% if grid_configs %}
+        <div class="mt-3">
+            <p class="text-white-50 small mb-2">Grids Configurados:</p>
+            {% for config in grid_configs %}
+                <div class="d-inline-block me-2 mb-2">
+                    <span class="badge bg-dark border border-secondary p-2">
+                        {{ config.nome }} ({{ config.vagas }} vagas)
+                        <form action="{{ url_for('admin.delete_grid_config', config_id=config.id) }}" method="POST" class="d-inline ms-1">
+                            <button type="submit" class="btn btn-link text-danger p-0 border-0" style="line-height: 1;" onclick="return confirm('Excluir este grid?')">
+                                <i class="fa-solid fa-xmark small"></i>
+                            </button>
+                        </form>
+                    </span>
+                </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
 <!-- FORMULÁRIO DE ENTRADA -->
 <div class="card shadow border-silver mb-4">
     <div class="card-body bg-dark">
@@ -58,29 +105,20 @@
                 <tbody>
                     {% for entry in entradas %}
                     {% set pos = loop.index %}
-                    {% set row_class = '' %}
-                    {% set grid_proj = '' %}
-                    {% set badge_class = '' %}
+                    {% set ns = namespace(grid_proj='RESERVA', badge_class='bg-secondary text-white', alocado=false, acumulado=0) %}
 
-                    {% if pos <= 20 %}
-                        {% set row_class = 'border-start border-4 border-warning' %}
-                        {% set grid_proj = 'ELITE' %}
-                        {% set badge_class = 'bg-warning text-dark' %}
-                    {% elif pos <= 40 %}
-                        {% set row_class = 'border-start border-4 border-info' %}
-                        {% set grid_proj = 'ADVANCED' %}
-                        {% set badge_class = 'bg-info text-dark' %}
-                    {% elif pos <= 60 %}
-                        {% set row_class = 'border-start border-4 border-danger' %}
-                        {% set grid_proj = 'INITIAL' %}
-                        {% set badge_class = 'bg-danger text-white' %}
-                    {% else %}
-                        {% set row_class = 'border-start border-4 border-secondary' %}
-                        {% set grid_proj = 'RESERVA' %}
-                        {% set badge_class = 'bg-secondary text-white' %}
-                    {% endif %}
+                    {% for config in grid_configs %}
+                        {% set ns.acumulado = ns.acumulado + config.vagas %}
+                        {% if not ns.alocado and pos <= ns.acumulado %}
+                            {% set ns.grid_proj = config.nome %}
+                            {% set ns.alocado = true %}
+                            {% if loop.index == 1 %}{% set ns.badge_class = 'bg-warning text-dark' %}
+                            {% elif loop.index == 2 %}{% set ns.badge_class = 'bg-info text-dark' %}
+                            {% else %}{% set ns.badge_class = 'bg-danger text-white' %}{% endif %}
+                        {% endif %}
+                    {% endfor %}
 
-                    <tr class="{{ row_class }}">
+                    <tr class="border-start border-4 {% if ns.grid_proj == 'RESERVA' %}border-secondary{% elif ns.badge_class == 'bg-warning text-dark' %}border-warning{% elif ns.badge_class == 'bg-info text-dark' %}border-info{% else %}border-danger{% endif %}">
                         <td class="ps-4 fw-bold">{{ pos }}º</td>
                         <td>
                             {% if entry.piloto.foto_url %}
@@ -89,7 +127,7 @@
                             {{ entry.piloto.nickname }}
                         </td>
                         <td class="font-monospace text-warning">{{ entry.tempo_str }}</td>
-                        <td><span class="badge {{ badge_class }}">{{ grid_proj }}</span></td>
+                        <td><span class="badge {{ ns.badge_class }}">{{ ns.grid_proj }}</span></td>
                         <td class="text-end pe-4">
                             <form action="{{ url_for('admin.delete_seletiva_entry', entry_id=entry.id) }}" method="POST" class="d-inline">
                                 <button type="submit" class="btn btn-sm btn-outline-danger border-0" title="Remover Tempo">
@@ -117,22 +155,31 @@
                 <h5 class="modal-title text-white fw-bold">Confirmar Definição de Grids</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body text-white">
-                <p>Você está prestes a definir o grid de <strong>{{ entradas|length }} pilotos</strong> com base na tabela atual.</p>
-                <ul class="list-unstyled">
-                    <li><span class="badge bg-warning text-dark">ELITE</span>: 1º ao 20º</li>
-                    <li><span class="badge bg-info text-dark">ADVANCED</span>: 21º ao 40º</li>
-                    <li><span class="badge bg-danger text-white">INITIAL</span>: 41º ao 60º</li>
-                    <li><span class="badge bg-secondary text-white">RESERVA</span>: 61º em diante</li>
-                </ul>
-                <p class="text-danger small mb-0"><i class="fa-solid fa-triangle-exclamation"></i> Esta ação atualizará o perfil de todos os pilotos listados.</p>
-            </div>
-            <div class="modal-footer border-secondary">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <form action="{{ url_for('admin.close_seletiva') }}" method="POST">
+            <form action="{{ url_for('admin.close_seletiva') }}" method="POST">
+                <div class="modal-body text-white">
+                    <p>Você está prestes a definir o grid de <strong>{{ entradas|length }} pilotos</strong>.</p>
+                    
+                    <div class="mb-4">
+                        <label class="form-label text-warning small fw-bold">NOME DA NOVA TEMPORADA</label>
+                        <input type="text" name="season_name" class="form-control bg-secondary text-white border-0" placeholder="Ex: Season 1 2026" required>
+                        <div class="form-text text-white-50 small">Isso criará um novo registro em "Temporadas".</div>
+                    </div>
+
+                    <p class="small text-white-50 mb-2">Distribuição baseada nas vagas configuradas:</p>
+                    {% if grid_configs %}
+                    <ul class="small text-white-50">
+                        {% for config in grid_configs %}
+                            <li>{{ config.nome }}: {{ config.vagas }} vagas</li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+                    <p class="text-danger small mb-0 mt-3"><i class="fa-solid fa-triangle-exclamation"></i> Esta ação criará a temporada e limpará a tabela de tempos atual.</p>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                     <button type="submit" class="btn btn-success fw-bold">CONFIRMAR E APLICAR</button>
-                </form>
-            </div>
+                </div>
+            </form>
         </div>
     </div>
 </div>
