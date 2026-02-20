@@ -432,19 +432,24 @@ def my_profile():
     # Lógica de Check-in vinculada ao contexto selecionado
     hoje = datetime.utcnow().date()
     if current_context:
-        proxima = Race.query.filter(
-            Race.season_id == current_context['season_id'],
-            Race.grid == current_context['grid'],
-            Race.status != 'Concluida',
-            Race.data_corrida >= hoje
-        ).order_by(Race.data_corrida).first()
+        # Verifica se o piloto pertence ao grid atual ou é reserva. 
+        # Pilotos 'SEM_GRID' com histórico antigo não devem receber check-in.
+        pode_ver_checkin = (current_context['grid'] in p_grids) or ('RESERVA' in p_grids)
 
-        if proxima and proxima.data_corrida and (proxima.data_corrida - hoje).days <= 2:
-            reg = RaceRegistration.query.filter_by(race_id=proxima.id, pilot_id=perfil.id).first()
-            # Só exibe o bloco de check-in se ainda não houver resposta confirmada ou justificada
-            if not reg or reg.status not in ['CONFIRMADO', 'JUSTIFICADO']:
-                checkin_race = proxima
-                registro_atual = reg
+        if pode_ver_checkin:
+            proxima = Race.query.filter(
+                Race.season_id == current_context['season_id'],
+                Race.grid == current_context['grid'],
+                Race.status != 'Concluida',
+                Race.data_corrida >= hoje
+            ).order_by(Race.data_corrida).first()
+
+            if proxima and proxima.data_corrida and (proxima.data_corrida - hoje).days <= 2:
+                reg = RaceRegistration.query.filter_by(race_id=proxima.id, pilot_id=perfil.id).first()
+                # Só exibe o bloco de check-in se ainda não houver resposta confirmada ou justificada
+                if not reg or reg.status not in ['CONFIRMADO', 'JUSTIFICADO']:
+                    checkin_race = proxima
+                    registro_atual = reg
 
     # Estatísticas da Temporada
     meus_pontos_camp = 0
