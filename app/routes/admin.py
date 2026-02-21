@@ -630,13 +630,20 @@ def generate_grid_text(race_id):
     if numero_etapa == 1 or numero_etapa == total_etapas:
         usar_lastro = False
         
-    # Remove filtro de SUPER_ADM para gerar grid se ele estiver na categoria
-    pilotos = PilotProfile.query.join(User).filter(PilotProfile.grid == race.grid).all()
+    # FIX: Busca pilotos corretamente mesmo se tiverem múltiplos grids (ex: "ELITE, ADVANCED")
+    all_pilots = PilotProfile.query.join(User).all()
+    pilotos = [p for p in all_pilots if race.grid in [g.strip() for g in p.grid.split(',')]]
+    
     ranking = []
     
     for p in pilotos:
-        pts = sum(r.pontos_ganhos for r in p.race_results if r.race.season_id == season.id)
-        vitorias = sum(1 for r in p.race_results if r.race.season_id == season.id and r.posicao == 1)
+        # FIX: Calcula pontos APENAS do grid da corrida e desconta penalidades
+        resultados_grid = [r for r in p.race_results if r.race.season_id == season.id and r.race.grid == race.grid]
+        
+        pts = sum(r.pontos_ganhos for r in resultados_grid)
+        pts -= float(p.penalidade_campeonato or 0)
+        
+        vitorias = sum(1 for r in resultados_grid if r.posicao == 1 and not r.dsq)
         ranking.append({'piloto': p, 'pontos': pts, 'vitorias': vitorias})
         
     ranking.sort(key=lambda x: (x['pontos'], x['vitorias']), reverse=True)
