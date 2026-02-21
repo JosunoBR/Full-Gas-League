@@ -4,7 +4,7 @@ from flask import Blueprint, render_template, request, flash, redirect, url_for,
 from flask_login import login_required, current_user, login_user, logout_user
 from werkzeug.security import check_password_hash
 from sqlalchemy import func, case
-from app.models import db, Season, Race, PilotProfile, Protesto, RaceResult, VotoComissario, Team, RaceRegistration, User, Invite, News, GridConfig
+from app.models import db, Season, Race, PilotProfile, Protesto, RaceResult, VotoComissario, Team, RaceRegistration, User, Invite, News, GridConfig, SeasonChampion
 from app.utils import allowed_file, get_embed_url, ORDEM_CARROS
 
 public_bp = Blueprint('public', __name__)
@@ -252,6 +252,23 @@ def rules():
 @public_bp.route('/transparencia')
 def transparency():
     return render_template('public/how_it_works.html')
+
+@public_bp.route('/hall-of-fame')
+def hall_of_fame():
+    # Busca temporadas encerradas que tenham campeões registrados
+    seasons_ids = db.session.query(SeasonChampion.season_id).distinct().all()
+    ids = [s[0] for s in seasons_ids]
+    seasons = Season.query.filter(Season.id.in_(ids)).order_by(Season.id.desc()).all()
+    
+    data = {}
+    for s in seasons:
+        champs = SeasonChampion.query.filter_by(season_id=s.id).all()
+        grids = list(set([c.grid for c in champs]))
+        data[s.id] = {}
+        for g in grids:
+            data[s.id][g] = [c for c in champs if c.grid == g]
+            
+    return render_template('public/hall_of_fame.html', seasons=seasons, data=data)
 
 @public_bp.route('/news/<int:news_id>')
 def news_detail(news_id):

@@ -86,6 +86,24 @@ class Season(db.Model):
             'ativa': self.ativa
         }
 
+class SeasonChampion(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    season_id = db.Column(db.Integer, db.ForeignKey('season.id'), nullable=False)
+    grid = db.Column(db.String(50), nullable=False)
+    category = db.Column(db.String(20), nullable=False) # 'PILOT' ou 'CONSTRUCTOR'
+    position = db.Column(db.Integer, nullable=False) # 1, 2, 3
+    
+    # Dados Congelados (Snapshot)
+    name = db.Column(db.String(100), nullable=False) # Nickname ou Nome da Equipe
+    team_name = db.Column(db.String(100), nullable=True) # Para pilotos
+    image_url = db.Column(db.String(200), nullable=True) # Foto Piloto ou Logo Equipe
+    team_logo_url = db.Column(db.String(200), nullable=True) # Logo da equipe do piloto
+    
+    pontos = db.Column(db.Float, default=0.0)
+    vitorias = db.Column(db.Integer, default=0)
+    
+    season = db.relationship('Season', backref='champions')
+
 class Race(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     season_id = db.Column(db.Integer, db.ForeignKey('season.id'), nullable=False)

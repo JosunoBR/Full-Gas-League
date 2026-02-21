@@ -1,10 +1,11 @@
 import os
 import secrets
+import shutil
 from datetime import datetime
 from flask import Blueprint, render_template, request, flash, redirect, url_for, current_app
 from flask_login import login_required, current_user
-from sqlalchemy import func
-from app.models import db, User, PilotProfile, Season, Race, RaceResult, Invite, Protesto, VotoComissario, Team, RaceRegistration, SeletivaEntry, News, GridConfig
+from sqlalchemy import func, case
+from app.models import db, User, PilotProfile, Season, Race, RaceResult, Invite, Protesto, VotoComissario, Team, RaceRegistration, SeletivaEntry, News, GridConfig, SeasonChampion
 from app.utils import allowed_file, get_embed_url, PONTUACAO_20, PONTUACAO_22, ORDEM_CARROS
 
 admin_bp = Blueprint('admin', __name__)
@@ -114,6 +115,14 @@ def overview():
             # Identifica todos os grids diferentes em que este piloto participou nesta temporada
             grids_participados = set([r.race.grid for r in resultados_season]) if resultados_season else {p.grid}
 
+            # Busca punições da temporada (Protestos Concluídos com Veredito de Punição)
+            punicoes = Protesto.query.join(Race).filter(
+                Protesto.acusado_id == p.id,
+                Protesto.status == 'CONCLUIDO',
+                Protesto.veredito_final.in_(['LEVE', 'MEDIA', 'GRAVE', 'ADVERTENCIA']),
+                Race.season_id == season_ativa.id
+            ).order_by(Protesto.data_fechamento.desc()).all()
+
             for gname in grids_participados:
                 if gname in dados_grids:
                     # Filtra resultados apenas deste grid específico
@@ -128,7 +137,8 @@ def overview():
                         'vitorias': vitorias, 
                         'podios': podios, 
                         'cnh': p.pontos_cnh, 
-                        'advertencias': p.advertencias_acumuladas
+                        'advertencias': p.advertencias_acumuladas,
+                        'punicoes': punicoes
                     }
                     dados_grids[gname]['classificacao'].append(info)
                     dados_grids[gname]['disciplina'].append(info)
@@ -387,13 +397,83 @@ def close_season(season_id):
     season = Season.query.get_or_404(season_id)
     season.ativa = False
     
+    # --- HALL OF FAME SNAPSHOT (CONGELAMENTO) ---
+    # Identifica grids usados na temporada
+    grids_season_rows = db.session.query(Race.grid).filter_by(season_id=season.id).distinct().all()
+    grids_in_season = set([r[0] for r in grids_season_rows])
+
+    upload_folder = current_app.config['UPLOAD_FOLDER']
+
+    for grid_name in grids_in_season:
+        # 1. TOP 3 PILOTOS
+        # Calcula pontuação total
+        results = db.session.query(
+            RaceResult.pilot_id,
+            func.sum(RaceResult.pontos_ganhos).label('total_pts'),
+            func.sum(case(( (RaceResult.posicao == 1) & (RaceResult.dsq == False), 1 ), else_=0)).label('total_wins')
+        ).join(Race).filter(
+            Race.season_id == season.id,
+            Race.grid == grid_name
+        ).group_by(RaceResult.pilot_id).all()
+
+        # Ordena e pega Top 3
+        sorted_pilots = sorted(results, key=lambda x: (x.total_pts or 0, x.total_wins or 0), reverse=True)[:3]
+
+        for i, res in enumerate(sorted_pilots):
+            pilot = PilotProfile.query.get(res.pilot_id)
+            
+            # Copia a foto para preservar histórico (Snapshot)
+            champ_img = None
+            if pilot.foto_url:
+                ext = pilot.foto_url.split('.')[-1]
+                champ_img = f"champ_{season.id}_{grid_name}_{i+1}_{secrets.token_hex(4)}.{ext}"
+                try:
+                    shutil.copy(os.path.join(upload_folder, pilot.foto_url), os.path.join(upload_folder, champ_img))
+                except:
+                    champ_img = None # Falha na cópia, fica sem foto
+
+            db.session.add(SeasonChampion(
+                season_id=season.id, grid=grid_name, category='PILOT', position=i+1,
+                name=pilot.nickname, team_name=pilot.team.nome if pilot.team else 'Sem Equipe',
+                image_url=champ_img, team_logo_url=pilot.team.logo_url if pilot.team else None,
+                pontos=res.total_pts, vitorias=res.total_wins
+            ))
+
+        # 2. CAMPEÃO DE CONSTRUTORES (TOP 1)
+        team_results = db.session.query(
+            RaceResult.team_id,
+            func.sum(RaceResult.pontos_ganhos).label('total_pts'),
+            func.sum(case(( (RaceResult.posicao == 1) & (RaceResult.dsq == False), 1 ), else_=0)).label('total_wins')
+        ).join(Race).filter(
+            Race.season_id == season.id,
+            Race.grid == grid_name,
+            RaceResult.team_id != None
+        ).group_by(RaceResult.team_id).all()
+
+        if team_results:
+            champion_team_stats = sorted(team_results, key=lambda x: (x.total_pts or 0, x.total_wins or 0), reverse=True)[0]
+            team = Team.query.get(champion_team_stats.team_id)
+            
+            # Copia logo da equipe
+            champ_logo = None
+            if team.logo_url:
+                ext = team.logo_url.split('.')[-1]
+                champ_logo = f"champ_team_{season.id}_{grid_name}_{secrets.token_hex(4)}.{ext}"
+                try:
+                    shutil.copy(os.path.join(upload_folder, team.logo_url), os.path.join(upload_folder, champ_logo))
+                except:
+                    champ_logo = None
+
+            db.session.add(SeasonChampion(
+                season_id=season.id, grid=grid_name, category='CONSTRUCTOR', position=1,
+                name=team.nome, image_url=champ_logo,
+                pontos=champion_team_stats.total_pts, vitorias=champion_team_stats.total_wins
+            ))
+    # --------------------------------------------
+
     # LIMPEZA INTELIGENTE DE GRIDS:
     # Remove do perfil dos pilotos apenas os grids que pertencem EXCLUSIVAMENTE à temporada encerrada.
     # Se um grid (ex: 'ELITE') for usado em outra temporada ativa, ele é mantido.
-
-    # 1. Identifica grids usados na temporada que está fechando
-    grids_season_rows = db.session.query(Race.grid).filter_by(season_id=season.id).distinct().all()
-    grids_in_season = set([r[0] for r in grids_season_rows])
 
     # 2. Identifica grids usados em outras temporadas que continuam ATIVAS
     other_active_ids = [s.id for s in Season.query.filter(Season.id != season.id, Season.ativa == True).all()]
@@ -854,7 +934,13 @@ def edit_pilot(pilot_id):
     # Combine all unique grid names, ensuring 'SEM_GRID' and 'RESERVA' are always present
     all_available_grids = sorted(list(set(configured_grids + race_grids + ['SEM_GRID', 'RESERVA'])))
 
-    return render_template('admin/edit_pilot.html', pilot=pilot, all_available_grids=all_available_grids)
+    # Busca histórico de punições para exibir no admin
+    historico_punicoes = Protesto.query.filter(
+        Protesto.acusado_id == pilot.id, 
+        Protesto.status == 'CONCLUIDO'
+    ).order_by(Protesto.data_fechamento.desc()).all()
+
+    return render_template('admin/edit_pilot.html', pilot=pilot, all_available_grids=all_available_grids, historico=historico_punicoes)
 
 @admin_bp.route('/pilots/reset/<int:pilot_id>', methods=['POST'])
 def reset_pilot_status(pilot_id):
@@ -1284,6 +1370,10 @@ def view_protest(protest_id):
             return redirect(url_for('admin.view_protest', protest_id=protesto.id))
 
         if 'encerrar' in request.form and current_user.role == 'SUPER_ADM':
+            if protesto.status == 'CONCLUIDO':
+                flash('Este caso já foi encerrado anteriormente. Para alterar o veredito, primeiro REABRA o caso.', 'warning')
+                return redirect(url_for('admin.view_protest', protest_id=protesto.id))
+
             veredito = request.form.get('veredito_final')
             texto = request.form.get('justificativa')
             
@@ -1315,6 +1405,10 @@ def view_protest(protest_id):
             return redirect(url_for('admin.protests'))
             
         if 'reabrir' in request.form and current_user.role == 'SUPER_ADM':
+            if protesto.status != 'CONCLUIDO':
+                flash('Este caso não está concluído para ser reaberto.', 'warning')
+                return redirect(url_for('admin.view_protest', protest_id=protesto.id))
+
             piloto = protesto.acusado
             veredito_anterior = protesto.veredito_final
             resultado_corrida = RaceResult.query.filter_by(race_id=protesto.etapa_id, pilot_id=piloto.id).first()
