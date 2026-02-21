@@ -113,7 +113,11 @@ def overview():
             resultados_season = [r for r in p.race_results if r.race.season_id == season_ativa.id]
             
             # Identifica todos os grids diferentes em que este piloto participou nesta temporada
-            grids_participados = set([r.race.grid for r in resultados_season]) if resultados_season else {p.grid}
+            if resultados_season:
+                grids_participados = set([r.race.grid for r in resultados_season])
+            else:
+                # Garante que pilotos com múltiplos grids (ex: "ELITE,ADVANCED") sejam lidos corretamente
+                grids_participados = set([g.strip() for g in p.grid.split(',') if g.strip()])
 
             # Busca punições da temporada (Protestos Concluídos com Veredito de Punição)
             punicoes = Protesto.query.join(Race).filter(
