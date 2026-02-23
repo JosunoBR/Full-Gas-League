@@ -1356,6 +1356,12 @@ def view_protest(protest_id):
     
     embed_acusacao = get_embed_url(protesto.video_link)
     embed_defesa = get_embed_url(protesto.video_defesa)
+    
+    # Alerta se houver link mas não for embedável (ex: Clips)
+    if protesto.video_link and not embed_acusacao:
+        flash('O vídeo de acusação é um Clip ou link não suportado para player. Use o link direto.', 'info')
+    if protesto.video_defesa and not embed_defesa:
+        flash('O vídeo de defesa é um Clip ou link não suportado para player. Use o link direto.', 'info')
 
     votos_resumo = db.session.query(VotoComissario.escolha, func.count(VotoComissario.escolha))\
         .filter_by(protesto_id=protesto.id).group_by(VotoComissario.escolha).all()

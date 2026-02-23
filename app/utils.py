@@ -40,11 +40,8 @@ def get_embed_url(link):
     
     # Suporte para YouTube Clips
     if "youtube.com/clip/" in link:
-        try:
-            clip_id = link.split('/clip/')[1].split('?')[0]
-            return f"https://www.youtube.com/embed/clip/{clip_id}"
-        except:
-            pass
+        # Clips do YouTube não suportam embed direto apenas pelo ID do clip.
+        return None # Retorna None para evitar erro de player ou bloqueio de iframe
             
     # Suporte para YouTube Shorts
     if "youtube.com/shorts/" in link:
