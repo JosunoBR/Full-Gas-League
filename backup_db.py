@@ -26,10 +26,10 @@ def realizar_backup():
     else:
         print(f"❌ Erro: Banco de dados não encontrado em {DB_FILE}")
 
-    # 4. Limpeza: Mantém apenas os últimos 30 backups para economizar espaço
+    # 4. Limpeza: Mantém apenas os últimos 3 backups para economizar espaço
     backups = sorted([os.path.join(BACKUP_DIR, f) for f in os.listdir(BACKUP_DIR) if f.endswith('.db')])
     
-    while len(backups) > 30:
+    while len(backups) > 3:
         arquivo_velho = backups.pop(0)
         os.remove(arquivo_velho)
         print(f"🗑️ Backup antigo removido: {os.path.basename(arquivo_velho)}")
