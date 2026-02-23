@@ -43,12 +43,10 @@ def get_embed_url(link):
         return link.replace("/view", "/preview")
 
     # Suporte para YouTube Clips
+    # O YouTube bloqueia embeds gerados apenas com o ID do clip (exige o ID do vídeo original).
+    # Retornamos None para que o sistema exiba o botão de "Link Direto" em vez de um player com erro.
     if "youtube.com/clip/" in link:
-        try:
-            clip_id = link.split('/clip/')[1].split('?')[0]
-            return f"https://www.youtube.com/embed/clip/{clip_id}"
-        except:
-            pass
+        return None
             
     # Suporte para YouTube Shorts
     if "youtube.com/shorts/" in link:
@@ -57,6 +55,10 @@ def get_embed_url(link):
             return f"https://www.youtube.com/embed/{video_id}"
         except:
             pass
+
+    # Suporte para URLs de Embed já prontas (caso o usuário cole a URL do src do iframe conforme o tutorial)
+    if "youtube.com/embed/" in link:
+        return link
 
     if "youtube.com" in link or "youtu.be" in link:
         video_id = None
@@ -67,8 +69,14 @@ def get_embed_url(link):
             params = parse_qs(query)
             if 'v' in params:
                 video_id = params['v'][0]
+        
         if video_id:
             return f"https://www.youtube.com/embed/{video_id}"
+        else:
+            # Se for link do YouTube mas não conseguimos extrair o ID (ex: canal, playlist, ou link inválido)
+            # Retornamos None para evitar que o iframe tente carregar a página inteira do YT (que será bloqueada)
+            return None
+            
     elif "twitch.tv" in link:
         # Exemplo: https://www.twitch.tv/videos/12345678
         parts = link.split('/')
