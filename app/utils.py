@@ -38,10 +38,17 @@ def allowed_file(filename):
 def get_embed_url(link):
     if not link: return None
     
+    # Suporte para Google Drive (Transforma view em preview para funcionar no iframe)
+    if "drive.google.com" in link and "/view" in link:
+        return link.replace("/view", "/preview")
+
     # Suporte para YouTube Clips
     if "youtube.com/clip/" in link:
-        # Clips do YouTube não suportam embed direto apenas pelo ID do clip.
-        return None # Retorna None para evitar erro de player ou bloqueio de iframe
+        try:
+            clip_id = link.split('/clip/')[1].split('?')[0]
+            return f"https://www.youtube.com/embed/clip/{clip_id}"
+        except:
+            pass
             
     # Suporte para YouTube Shorts
     if "youtube.com/shorts/" in link:
@@ -68,4 +75,6 @@ def get_embed_url(link):
         if 'videos' in parts:
             video_id = parts[parts.index('videos') + 1]
             return f"https://player.twitch.tv/?video={video_id}&parent=localhost&parent=fullgasleague.pythonanywhere.com&parent=www.fullgasleague.com.br&autoplay=false"
+
+    # Retorna o link original para tentar carregar em iframe (ex: links diretos .mp4 ou outros sites)
     return link
