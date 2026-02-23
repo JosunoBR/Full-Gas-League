@@ -37,6 +37,23 @@ def allowed_file(filename):
 
 def get_embed_url(link):
     if not link: return None
+    
+    # Suporte para YouTube Clips
+    if "youtube.com/clip/" in link:
+        try:
+            clip_id = link.split('/clip/')[1].split('?')[0]
+            return f"https://www.youtube.com/embed/clip/{clip_id}"
+        except:
+            pass
+            
+    # Suporte para YouTube Shorts
+    if "youtube.com/shorts/" in link:
+        try:
+            video_id = link.split('/shorts/')[1].split('?')[0]
+            return f"https://www.youtube.com/embed/{video_id}"
+        except:
+            pass
+
     if "youtube.com" in link or "youtu.be" in link:
         video_id = None
         if "youtu.be" in link:
