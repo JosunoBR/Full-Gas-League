@@ -54,7 +54,12 @@
 
                     <div class="mb-3">
                         <label class="form-label text-white">Telefone / WhatsApp</label>
-                        <input type="text" name="telefone" class="form-control bg-secondary text-white border-0" value="{{ pilot.telefone or '' }}" oninput="maskPhone(this)" placeholder="(00) 00000-0000">
+                        <div class="input-group">
+                            <input type="text" id="phoneInput" name="telefone" class="form-control bg-secondary text-white border-0" value="{{ pilot.telefone or '' }}" oninput="maskPhone(this)" placeholder="(00) 00000-0000">
+                            <button type="button" class="btn btn-success" onclick="openWhatsApp()">
+                                <i class="fa-brands fa-whatsapp me-1"></i> Abrir WhatsApp
+                            </button>
+                        </div>
                     </div>
 
                     <div class="row">
@@ -119,4 +124,15 @@
 
 <form id="resetPilotForm" action="{{ url_for('admin.reset_pilot_status', pilot_id=pilot.id) }}" method="POST"></form>
 
+<script>
+    function openWhatsApp() {
+        let phone = document.getElementById('phoneInput').value.replace(/\D/g, '');
+        if (phone.length >= 10) {
+            // Assume código do país 55 (Brasil)
+            window.open(`https://wa.me/55${phone}`, '_blank');
+        } else {
+            alert('Por favor, insira um número de telefone válido com DDD para abrir o WhatsApp.');
+        }
+    }
+</script>
 {% endblock %}
