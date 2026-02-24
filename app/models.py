@@ -26,6 +26,12 @@ pilot_teams = db.Table('pilot_teams',
     db.Column('team_id', db.Integer, db.ForeignKey('team.id'), primary_key=True)
 )
 
+# Tabela de Associação para Reservas Oficiais
+pilot_reserves = db.Table('pilot_reserves',
+    db.Column('pilot_id', db.Integer, db.ForeignKey('pilot_profile.id'), primary_key=True),
+    db.Column('team_id', db.Integer, db.ForeignKey('team.id'), primary_key=True)
+)
+
 class Team(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nome = db.Column(db.String(100), nullable=False)
@@ -34,6 +40,10 @@ class Team(db.Model):
     ativa = db.Column(db.Boolean, default=True) 
     
     results = db.relationship('RaceResult', backref='team_snapshot', lazy=True)
+    
+    # Relacionamento para Reservas (separado dos titulares)
+    reserves = db.relationship('PilotProfile', secondary=pilot_reserves, lazy='subquery',
+        backref=db.backref('reserve_teams', lazy=True))
 
     def to_dict(self):
         return {

@@ -78,7 +78,7 @@
                         <div class="col-md-6">
                             <div class="card bg-secondary border-0 h-100">
                                 <div class="card-body">
-                                    <label class="form-label text-white fw-bold mb-2">Piloto 1</label>
+                                    <label class="form-label text-white fw-bold mb-2 small">Titular 1</label>
                                     <select name="pilot1" class="form-select bg-dark text-white border-0">
                                         <option value="">-- Vago --</option>
                                         {% for p in pilots %}
@@ -93,11 +93,46 @@
                         <div class="col-md-6">
                             <div class="card bg-secondary border-0 h-100">
                                 <div class="card-body">
-                                    <label class="form-label text-white fw-bold mb-2">Piloto 2</label>
+                                    <label class="form-label text-white fw-bold mb-2 small">Titular 2</label>
                                     <select name="pilot2" class="form-select bg-dark text-white border-0">
                                         <option value="">-- Vago --</option>
                                         {% for p in pilots %}
                                             <option value="{{ p.id }}" {% if team.pilots|length > 1 and team.pilots[1].id == p.id %}selected{% endif %}>
+                                                {{ p.nickname }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- RESERVAS -->
+                    <h5 class="text-white-50 fw-bold mb-3"><i class="fa-solid fa-user-shield me-2"></i> Reservas Oficiais</h5>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <div class="card bg-dark border border-secondary h-100">
+                                <div class="card-body">
+                                    <label class="form-label text-white-50 fw-bold mb-2 small">Reserva 1</label>
+                                    <select name="reserve_pilot_1" class="form-select bg-secondary text-white border-0">
+                                        <option value="">-- Nenhum --</option>
+                                        {% for p in pilots %}
+                                            <option value="{{ p.id }}" {% if team.reserves|length > 0 and team.reserves[0].id == p.id %}selected{% endif %}>
+                                                {{ p.nickname }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card bg-dark border border-secondary h-100">
+                                <div class="card-body">
+                                    <label class="form-label text-white-50 fw-bold mb-2 small">Reserva 2</label>
+                                    <select name="reserve_pilot_2" class="form-select bg-secondary text-white border-0">
+                                        <option value="">-- Nenhum --</option>
+                                        {% for p in pilots %}
+                                            <option value="{{ p.id }}" {% if team.reserves|length > 1 and team.reserves[1].id == p.id %}selected{% endif %}>
                                                 {{ p.nickname }}
                                             </option>
                                         {% endfor %}

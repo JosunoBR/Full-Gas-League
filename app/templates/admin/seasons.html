@@ -23,7 +23,7 @@
                 </div>
                 
                 <p class="card-text text-white-50 small">
-                    <i class="fa-regular fa-calendar me-2"></i>Início: {{ s.data_inicio.strftime('%d/%m/%Y') }}
+                    <i class="fa-regular fa-calendar me-2"></i>Início: {{ s.data_inicio.strftime('%d/%m/%Y') if s.data_inicio else 'Data não definida' }}
                 </p>
                 
                 <div class="d-grid mt-4">

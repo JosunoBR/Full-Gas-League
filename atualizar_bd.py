@@ -6,7 +6,7 @@ def atualizar_banco():
     with app.app_context():
         print("Iniciando atualização e correção do banco de dados...")
         
-        # 1. Cria tabelas novas (como GridConfig, SeasonChampion, PilotGridPhoto, pilot_teams) que não existiam
+        # 1. Cria tabelas novas (como GridConfig, SeasonChampion, PilotGridPhoto, pilot_teams, pilot_reserves) que não existiam
         db.create_all()
         print("- Tabelas estruturais sincronizadas.")
 

@@ -416,8 +416,36 @@ def manage_season(season_id):
         flash('Corrida adicionada ao calendário!', 'success')
         return redirect(url_for('admin.manage_season', season_id=season.id))
         
-    grid_configs = GridConfig.query.order_by(GridConfig.ordem).all()
-    return render_template('admin/season_detail.html', season=season, pistas=PISTAS_F1, grid_configs=grid_configs)
+    # CORREÇÃO: Exibir grids históricos da temporada + grids atuais
+    # 1. Busca configuração atual
+    current_configs = GridConfig.query.order_by(GridConfig.ordem).all()
+    
+    # 2. Busca grids que JÁ existem nas corridas dessa temporada (Histórico)
+    grids_in_season = [r[0] for r in db.session.query(Race.grid).filter_by(season_id=season.id).distinct().all()]
+    
+    final_grids = []
+    seen_names = set()
+    
+    # LÓGICA CORRIGIDA: Filosofia de temporadas paralelas
+    # Se a temporada tem corridas, usamos APENAS os grids dessas corridas.
+    # Se a temporada está vazia (nova), usamos o GridConfig global.
+    if not grids_in_season:
+        final_grids = current_configs
+    else:
+        # Filtra configs atuais: Só inclui se o nome estiver no histórico da temporada
+        for cfg in current_configs:
+            if cfg.nome in grids_in_season:
+                final_grids.append(cfg)
+                seen_names.add(cfg.nome)
+        
+        # Adiciona grids do histórico que não estão na config atual
+        for g_name in grids_in_season:
+            if g_name not in seen_names:
+                final_grids.append(type('HistoricalGrid', (object,), {'id': 0, 'nome': g_name, 'vagas': 20, 'ordem': 999, 'exibir_lastro': True})())
+                seen_names.add(g_name)
+            
+    final_grids.sort(key=lambda x: x.ordem if hasattr(x, 'ordem') else 999)
+    return render_template('admin/season_detail.html', season=season, pistas=PISTAS_F1, grid_configs=final_grids)
 
 @admin_bp.route('/season/<int:season_id>/close', methods=['POST'])
 def close_season(season_id):
@@ -607,8 +635,29 @@ def edit_race(race_id):
         flash('Corrida atualizada com sucesso!', 'success')
         return redirect(url_for('admin.manage_season', season_id=race.season_id))
         
-    grid_configs = GridConfig.query.order_by(GridConfig.ordem).all()
-    return render_template('admin/edit_race.html', race=race, pistas=PISTAS_F1, grid_configs=grid_configs)
+    # CORREÇÃO: Mesma lógica de grids históricos para a edição
+    current_configs = GridConfig.query.order_by(GridConfig.ordem).all()
+    grids_in_season = [r[0] for r in db.session.query(Race.grid).filter_by(season_id=race.season_id).distinct().all()]
+    
+    final_grids = []
+    seen_names = set()
+    
+    if not grids_in_season:
+        final_grids = current_configs
+    else:
+        for cfg in current_configs:
+            if cfg.nome in grids_in_season:
+                final_grids.append(cfg)
+                seen_names.add(cfg.nome)
+                
+        for g_name in grids_in_season:
+            if g_name not in seen_names:
+                final_grids.append(type('HistoricalGrid', (object,), {'id': 0, 'nome': g_name, 'vagas': 20, 'ordem': 999, 'exibir_lastro': True})())
+                seen_names.add(g_name)
+            
+    final_grids.sort(key=lambda x: x.ordem if hasattr(x, 'ordem') else 999)
+    
+    return render_template('admin/edit_race.html', race=race, pistas=PISTAS_F1, grid_configs=final_grids)
 
 @admin_bp.route('/race/<int:race_id>/delete', methods=['POST'])
 def delete_race(race_id):
@@ -1217,6 +1266,7 @@ def edit_team(team_id):
         
         # Limpa pilotos atuais
         team.pilots.clear()
+        team.reserves.clear()
             
         pilot1_id = request.form.get('pilot1')
         pilot2_id = request.form.get('pilot2')
@@ -1227,6 +1277,16 @@ def edit_team(team_id):
         if pilot2_id:
             p2 = PilotProfile.query.get(pilot2_id)
             if p2: team.pilots.append(p2)
+            
+        reserve1_id = request.form.get('reserve_pilot_1')
+        if reserve1_id:
+            r1 = PilotProfile.query.get(reserve1_id)
+            if r1: team.reserves.append(r1)
+            
+        reserve2_id = request.form.get('reserve_pilot_2')
+        if reserve2_id:
+            r2 = PilotProfile.query.get(reserve2_id)
+            if r2: team.reserves.append(r2)
             
         db.session.commit()
         flash('Equipe atualizada!', 'success')
@@ -1244,7 +1304,10 @@ def edit_team(team_id):
         if team.grid in p_grids:
             # Verifica se já tem equipe NESTE grid (e se não é a própria equipe atual)
             team_in_grid = next((t for t in p.teams if t.grid == team.grid), None)
-            if team_in_grid is None or team_in_grid.id == team.id:
+            # Permite se não tiver equipe, ou se for desta equipe (titular ou reserva)
+            is_reserve_here = next((t for t in p.reserve_teams if t.grid == team.grid and t.id == team.id), None)
+            
+            if (team_in_grid is None or team_in_grid.id == team.id) or is_reserve_here:
                 final_pilots.append(p)
 
     grid_configs = GridConfig.query.order_by(GridConfig.ordem).all()
@@ -1262,6 +1325,7 @@ def delete_team(team_id):
     tem_historico = RaceResult.query.filter_by(team_id=team.id).first()
     
     team.pilots.clear()
+    team.reserves.clear()
         
     if tem_historico:
         team.ativa = False

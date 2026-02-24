@@ -100,9 +100,16 @@ def home():
 
                     # Busca a equipe do piloto para este grid
                     team = next((t for t in p.teams if t.grid == gname), None)
+                    is_reserve = False
+
+                    # Se não for titular, verifica se é reserva oficial
+                    if not team:
+                        is_reserve = True
+                        team = next((t for t in p.reserve_teams if t.grid == gname), None)
+                    
                     team_name = team.nome if team else 'Sem Equipe'
 
-                    standings[gname].append({'piloto': p, 'pontos': pontos_totais, 'vitorias': vitorias, 'carro': '', 'quali_ban': quali_ban, 'foto_url': foto_final, 'team_name': team_name})
+                    standings[gname].append({'piloto': p, 'pontos': pontos_totais, 'vitorias': vitorias, 'carro': '', 'quali_ban': quali_ban, 'foto_url': foto_final, 'team_name': team_name, 'is_reserve': is_reserve})
         
         # 2. Ordenar e Aplicar Lastro (Carro)
         # Cria mapa de configs para acesso rápido
@@ -181,7 +188,8 @@ def home():
                     team = next((t for t in p.teams if t.grid == g), None)
                     
                     # FIX: Verifica se o piloto já está na lista deste grid para evitar duplicatas (P1, P1...)
-                    if not any(item['data'].id == p.id for item in pilots_by_grid[g]):
+                    # E garante que apenas titulares (com equipe definida) apareçam no carrossel
+                    if team and not any(item['data'].id == p.id for item in pilots_by_grid[g]):
                         pilots_by_grid[g].append({'data': p, 'foto_url': foto_final, 'team': team})
 
     return render_template('home.html', standings=standings, constructors=constructors, calendar=calendar, last_races=last_races, season_ativa=season_ativa, noticias=noticias, pilots_by_grid=pilots_by_grid, grid_names=grid_names, all_active_seasons=all_active_seasons)
@@ -371,6 +379,8 @@ def public_profile(pilot_id):
     current_team = None
     if current_context:
         current_team = next((t for t in perfil.teams if t.grid == current_context['grid']), None)
+        if not current_team:
+            current_team = next((t for t in perfil.reserve_teams if t.grid == current_context['grid']), None)
     
     # Estatísticas da Temporada
     meus_pontos_camp = 0
@@ -496,6 +506,8 @@ def my_profile():
     current_team = None
     if current_context:
         current_team = next((t for t in perfil.teams if t.grid == current_context['grid']), None)
+        if not current_team:
+            current_team = next((t for t in perfil.reserve_teams if t.grid == current_context['grid']), None)
 
     if perfil.esta_banido():
         flash('ALERTA: Sua CNH está zerada ou negativa. Você está suspenso das atividades de pista.', 'danger')
