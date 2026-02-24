@@ -670,12 +670,7 @@ def delete_race(race_id):
         
     # FIX: Estornar punições de W.O. (FNJ) antes de apagar a corrida
     resultados = RaceResult.query.filter_by(race_id=race.id).all()
-    for res in resultados:
-        if res.ausencia == 'FNJ':
-            piloto = PilotProfile.query.get(res.pilot_id)
-            if piloto:
-                piloto.pontos_cnh += 2
-
+    # Nota: Estorno global de CNH removido (cálculo dinâmico).
     RaceResult.query.filter_by(race_id=race.id).delete()
     RaceRegistration.query.filter_by(race_id=race.id).delete() # Limpa check-ins
     
@@ -822,8 +817,7 @@ def race_results(race_id):
             else:
                 # FJ ou FNJ
                 if status_presenca == 'FNJ':
-                    piloto.pontos_cnh -= 2 # Punição W.O. conforme Regulamento T2
-                
+                    pass # A punição de 2 pontos na CNH agora é calculada dinamicamente pelo 'get_cnh_info'
                 db.session.add(RaceResult(
                     race_id=race.id, pilot_id=pid, team_id=equipe_id,
                     posicao=0, pontos_ganhos=0, ausencia=status_presenca
@@ -1579,14 +1573,9 @@ def view_protest(protest_id):
             if veredito == 'LEVE': pontos_perda = 3
             elif veredito == 'MEDIA': pontos_perda = 5
             elif veredito == 'GRAVE': pontos_perda = 10
-            elif veredito == 'ADVERTENCIA':
-                piloto.advertencias_acumuladas += 1
-                if piloto.advertencias_acumuladas > 0 and piloto.advertencias_acumuladas % 3 == 0:
-                    flash(f'Piloto atingiu {piloto.advertencias_acumuladas} advertências. Punição automática aplicada (-3 pts).', 'warning')
-                    pontos_perda = 3
+            elif veredito == 'ADVERTENCIA': pontos_perda = 0 # Advertência é contada dinamicamente
             
             if pontos_perda > 0:
-                piloto.pontos_cnh -= pontos_perda
                 if resultado_corrida:
                     resultado_corrida.pontos_ganhos -= pontos_perda
             
@@ -1607,13 +1596,8 @@ def view_protest(protest_id):
             if veredito_anterior == 'LEVE': pontos_devolver = 3
             elif veredito_anterior == 'MEDIA': pontos_devolver = 5
             elif veredito_anterior == 'GRAVE': pontos_devolver = 10
-            elif veredito_anterior == 'ADVERTENCIA':
-                if piloto.advertencias_acumuladas > 0 and piloto.advertencias_acumuladas % 3 == 0:
-                    pontos_devolver = 3
-                if piloto.advertencias_acumuladas > 0: piloto.advertencias_acumuladas -= 1
             
             if pontos_devolver > 0:
-                piloto.pontos_cnh += pontos_devolver
                 if resultado_corrida:
                     resultado_corrida.pontos_ganhos += pontos_devolver
 
@@ -1648,16 +1632,8 @@ def delete_protest_admin(protest_id):
         if veredito == 'LEVE': pontos_devolver = 3
         elif veredito == 'MEDIA': pontos_devolver = 5
         elif veredito == 'GRAVE': pontos_devolver = 10
-        elif veredito == 'ADVERTENCIA':
-            # Se atingiu múltiplo de 3, devolve os 3 pontos que foram tirados automaticamente
-            if piloto.advertencias_acumuladas > 0 and piloto.advertencias_acumuladas % 3 == 0:
-                pontos_devolver = 3
-            # Remove a advertência do histórico
-            if piloto.advertencias_acumuladas > 0: 
-                piloto.advertencias_acumuladas -= 1
         
         if pontos_devolver > 0:
-            piloto.pontos_cnh += pontos_devolver
             if resultado_corrida:
                 resultado_corrida.pontos_ganhos += pontos_devolver
 
