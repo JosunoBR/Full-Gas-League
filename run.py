@@ -41,29 +41,30 @@ app.register_blueprint(public_bp)
 app.register_blueprint(admin_bp, url_prefix='/admin')
 app.register_blueprint(api_bp, url_prefix='/api') # Registra com prefixo /api
 
-# Criação das Tabelas e Admin Inicial
-with app.app_context():
-    # db.create_all()  <-- ISSO NÃO É MAIS NECESSÁRIO QUANDO SE USA MIGRATE, MAS PODE MANTER POR SEGURANÇA SE QUISER
-    db.create_all() 
-    
-    # Verifica se existe pasta de upload
-    if not os.path.exists(app.config['UPLOAD_FOLDER']):
-        os.makedirs(app.config['UPLOAD_FOLDER'])
-
-    # Cria Super Admin se não existir
-    admin_user = User.query.filter_by(email='admin@fullgas.com').first()
-    if not admin_user:
-        admin_user = User(username='Admin', email='admin@fullgas.com', role='SUPER_ADM')
-        db.session.add(admin_user)
-        db.session.flush()
-        
-        perfil_admin = PilotProfile(user_id=admin_user.id, nickname='Direção de Prova', nome_real='Admin', grid='SEM_GRID')
-        db.session.add(perfil_admin)
-    
-    # Força a senha padrão para garantir o acesso em ambiente de teste
-    admin_user.set_password('admin123')
-    db.session.commit()
-    print("Acesso Admin garantido: admin@fullgas.com / admin123")
-
 if __name__ == '__main__':
+    # Criação das Tabelas e Admin Inicial (Executado apenas ao rodar o servidor)
+    with app.app_context():
+        # db.create_all() garante que tabelas novas (como pilot_teams) sejam criadas
+        db.create_all() 
+        
+        # Verifica se existe pasta de upload
+        if not os.path.exists(app.config['UPLOAD_FOLDER']):
+            os.makedirs(app.config['UPLOAD_FOLDER'])
+
+        # Cria Super Admin se não existir
+        admin_user = User.query.filter_by(email='admin@fullgas.com').first()
+        if not admin_user:
+            admin_user = User(username='Admin', email='admin@fullgas.com', role='SUPER_ADM')
+            admin_user.set_password('admin123') # Define a senha ANTES de salvar no banco
+            db.session.add(admin_user)
+            db.session.flush()
+            
+            perfil_admin = PilotProfile(user_id=admin_user.id, nickname='Direção de Prova', nome_real='Admin', grid='SEM_GRID')
+            db.session.add(perfil_admin)
+        
+        # Força a senha padrão para garantir o acesso em ambiente de teste
+        # admin_user.set_password('admin123') 
+        db.session.commit()
+        print("Acesso Admin garantido: admin@fullgas.com / admin123")
+
     app.run(debug=True)

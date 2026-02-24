@@ -52,8 +52,17 @@ def restrict_access():
 
 @admin_bp.route('/dashboard')
 def dashboard():
-    season_ativa = Season.query.filter_by(ativa=True).first()
-    return render_template('admin/dashboard.html', season_ativa=season_ativa)
+    all_active_seasons = Season.query.filter_by(ativa=True).order_by(Season.id.desc()).all()
+    
+    selected_season_id = request.args.get('s', type=int)
+    season_ativa = None
+    if selected_season_id:
+        season_ativa = next((s for s in all_active_seasons if s.id == selected_season_id), None)
+    
+    if not season_ativa and all_active_seasons:
+        season_ativa = all_active_seasons[0]
+        
+    return render_template('admin/dashboard.html', season_ativa=season_ativa, all_active_seasons=all_active_seasons)
 
 @admin_bp.route('/overview')
 def overview():
@@ -668,9 +677,6 @@ def delete_race(race_id):
         flash('Não é possível apagar corridas de temporadas arquivadas.', 'danger')
         return redirect(url_for('admin.manage_season', season_id=season_id))
         
-    # FIX: Estornar punições de W.O. (FNJ) antes de apagar a corrida
-    resultados = RaceResult.query.filter_by(race_id=race.id).all()
-    # Nota: Estorno global de CNH removido (cálculo dinâmico).
     RaceResult.query.filter_by(race_id=race.id).delete()
     RaceRegistration.query.filter_by(race_id=race.id).delete() # Limpa check-ins
     
@@ -710,7 +716,12 @@ def generate_grid_text(race_id):
 
     # FIX: Busca pilotos corretamente mesmo se tiverem múltiplos grids (ex: "ELITE, ADVANCED")
     all_pilots = PilotProfile.query.join(User).all()
-    pilotos = [p for p in all_pilots if race.grid in [g.strip() for g in p.grid.split(',')]]
+    
+    pilotos = []
+    for p in all_pilots:
+        # Inclui se tiver o grid no perfil OU se tiver equipe neste grid (para temporadas paralelas)
+        if race.grid in [g.strip() for g in p.grid.split(',')] or any(t.grid == race.grid for t in p.teams):
+            pilotos.append(p)
     
     ranking = []
     
@@ -751,11 +762,7 @@ def race_results(race_id):
         
         # FIX: Estornar punições de W.O. (FNJ) anteriores para evitar duplicidade ao editar
         resultados_anteriores = RaceResult.query.filter_by(race_id=race.id).all()
-        for res in resultados_anteriores:
-            if res.ausencia == 'FNJ':
-                piloto_afetado = PilotProfile.query.get(res.pilot_id)
-                if piloto_afetado:
-                    piloto_afetado.pontos_cnh += 2
+        # Nota: Estorno global de CNH removido (cálculo dinâmico).
 
         # FIX: Snapshot dos times usados nesta corrida antes de apagar
         # Isso impede que, ao editar uma corrida antiga, o piloto "mude de equipe" retroativamente
@@ -788,6 +795,11 @@ def race_results(race_id):
             if equipe_id is None:
                 # Busca a equipe atual do piloto para o grid desta corrida
                 team = next((t for t in piloto.teams if t.grid == race.grid), None)
+                
+                # Fallback: Se não achou e o piloto tem equipes, usa a primeira (Assume migração de grid)
+                if not team and piloto.teams:
+                    team = piloto.teams[0]
+                    
                 equipe_id = team.id if team else None
             
             if status_presenca == 'OK':
@@ -880,13 +892,30 @@ def race_results(race_id):
     # FIX: Filtragem exata via Python para evitar falsos positivos com nomes de grid parecidos
     # Com M2M, verificamos se o piloto tem alguma equipe associada
     all_pilots = PilotProfile.query.join(User).order_by(PilotProfile.nickname).all()
-    all_pilots_with_team = [p for p in all_pilots if p.teams]
-    titulares = [p for p in all_pilots_with_team if race.grid in [g.strip() for g in p.grid.split(',')]]
+    
+    titulares = [] # Será uma lista de dicionários: {'piloto': obj, 'team': obj}
+    titulares_ids = set()
+
+    for p in all_pilots:
+        # Verifica se o piloto pertence ao grid (via texto do perfil OU associação de equipe)
+        grids_profile = [g.strip() for g in p.grid.split(',')]
+        has_team_in_grid = any(t.grid == race.grid for t in p.teams)
+        
+        if race.grid in grids_profile or has_team_in_grid:
+            # Tenta encontrar a equipe exata para este grid
+            team = next((t for t in p.teams if t.grid == race.grid), None)
+            
+            # Fallback: Se não achou (ex: mudou de temporada), pega a primeira equipe disponível
+            if not team and p.teams:
+                team = p.teams[0]
+                
+            titulares.append({'piloto': p, 'team': team})
+            titulares_ids.add(p.id)
     
     # 2. Reservas: QUALQUER piloto SEM EQUIPE (Inclui ADMs para correrem de reserva)
     # Reservas são aqueles que não têm equipe NO GRID DA CORRIDA (ou nenhuma equipe)
-    # Mas simplificando: Reservas gerais
-    reservas_disponiveis = [p for p in all_pilots if not p.teams]
+    # Mas simplificando: Qualquer um que não seja titular neste grid
+    reservas_disponiveis = [p for p in all_pilots if p.id not in titulares_ids]
     
     # 3. Equipes Ativas (para selecionar onde o reserva correu)
     equipes = Team.query.filter_by(ativa=True, grid=race.grid).all()
@@ -900,7 +929,7 @@ def race_results(race_id):
     results_map = { r.pilot_id: r for r in resultados_existentes }
     
     # Identificar reservas que correram (não são titulares do grid)
-    titulares_ids = [t.id for t in titulares]
+    titulares_ids = [t['piloto'].id for t in titulares]
     reservas_que_correram = [r for r in resultados_existentes if r.pilot_id not in titulares_ids]
     
     return render_template('admin/race_results.html', 

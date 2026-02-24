@@ -26,7 +26,9 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for piloto in titulares %}
+                        {% for item in titulares %}
+                        {% set piloto = item.piloto %}
+                        {% set team = item.team %}
                         {% set registro = checkin_map.get(piloto.id) %}
                         {% set resultado = results_map.get(piloto.id) %}
                         
@@ -49,7 +51,7 @@
                                     {% endif %}
                                     <div>
                                         <strong class="text-white d-block">{{ piloto.nickname }}</strong>
-                                        <small class="text-white-50">{{ piloto.team.nome }}</small>
+                                        <small class="text-white-50">{{ team.nome if team else 'Sem Equipe' }}</small>
                                         <input type="hidden" name="titular_id" value="{{ piloto.id }}">
                                     </div>
                                 </div>
