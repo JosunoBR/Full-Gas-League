@@ -1,33 +1,48 @@
 {% extends "base.html" %}
 
 {% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="text-white fw-bold">Editar Equipe</h2>
+    <a href="{{ url_for('admin.list_teams') }}" class="btn btn-outline-secondary">Voltar</a>
+</div>
+
 <div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="card shadow border-info">
-            <div class="card-header bg-dark border-info d-flex justify-content-between align-items-center">
-                <h4 class="mb-0 text-info fw-bold">Gerenciar Equipe</h4>
-                {% if team.logo_url %}
-                <img src="{{ url_for('static', filename='uploads/' + team.logo_url) }}" width="50" height="50" class="rounded-circle border border-info">
-                {% endif %}
-            </div>
-            <div class="card-body bg-dark">
+    <div class="col-lg-8">
+        <div class="card shadow border-silver">
+            <div class="card-body bg-dark p-4">
                 <form method="POST" enctype="multipart/form-data">
                     
-                    <div class="form-check form-switch mb-4 p-3 bg-secondary rounded border border-info">
-                        <input class="form-check-input" type="checkbox" name="ativa" id="ativaCheck" {% if team.ativa %}checked{% endif %}>
-                        <label class="form-check-label text-white fw-bold ms-2" for="ativaCheck">
-                            EQUIPE ATIVA NA TEMPORADA ATUAL
-                        </label>
-                        <div class="form-text text-white-50 ms-1">Desmarque para arquivar esta equipe sem excluir (ela sumirá do ranking).</div>
+                    <!-- CABEÇALHO DA EQUIPE -->
+                    <div class="d-flex align-items-center mb-4 pb-4 border-bottom border-secondary">
+                        <div class="me-4 position-relative">
+                            {% if team.logo_url %}
+                                <img src="{{ url_for('static', filename='uploads/' + team.logo_url) }}" class="rounded-circle border border-secondary p-1" width="100" height="100" style="object-fit: cover;">
+                            {% else %}
+                                <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center border border-secondary" style="width: 100px; height: 100px;">
+                                    <i class="fa-solid fa-users fa-3x text-dark"></i>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="flex-grow-1">
+                            <h3 class="text-white fw-bold mb-1">{{ team.nome }}</h3>
+                            <span class="badge bg-secondary text-white border border-secondary">{{ team.grid }}</span>
+                            {% if team.ativa %}
+                                <span class="badge bg-success text-white ms-1">ATIVA</span>
+                            {% else %}
+                                <span class="badge bg-secondary text-white-50 ms-1">ARQUIVADA</span>
+                            {% endif %}
+                        </div>
                     </div>
 
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label text-white">Nome</label>
+                    <!-- DADOS BÁSICOS -->
+                    <h5 class="text-white fw-bold mb-3"><i class="fa-solid fa-circle-info me-2 text-danger"></i> Informações Básicas</h5>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label text-white-50 small">Nome da Equipe</label>
                             <input type="text" name="nome" class="form-control bg-secondary text-white border-0" value="{{ team.nome }}" required>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label text-white">Grid</label>
+                        <div class="col-md-6">
+                            <label class="form-label text-white-50 small">Grid / Categoria</label>
                             <select name="grid" class="form-select bg-secondary text-white border-0" required>
                                 {% for config in grid_configs %}
                                     <option value="{{ config.nome }}" {% if team.grid == config.nome %}selected{% endif %}>{{ config.nome }}</option>
@@ -39,43 +54,61 @@
                                 {% endif %}
                             </select>
                         </div>
-                    </div>
-                    
-                    <div class="mb-4">
-                        <label class="form-label text-white">Alterar Foto</label>
-                        <input type="file" name="foto" class="form-control bg-secondary text-white border-0">
-                    </div>
-
-                    <hr class="border-secondary">
-                    <h5 class="text-white-50 mb-3">Contrato de Pilotos</h5>
-
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label text-white">Piloto 1</label>
-                            <select name="pilot1" class="form-select bg-secondary text-white border-0">
-                                <option value="">-- Vago --</option>
-                                {% for p in pilots %}
-                                    <option value="{{ p.id }}" {% if p.team_id == team.id and loop.index0 == 0 %}selected{% endif %}>
-                                        {{ p.nome_real }} ({{ p.nickname }})
-                                    </option>
-                                {% endfor %}
-                            </select>
+                        <div class="col-12">
+                            <label class="form-label text-white-50 small">Logo da Equipe</label>
+                            <input type="file" name="foto" class="form-control bg-secondary text-white border-0">
+                            <div class="form-text text-white-50 small">Deixe em branco para manter a atual.</div>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label text-white">Piloto 2</label>
-                            <select name="pilot2" class="form-select bg-secondary text-white border-0">
-                                <option value="">-- Vago --</option>
-                                {% for p in pilots %}
-                                    <option value="{{ p.id }}" {% if p.team_id == team.id and loop.index0 > 0 %}selected{% endif %}>
-                                        {{ p.nome_real }} ({{ p.nickname }})
-                                    </option>
-                                {% endfor %}
-                            </select>
+                        <div class="col-12">
+                            <div class="form-check form-switch bg-secondary p-3 rounded">
+                                <input class="form-check-input" type="checkbox" name="ativa" id="ativaCheck" {% if team.ativa %}checked{% endif %}>
+                                <label class="form-check-label text-white fw-bold ms-2" for="ativaCheck">
+                                    Equipe Ativa
+                                </label>
+                                <div class="form-text text-white-50 ms-1 small">Desmarque para arquivar esta equipe (ela não aparecerá nos rankings atuais).</div>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="d-grid mt-3">
-                        <button type="submit" class="btn btn-info fw-bold text-dark">SALVAR ALTERAÇÕES</button>
+                    <hr class="border-secondary my-4">
+
+                    <!-- PILOTOS -->
+                    <h5 class="text-white fw-bold mb-3"><i class="fa-solid fa-user-astronaut me-2 text-warning"></i> Pilotos Titulares</h5>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <div class="card bg-secondary border-0 h-100">
+                                <div class="card-body">
+                                    <label class="form-label text-white fw-bold mb-2">Piloto 1</label>
+                                    <select name="pilot1" class="form-select bg-dark text-white border-0">
+                                        <option value="">-- Vago --</option>
+                                        {% for p in pilots %}
+                                            <option value="{{ p.id }}" {% if team.pilots|length > 0 and team.pilots[0].id == p.id %}selected{% endif %}>
+                                                {{ p.nickname }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card bg-secondary border-0 h-100">
+                                <div class="card-body">
+                                    <label class="form-label text-white fw-bold mb-2">Piloto 2</label>
+                                    <select name="pilot2" class="form-select bg-dark text-white border-0">
+                                        <option value="">-- Vago --</option>
+                                        {% for p in pilots %}
+                                            <option value="{{ p.id }}" {% if team.pilots|length > 1 and team.pilots[1].id == p.id %}selected{% endif %}>
+                                                {{ p.nickname }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-success fw-bold py-2">SALVAR ALTERAÇÕES</button>
                     </div>
                 </form>
             </div>

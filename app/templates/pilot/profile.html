@@ -96,9 +96,9 @@
                 </h3>
                 <p class="text-white-50 small mb-1">{{ perfil.nome_real }}</p>
                 
-                {% if perfil.team %}
-                    <a href="{{ url_for('public.team_profile', team_id=perfil.team.id) }}" class="badge bg-dark border border-danger text-danger text-decoration-none mb-4 px-3 py-2">
-                        {{ perfil.team.nome }}
+                {% if current_team %}
+                    <a href="{{ url_for('public.team_profile', team_id=current_team.id) }}" class="badge bg-dark border border-danger text-danger text-decoration-none mb-4 px-3 py-2">
+                        {{ current_team.nome }}
                     </a>
                 {% else %}
                     <span class="badge bg-dark border border-secondary text-white mb-4 px-3 py-2">Sem Equipe</span>

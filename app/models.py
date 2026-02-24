@@ -20,6 +20,12 @@ class User(UserMixin, db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
+# Tabela de Associação (Muitos-para-Muitos) entre Pilotos e Equipes
+pilot_teams = db.Table('pilot_teams',
+    db.Column('pilot_id', db.Integer, db.ForeignKey('pilot_profile.id'), primary_key=True),
+    db.Column('team_id', db.Integer, db.ForeignKey('team.id'), primary_key=True)
+)
+
 class Team(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nome = db.Column(db.String(100), nullable=False)
@@ -27,7 +33,6 @@ class Team(db.Model):
     grid = db.Column(db.String(20), nullable=False) 
     ativa = db.Column(db.Boolean, default=True) 
     
-    pilots = db.relationship('PilotProfile', back_populates='team')
     results = db.relationship('RaceResult', backref='team_snapshot', lazy=True)
 
     def to_dict(self):
@@ -53,8 +58,10 @@ class PilotProfile(db.Model):
     penalidade_campeonato = db.Column(db.Float, default=0.0)
     motivo_penalidade = db.Column(db.Text, nullable=True)
 
-    team_id = db.Column(db.Integer, db.ForeignKey('team.id'), nullable=True)
-    team = db.relationship('Team', back_populates='pilots')
+    # Relacionamento Muitos-para-Muitos (Um piloto pode ter várias equipes, uma por grid)
+    # O backref 'pilots' permite acessar team.pilots
+    teams = db.relationship('Team', secondary=pilot_teams, lazy='subquery',
+        backref=db.backref('pilots', lazy=True))
 
     race_results = db.relationship('RaceResult', backref='pilot', lazy=True)
     grid_photos = db.relationship('PilotGridPhoto', backref='pilot', lazy=True)
@@ -69,7 +76,7 @@ class PilotProfile(db.Model):
             'grid': self.grid,
             'telefone': self.telefone,
             'cnh': self.pontos_cnh,
-            'equipe': self.team.nome if self.team else 'Sem Equipe',
+            'equipes': [t.nome for t in self.teams],
             'foto': self.foto_url
         }
 

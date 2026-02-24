@@ -98,7 +98,11 @@ def home():
                             foto_final = gp.foto_url
                             break
 
-                    standings[gname].append({'piloto': p, 'pontos': pontos_totais, 'vitorias': vitorias, 'carro': '', 'quali_ban': quali_ban, 'foto_url': foto_final})
+                    # Busca a equipe do piloto para este grid
+                    team = next((t for t in p.teams if t.grid == gname), None)
+                    team_name = team.nome if team else 'Sem Equipe'
+
+                    standings[gname].append({'piloto': p, 'pontos': pontos_totais, 'vitorias': vitorias, 'carro': '', 'quali_ban': quali_ban, 'foto_url': foto_final, 'team_name': team_name})
         
         # 2. Ordenar e Aplicar Lastro (Carro)
         # Cria mapa de configs para acesso rápido
@@ -162,7 +166,8 @@ def home():
         # 5. Lista de Pilotos por Grid (Exclui Reservas)
         pilots_query = PilotProfile.query.join(User).filter(PilotProfile.grid != 'SEM_GRID').order_by(PilotProfile.nickname).all()
         for p in pilots_query:
-            p_grids = [g.strip() for g in p.grid.split(',')]
+            # FIX: Garante que a lista de grids seja única para evitar duplicação de cards
+            p_grids = list(set([g.strip() for g in p.grid.split(',') if g.strip()]))
             for g in p_grids:
                 if g in pilots_by_grid:
                     # Verifica se existe foto específica para este grid
@@ -171,7 +176,13 @@ def home():
                         if gp.grid == g:
                             foto_final = gp.foto_url
                             break
-                    pilots_by_grid[g].append({'data': p, 'foto_url': foto_final})
+                    
+                    # Busca a equipe do piloto para este grid
+                    team = next((t for t in p.teams if t.grid == g), None)
+                    
+                    # FIX: Verifica se o piloto já está na lista deste grid para evitar duplicatas (P1, P1...)
+                    if not any(item['data'].id == p.id for item in pilots_by_grid[g]):
+                        pilots_by_grid[g].append({'data': p, 'foto_url': foto_final, 'team': team})
 
     return render_template('home.html', standings=standings, constructors=constructors, calendar=calendar, last_races=last_races, season_ativa=season_ativa, noticias=noticias, pilots_by_grid=pilots_by_grid, grid_names=grid_names, all_active_seasons=all_active_seasons)
 
@@ -356,6 +367,11 @@ def public_profile(pilot_id):
             if gp.grid == current_context['grid']:
                 perfil.foto_url = gp.foto_url # Substitui temporariamente no objeto (sem commit) para exibição
     
+    # Determina a equipe para o contexto atual
+    current_team = None
+    if current_context:
+        current_team = next((t for t in perfil.teams if t.grid == current_context['grid']), None)
+    
     # Estatísticas da Temporada
     meus_pontos_camp = 0
     desempenho_temporada = []
@@ -412,7 +428,8 @@ def public_profile(pilot_id):
                            registro_atual=None,
                            quali_ban=quali_ban,
                            available_contexts=available_contexts,
-                           current_context=current_context)
+                           current_context=current_context,
+                           current_team=current_team)
 
 @public_bp.route('/meu-perfil')
 @login_required
@@ -475,6 +492,11 @@ def my_profile():
             if gp.grid == current_context['grid']:
                 perfil.foto_url = gp.foto_url # Substitui temporariamente para exibição
     
+    # Determina a equipe para o contexto atual
+    current_team = None
+    if current_context:
+        current_team = next((t for t in perfil.teams if t.grid == current_context['grid']), None)
+
     if perfil.esta_banido():
         flash('ALERTA: Sua CNH está zerada ou negativa. Você está suspenso das atividades de pista.', 'danger')
     
@@ -578,7 +600,8 @@ def my_profile():
                            registro_atual=registro_atual,
                            quali_ban=quali_ban,
                            available_contexts=available_contexts,
-                           current_context=current_context)
+                           current_context=current_context,
+                           current_team=current_team)
 
 # --- AÇÕES DE CHECK-IN ---
 

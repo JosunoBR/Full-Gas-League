@@ -6,7 +6,7 @@ def atualizar_banco():
     with app.app_context():
         print("Iniciando atualização e correção do banco de dados...")
         
-        # 1. Cria tabelas novas (como GridConfig, SeasonChampion, PilotGridPhoto) que não existiam
+        # 1. Cria tabelas novas (como GridConfig, SeasonChampion, PilotGridPhoto, pilot_teams) que não existiam
         db.create_all()
         print("- Tabelas estruturais sincronizadas.")
 
@@ -33,6 +33,21 @@ def atualizar_banco():
             except:
                 print("- Adicionando coluna 'exibir_lastro' em grid_config...")
                 conn.execute(text("ALTER TABLE grid_config ADD COLUMN exibir_lastro BOOLEAN DEFAULT 1"))
+
+            # MIGRAÇÃO DE EQUIPES (De team_id para pilot_teams)
+            # Verifica se existem dados na tabela antiga e migra para a nova
+            try:
+                # Seleciona pilotos com equipe definida na coluna antiga
+                result = conn.execute(text("SELECT id, team_id FROM pilot_profile WHERE team_id IS NOT NULL"))
+                migrated_count = 0
+                for row in result:
+                    # Insere na nova tabela de associação (ignorando duplicatas)
+                    conn.execute(text("INSERT OR IGNORE INTO pilot_teams (pilot_id, team_id) VALUES (:pid, :tid)"), {"pid": row[0], "tid": row[1]})
+                    migrated_count += 1
+                if migrated_count > 0:
+                    print(f"- Migrados {migrated_count} registros de equipe para o novo formato multi-grid.")
+            except Exception as e:
+                print(f"- Nota sobre migração de equipes: {e}")
 
             # 3. CORREÇÃO CRÍTICA DO ERRO DE MIGRAÇÃO
             # Remove a tabela alembic_version para resetar o histórico de migração quebrado

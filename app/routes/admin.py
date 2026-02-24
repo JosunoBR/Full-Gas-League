@@ -316,7 +316,7 @@ def delete_admin(user_id):
         
         profile.nickname = "Usuário Removido"
         profile.nome_real = "Dados Removidos"
-        profile.team_id = None
+        profile.teams.clear() # Remove de todas as equipes
         RaceRegistration.query.filter_by(pilot_id=profile.id).delete()
         
         db.session.commit()
@@ -331,7 +331,7 @@ def delete_admin(user_id):
                 if os.path.exists(path): os.remove(path)
             
             # Limpa dependências
-            profile.team_id = None
+            profile.teams.clear()
             RaceResult.query.filter_by(pilot_id=profile.id).delete()
             RaceRegistration.query.filter_by(pilot_id=profile.id).delete()
             
@@ -452,6 +452,8 @@ def close_season(season_id):
 
         for i, res in enumerate(sorted_pilots):
             pilot = PilotProfile.query.get(res.pilot_id)
+            # Busca a equipe do piloto específica para este grid
+            team = next((t for t in pilot.teams if t.grid == grid_name), None)
             
             # Copia a foto para preservar histórico (Snapshot)
             champ_img = None
@@ -465,8 +467,8 @@ def close_season(season_id):
 
             db.session.add(SeasonChampion(
                 season_id=season.id, grid=grid_name, category='PILOT', position=i+1,
-                name=pilot.nickname, team_name=pilot.team.nome if pilot.team else 'Sem Equipe',
-                image_url=champ_img, team_logo_url=pilot.team.logo_url if pilot.team else None,
+                name=pilot.nickname, team_name=team.nome if team else 'Sem Equipe',
+                image_url=champ_img, team_logo_url=team.logo_url if team else None,
                 pontos=res.total_pts, vitorias=res.total_wins
             ))
 
@@ -740,7 +742,9 @@ def race_results(race_id):
             
             equipe_id = team_snapshot.get(int(pid))
             if equipe_id is None:
-                equipe_id = piloto.team_id
+                # Busca a equipe atual do piloto para o grid desta corrida
+                team = next((t for t in piloto.teams if t.grid == race.grid), None)
+                equipe_id = team.id if team else None
             
             if status_presenca == 'OK':
                 posicao = int(request.form.get(f'pos_{pid}') or 0)
@@ -831,13 +835,15 @@ def race_results(race_id):
     
     # 1. Titulares: Apenas do GRID da corrida, COM EQUIPE (Inclui ADMs se tiverem equipe)
     # FIX: Filtragem exata via Python para evitar falsos positivos com nomes de grid parecidos
-    all_pilots_with_team = PilotProfile.query.join(User).filter(PilotProfile.team_id != None).order_by(PilotProfile.nickname).all()
+    # Com M2M, verificamos se o piloto tem alguma equipe associada
+    all_pilots = PilotProfile.query.join(User).order_by(PilotProfile.nickname).all()
+    all_pilots_with_team = [p for p in all_pilots if p.teams]
     titulares = [p for p in all_pilots_with_team if race.grid in [g.strip() for g in p.grid.split(',')]]
     
     # 2. Reservas: QUALQUER piloto SEM EQUIPE (Inclui ADMs para correrem de reserva)
-    reservas_disponiveis = PilotProfile.query.join(User).filter(
-        PilotProfile.team_id == None
-    ).order_by(PilotProfile.nickname).all()
+    # Reservas são aqueles que não têm equipe NO GRID DA CORRIDA (ou nenhuma equipe)
+    # Mas simplificando: Reservas gerais
+    reservas_disponiveis = [p for p in all_pilots if not p.teams]
     
     # 3. Equipes Ativas (para selecionar onde o reserva correu)
     equipes = Team.query.filter_by(ativa=True, grid=race.grid).all()
@@ -1025,7 +1031,7 @@ def reset_pilot_status(pilot_id):
     
     # Reset Absoluto: Remove de grids, equipe e restaura CNH
     pilot.grid = 'SEM_GRID'
-    pilot.team_id = None
+    pilot.teams.clear()
     pilot.pontos_cnh = 25
     pilot.advertencias_acumuladas = 0
     pilot.penalidade_campeonato = 0.0
@@ -1067,7 +1073,7 @@ def delete_pilot(pilot_id):
         
         profile.nickname = "Piloto Removido"
         profile.nome_real = "Dados Removidos"
-        profile.team_id = None
+        profile.teams.clear()
         profile.pontos_cnh = 0
         
         RaceRegistration.query.filter_by(pilot_id=profile.id).delete()
@@ -1080,7 +1086,7 @@ def delete_pilot(pilot_id):
             path = os.path.join(current_app.config['UPLOAD_FOLDER'], profile.foto_url)
             if os.path.exists(path): os.remove(path)
 
-        profile.team_id = None
+        profile.teams.clear()
         RaceResult.query.filter_by(pilot_id=profile.id).delete()
         RaceRegistration.query.filter_by(pilot_id=profile.id).delete()
         
@@ -1127,8 +1133,40 @@ def delete_invite(invite_id):
 
 @admin_bp.route('/teams')
 def list_teams():
+    # 1. Seleção de Temporada
+    all_active_seasons = Season.query.filter_by(ativa=True).order_by(Season.id.desc()).all()
+    selected_season_id = request.args.get('s', type=int)
+    
+    season_ativa = None
+    if selected_season_id:
+        season_ativa = next((s for s in all_active_seasons if s.id == selected_season_id), None)
+    
+    if not season_ativa and all_active_seasons:
+        season_ativa = all_active_seasons[0]
+
     teams = Team.query.order_by(Team.ativa.desc(), Team.grid, Team.nome).all()
-    return render_template('admin/teams.html', teams=teams)
+    
+    # Busca grids configurados para gerar as abas dinamicamente
+    configs = GridConfig.query.order_by(GridConfig.ordem).all()
+    grid_names = []
+
+    if season_ativa:
+        # Tenta pegar grids das corridas da temporada selecionada
+        grids_com_corrida = [r[0] for r in db.session.query(Race.grid).filter_by(season_id=season_ativa.id).distinct().all()]
+        
+        if grids_com_corrida:
+            # Ordena usando a ordem do GridConfig se disponível, senão alfabético
+            grid_names = sorted(list(set(grids_com_corrida)), 
+                                key=lambda x: next((c.ordem for c in configs if c.nome == x), 999))
+        else:
+            # Se não tem corridas (ex: temporada recém criada), usa o GridConfig global
+            grid_names = [c.nome for c in configs]
+
+    if not grid_names:
+        # Fallback final
+        grid_names = [c.nome for c in configs] if configs else ['ELITE', 'ADVANCED', 'INITIAL']
+
+    return render_template('admin/teams.html', teams=teams, grid_names=grid_names, season_ativa=season_ativa, all_active_seasons=all_active_seasons)
 
 @admin_bp.route('/teams/new', methods=['GET', 'POST'])
 def create_team():
@@ -1178,31 +1216,39 @@ def edit_team(team_id):
                 team.logo_url = nome_arq
         
         # Limpa pilotos atuais
-        for p in team.pilots:
-            p.team_id = None
+        team.pilots.clear()
             
         pilot1_id = request.form.get('pilot1')
         pilot2_id = request.form.get('pilot2')
         
         if pilot1_id:
             p1 = PilotProfile.query.get(pilot1_id)
-            if p1: p1.team_id = team.id
+            if p1: team.pilots.append(p1)
         if pilot2_id:
             p2 = PilotProfile.query.get(pilot2_id)
-            if p2: p2.team_id = team.id
+            if p2: team.pilots.append(p2)
             
         db.session.commit()
         flash('Equipe atualizada!', 'success')
         return redirect(url_for('admin.list_teams'))
 
     # LÓGICA: Apenas pilotos que já pertencem ao MESMO GRID da equipe aparecem aqui (incluindo ADMs).
-    pilotos_disponiveis = PilotProfile.query.join(User).filter(
-        PilotProfile.grid == team.grid, # Filtro estrito por Grid
-        (PilotProfile.team_id == None) | (PilotProfile.team_id == team.id) # Disponíveis ou já na equipe
-    ).all()
+    # E que não estejam em outra equipe DO MESMO GRID
+    all_pilots = PilotProfile.query.join(User).order_by(PilotProfile.nickname).all()
+    
+    # Filtra pilotos que já estão em OUTRA equipe deste mesmo grid
+    final_pilots = []
+    for p in all_pilots:
+        # Verifica se o piloto participa deste grid (lidando com múltiplos grids "ELITE, ADVANCED")
+        p_grids = [g.strip() for g in p.grid.split(',')]
+        if team.grid in p_grids:
+            # Verifica se já tem equipe NESTE grid (e se não é a própria equipe atual)
+            team_in_grid = next((t for t in p.teams if t.grid == team.grid), None)
+            if team_in_grid is None or team_in_grid.id == team.id:
+                final_pilots.append(p)
 
     grid_configs = GridConfig.query.order_by(GridConfig.ordem).all()
-    return render_template('admin/edit_team.html', team=team, pilots=pilotos_disponiveis, grid_configs=grid_configs)
+    return render_template('admin/edit_team.html', team=team, pilots=final_pilots, grid_configs=grid_configs)
 
 @admin_bp.route('/teams/delete/<int:team_id>', methods=['POST'])
 def delete_team(team_id):
@@ -1215,8 +1261,7 @@ def delete_team(team_id):
     # Verifica se a equipe tem histórico (resultados de corrida)
     tem_historico = RaceResult.query.filter_by(team_id=team.id).first()
     
-    for p in team.pilots:
-        p.team_id = None
+    team.pilots.clear()
         
     if tem_historico:
         team.ativa = False

@@ -102,7 +102,7 @@
                     <div class="card-body text-center p-3 d-flex flex-column justify-content-center">
                         <h5 class="card-title text-white fw-bold mb-1 text-truncate">{{ item.data.nome_real }}</h5>
                         <p class="card-text text-white-50 small mb-1 text-truncate">{{ item.data.nickname }}</p>
-                        <p class="card-text text-info small mb-0 text-truncate fw-bold">{{ item.data.team.nome if item.data.team else 'Sem Equipe' }}</p>
+                        <p class="card-text text-info small mb-0 text-truncate fw-bold">{{ item.team.nome if item.team else 'Sem Equipe' }}</p>
                         <!-- Badge removida pois o título da seção já indica o grid -->
                     </div>
                 </div>
@@ -453,24 +453,27 @@ document.addEventListener('DOMContentLoaded', function() {
     const containers = document.querySelectorAll('.auto-scroll-container');
     
     containers.forEach(container => {
-        // Duplica o conteúdo interno para criar a ilusão de loop infinito
-        container.innerHTML += container.innerHTML;
+        // Só ativa o carrossel se o conteúdo for maior que a tela (precisa de rolagem)
+        if (container.scrollWidth > container.clientWidth) {
+            // Duplica o conteúdo interno para criar a ilusão de loop infinito
+            container.innerHTML += container.innerHTML;
 
-        let isPaused = false;
-        container.addEventListener('mouseenter', () => isPaused = true);
-        container.addEventListener('mouseleave', () => isPaused = false);
+            let isPaused = false;
+            container.addEventListener('mouseenter', () => isPaused = true);
+            container.addEventListener('mouseleave', () => isPaused = false);
 
-        function step() {
-            if (!isPaused) {
-                container.scrollLeft += 1;
-                // Quando atingir a metade (fim do conteúdo original), volta para o zero instantaneamente
-                if (container.scrollLeft >= container.scrollWidth / 2) {
-                    container.scrollLeft = 0;
+            function step() {
+                if (!isPaused) {
+                    container.scrollLeft += 1;
+                    // Quando atingir a metade (fim do conteúdo original), volta para o zero instantaneamente
+                    if (container.scrollLeft >= container.scrollWidth / 2) {
+                        container.scrollLeft = 0;
+                    }
                 }
+                requestAnimationFrame(step);
             }
             requestAnimationFrame(step);
         }
-        requestAnimationFrame(step);
     });
 });
 </script>
