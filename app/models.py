@@ -57,6 +57,7 @@ class PilotProfile(db.Model):
     team = db.relationship('Team', back_populates='pilots')
 
     race_results = db.relationship('RaceResult', backref='pilot', lazy=True)
+    grid_photos = db.relationship('PilotGridPhoto', backref='pilot', lazy=True)
     
     def esta_banido(self):
         return self.pontos_cnh <= 0
@@ -71,6 +72,12 @@ class PilotProfile(db.Model):
             'equipe': self.team.nome if self.team else 'Sem Equipe',
             'foto': self.foto_url
         }
+
+class PilotGridPhoto(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    pilot_id = db.Column(db.Integer, db.ForeignKey('pilot_profile.id'), nullable=False)
+    grid = db.Column(db.String(50), nullable=False)
+    foto_url = db.Column(db.String(200), nullable=False)
 
 class Season(db.Model):
     id = db.Column(db.Integer, primary_key=True)

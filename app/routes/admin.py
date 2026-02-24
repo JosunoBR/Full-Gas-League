@@ -5,7 +5,7 @@ from datetime import datetime
 from flask import Blueprint, render_template, request, flash, redirect, url_for, current_app
 from flask_login import login_required, current_user
 from sqlalchemy import func, case
-from app.models import db, User, PilotProfile, Season, Race, RaceResult, Invite, Protesto, VotoComissario, Team, RaceRegistration, SeletivaEntry, News, GridConfig, SeasonChampion
+from app.models import db, User, PilotProfile, Season, Race, RaceResult, Invite, Protesto, VotoComissario, Team, RaceRegistration, SeletivaEntry, News, GridConfig, SeasonChampion, PilotGridPhoto
 from app.utils import allowed_file, get_embed_url, PONTUACAO_20, PONTUACAO_22, ORDEM_CARROS
 
 admin_bp = Blueprint('admin', __name__)
@@ -960,6 +960,36 @@ def edit_pilot(pilot_id):
                 nome = f"piloto_{pilot.id}_{timestamp}.{ext}"
                 file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], nome))
                 pilot.foto_url = nome
+        
+        # --- FOTOS ESPECÍFICAS POR GRID ---
+        # Upload de nova foto específica
+        grid_photo_target = request.form.get('grid_photo_target')
+        if grid_photo_target and 'grid_photo_file' in request.files:
+            g_file = request.files['grid_photo_file']
+            if g_file and g_file.filename != '' and allowed_file(g_file.filename):
+                # Remove foto anterior desse grid se existir
+                old_gp = PilotGridPhoto.query.filter_by(pilot_id=pilot.id, grid=grid_photo_target).first()
+                if old_gp:
+                    old_path = os.path.join(current_app.config['UPLOAD_FOLDER'], old_gp.foto_url)
+                    if os.path.exists(old_path): os.remove(old_path)
+                    db.session.delete(old_gp)
+                
+                ext = g_file.filename.rsplit('.', 1)[1].lower()
+                timestamp = int(datetime.utcnow().timestamp())
+                nome_gp = f"piloto_{pilot.id}_{grid_photo_target}_{timestamp}.{ext}"
+                g_file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], nome_gp))
+                
+                new_gp = PilotGridPhoto(pilot_id=pilot.id, grid=grid_photo_target, foto_url=nome_gp)
+                db.session.add(new_gp)
+
+        # Exclusão de foto específica
+        delete_gp_id = request.form.get('delete_grid_photo_id')
+        if delete_gp_id:
+            gp_to_del = PilotGridPhoto.query.get(delete_gp_id)
+            if gp_to_del and gp_to_del.pilot_id == pilot.id:
+                path = os.path.join(current_app.config['UPLOAD_FOLDER'], gp_to_del.foto_url)
+                if os.path.exists(path): os.remove(path)
+                db.session.delete(gp_to_del)
                 
         db.session.commit()
         flash('Perfil atualizado com sucesso.', 'success')

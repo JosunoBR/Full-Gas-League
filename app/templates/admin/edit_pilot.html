@@ -41,6 +41,48 @@
                         </div>
                     </div>
 
+                    <!-- FOTOS ESPECÍFICAS POR GRID -->
+                    <div class="mb-4 pb-3 border-bottom border-secondary">
+                        <h5 class="text-white fw-bold mb-3"><i class="fa-solid fa-camera-retro me-2"></i> Fotos por Grid (Opcional)</h5>
+                        <p class="text-white-50 small">Use esta seção se o piloto usa macacões diferentes para cada categoria.</p>
+                        
+                        <!-- Lista de Fotos Existentes -->
+                        <div class="row g-3 mb-3">
+                            {% for gp in pilot.grid_photos %}
+                            <div class="col-md-4 text-center">
+                                <div class="card bg-secondary border-0 p-2">
+                                    <span class="badge bg-warning text-dark mb-2">{{ gp.grid }}</span>
+                                    <img src="{{ url_for('static', filename='uploads/' + gp.foto_url) }}" class="img-fluid rounded mb-2" style="height: 100px; object-fit: cover;">
+                                    <button type="submit" name="delete_grid_photo_id" value="{{ gp.id }}" class="btn btn-danger btn-sm w-100" onclick="return confirm('Remover foto do grid {{ gp.grid }}?')">
+                                        <i class="fa-solid fa-trash"></i> Remover
+                                    </button>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- Adicionar Nova Foto -->
+                        <div class="bg-secondary p-3 rounded">
+                            <label class="form-label text-white small fw-bold">Adicionar Foto Específica</label>
+                            <div class="row g-2">
+                                <div class="col-md-4">
+                                    <select name="grid_photo_target" class="form-select border-0">
+                                        <option value="">Selecione o Grid...</option>
+                                        {% for grid_name in all_available_grids %}
+                                            {% if grid_name not in ['SEM_GRID', 'RESERVA'] %}
+                                            <option value="{{ grid_name }}">{{ grid_name }}</option>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-8">
+                                    <input type="file" name="grid_photo_file" class="form-control border-0">
+                                </div>
+                            </div>
+                            <div class="form-text text-white-50 small mt-1">Selecione o grid e o arquivo, depois clique em "Salvar Alterações" abaixo.</div>
+                        </div>
+                    </div>
+
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label text-white">Nickname (Pista)</label>

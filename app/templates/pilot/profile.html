@@ -414,9 +414,40 @@
                         <input type="text" name="telefone" class="form-control bg-secondary text-white border-0" value="{{ perfil.telefone or '' }}" placeholder="(00) 00000-0000" oninput="maskPhone(this)" maxlength="15">
                     </div>
                     <div class="mb-3">
-                        <label class="form-label text-white-50">Alterar Foto</label>
+                        <label class="form-label text-white-50">Alterar Foto (Padrão)</label>
                         <input type="file" name="foto" class="form-control bg-secondary text-white border-0">
                         <div class="form-text text-white-50">Formatos: JPG, PNG. Max 2MB.</div>
+                    </div>
+                    
+                    <hr class="border-secondary my-4">
+                    <h6 class="text-white mb-3 fw-bold"><i class="fa-solid fa-camera-retro me-2"></i> Fotos por Grid (Opcional)</h6>
+                    
+                    <div class="row g-2 mb-3">
+                        {% for gp in perfil.grid_photos %}
+                        <div class="col-6 text-center">
+                            <div class="card bg-secondary border-0 p-2 position-relative">
+                                <span class="badge bg-warning text-dark mb-1 position-absolute top-0 start-0 m-1">{{ gp.grid }}</span>
+                                <img src="{{ url_for('static', filename='uploads/' + gp.foto_url) }}" class="img-fluid rounded mb-2" style="height: 100px; object-fit: cover;">
+                                <button type="submit" name="delete_grid_photo_id" value="{{ gp.id }}" class="btn btn-danger btn-sm w-100 py-0" onclick="return confirm('Remover foto do grid {{ gp.grid }}?')">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="bg-secondary p-3 rounded mb-3">
+                        <label class="form-label text-white small fw-bold">Nova Foto Específica</label>
+                        <select name="grid_photo_target" class="form-select border-0 mb-2 bg-dark text-white">
+                            <option value="">Selecione o Grid...</option>
+                            {% for g in perfil.grid.split(',') %}
+                                {% set grid_clean = g.strip() %}
+                                {% if grid_clean and grid_clean != 'SEM_GRID' %}
+                                <option value="{{ grid_clean }}">{{ grid_clean }}</option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                        <input type="file" name="grid_photo_file" class="form-control border-0 bg-dark text-white">
                     </div>
                     
                     <hr class="border-secondary my-4">

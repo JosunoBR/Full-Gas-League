@@ -4,7 +4,7 @@ from flask import Blueprint, render_template, request, flash, redirect, url_for,
 from flask_login import login_required, current_user, login_user, logout_user
 from werkzeug.security import check_password_hash
 from sqlalchemy import func, case
-from app.models import db, Season, Race, PilotProfile, Protesto, RaceResult, VotoComissario, Team, RaceRegistration, User, Invite, News, GridConfig, SeasonChampion
+from app.models import db, Season, Race, PilotProfile, Protesto, RaceResult, VotoComissario, Team, RaceRegistration, User, Invite, News, GridConfig, SeasonChampion, PilotGridPhoto
 from app.utils import allowed_file, get_embed_url, ORDEM_CARROS
 
 public_bp = Blueprint('public', __name__)
@@ -91,7 +91,14 @@ def home():
                         if not ultima_res or ultimo_p.data_fechamento.date() >= ultima_res.race.data_corrida:
                             quali_ban = True
 
-                    standings[gname].append({'piloto': p, 'pontos': pontos_totais, 'vitorias': vitorias, 'carro': '', 'quali_ban': quali_ban})
+                    # Verifica se existe foto específica para este grid
+                    foto_final = p.foto_url
+                    for gp in p.grid_photos:
+                        if gp.grid == gname:
+                            foto_final = gp.foto_url
+                            break
+
+                    standings[gname].append({'piloto': p, 'pontos': pontos_totais, 'vitorias': vitorias, 'carro': '', 'quali_ban': quali_ban, 'foto_url': foto_final})
         
         # 2. Ordenar e Aplicar Lastro (Carro)
         # Cria mapa de configs para acesso rápido
@@ -158,7 +165,13 @@ def home():
             p_grids = [g.strip() for g in p.grid.split(',')]
             for g in p_grids:
                 if g in pilots_by_grid:
-                    pilots_by_grid[g].append(p)
+                    # Verifica se existe foto específica para este grid
+                    foto_final = p.foto_url
+                    for gp in p.grid_photos:
+                        if gp.grid == g:
+                            foto_final = gp.foto_url
+                            break
+                    pilots_by_grid[g].append({'data': p, 'foto_url': foto_final})
 
     return render_template('home.html', standings=standings, constructors=constructors, calendar=calendar, last_races=last_races, season_ativa=season_ativa, noticias=noticias, pilots_by_grid=pilots_by_grid, grid_names=grid_names, all_active_seasons=all_active_seasons)
 
@@ -337,6 +350,12 @@ def public_profile(pilot_id):
         default_grid = p_grids[0] if p_grids else 'SEM_GRID' # Tenta usar o primeiro grid do perfil como padrão
         current_context = next((c for c in available_contexts if c['grid'] == default_grid), available_contexts[0])
     
+    # Substituição dinâmica da foto baseada no contexto (Grid)
+    if current_context:
+        for gp in perfil.grid_photos:
+            if gp.grid == current_context['grid']:
+                perfil.foto_url = gp.foto_url # Substitui temporariamente no objeto (sem commit) para exibição
+    
     # Estatísticas da Temporada
     meus_pontos_camp = 0
     desempenho_temporada = []
@@ -449,6 +468,12 @@ def my_profile():
     if not current_context and available_contexts:
         default_grid = p_grids[0] if p_grids else 'SEM_GRID' # Tenta usar o primeiro grid do perfil como padrão
         current_context = next((c for c in available_contexts if c['grid'] == default_grid), available_contexts[0])
+    
+    # Substituição dinâmica da foto baseada no contexto (Grid)
+    if current_context:
+        for gp in perfil.grid_photos:
+            if gp.grid == current_context['grid']:
+                perfil.foto_url = gp.foto_url # Substitui temporariamente para exibição
     
     if perfil.esta_banido():
         flash('ALERTA: Sua CNH está zerada ou negativa. Você está suspenso das atividades de pista.', 'danger')
@@ -677,6 +702,38 @@ def update_profile():
             nome = f"piloto_{current_user.pilot_profile.id}_{timestamp}.{ext}"
             file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], nome))
             current_user.pilot_profile.foto_url = nome
+            
+    # --- FOTOS ESPECÍFICAS POR GRID ---
+    grid_photo_target = request.form.get('grid_photo_target')
+    if grid_photo_target and 'grid_photo_file' in request.files:
+        # Validação: Piloto deve pertencer ao grid para adicionar foto
+        p_grids = [g.strip() for g in current_user.pilot_profile.grid.split(',')]
+        if grid_photo_target in p_grids:
+            g_file = request.files['grid_photo_file']
+            if g_file and g_file.filename != '' and allowed_file(g_file.filename):
+                # Remove foto anterior desse grid se existir
+                old_gp = PilotGridPhoto.query.filter_by(pilot_id=current_user.pilot_profile.id, grid=grid_photo_target).first()
+                if old_gp:
+                    old_path = os.path.join(current_app.config['UPLOAD_FOLDER'], old_gp.foto_url)
+                    if os.path.exists(old_path): os.remove(old_path)
+                    db.session.delete(old_gp)
+                
+                ext = g_file.filename.rsplit('.', 1)[1].lower()
+                timestamp = int(datetime.utcnow().timestamp())
+                nome_gp = f"piloto_{current_user.pilot_profile.id}_{grid_photo_target}_{timestamp}.{ext}"
+                g_file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], nome_gp))
+                
+                new_gp = PilotGridPhoto(pilot_id=current_user.pilot_profile.id, grid=grid_photo_target, foto_url=nome_gp)
+                db.session.add(new_gp)
+
+    delete_gp_id = request.form.get('delete_grid_photo_id')
+    if delete_gp_id:
+        gp_to_del = PilotGridPhoto.query.get(delete_gp_id)
+        if gp_to_del and gp_to_del.pilot_id == current_user.pilot_profile.id:
+            path = os.path.join(current_app.config['UPLOAD_FOLDER'], gp_to_del.foto_url)
+            if os.path.exists(path): os.remove(path)
+            db.session.delete(gp_to_del)
+
     db.session.commit()
     return redirect(url_for('public.my_profile'))
 
