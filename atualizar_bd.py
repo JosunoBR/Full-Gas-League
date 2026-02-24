@@ -27,6 +27,13 @@ def atualizar_banco():
                 print("- Adicionando coluna 'motivo_penalidade'...")
                 conn.execute(text("ALTER TABLE pilot_profile ADD COLUMN motivo_penalidade TEXT"))
 
+            # Verifica e adiciona exibir_lastro em grid_config
+            try:
+                conn.execute(text("SELECT exibir_lastro FROM grid_config LIMIT 1"))
+            except:
+                print("- Adicionando coluna 'exibir_lastro' em grid_config...")
+                conn.execute(text("ALTER TABLE grid_config ADD COLUMN exibir_lastro BOOLEAN DEFAULT 1"))
+
             # 3. CORREÇÃO CRÍTICA DO ERRO DE MIGRAÇÃO
             # Remove a tabela alembic_version para resetar o histórico de migração quebrado
             print("- Resetando histórico de migração (tabela alembic_version)...")

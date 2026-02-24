@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="text-white fw-bold">Nova Temporada</h2>
+    <a href="{{ url_for('admin.seasons') }}" class="btn btn-outline-secondary">Cancelar</a>
+</div>
+
+<form method="POST" action="{{ url_for('admin.create_season') }}">
+    <!-- DADOS DA TEMPORADA -->
+    <div class="card shadow border-silver mb-4">
+        <div class="card-body bg-dark">
+            <div class="mb-3">
+                <label class="form-label text-white fw-bold">Nome da Temporada</label>
+                <input type="text" name="nome" class="form-control bg-secondary text-white border-0 form-control-lg" placeholder="Ex: Season 2 2026" required>
+            </div>
+        </div>
+    </div>
+
+    <!-- CONFIGURAÇÃO DOS GRIDS -->
+    <div class="card shadow border-silver mb-4">
+        <div class="card-header bg-dark border-silver d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 text-white fw-bold"><i class="fa-solid fa-layer-group text-danger me-2"></i> Configuração de Grids</h5>
+            <button type="button" class="btn btn-sm btn-success fw-bold" onclick="addGridRow()">
+                <i class="fa-solid fa-plus me-1"></i> ADICIONAR GRID
+            </button>
+        </div>
+        <div class="card-body bg-dark p-0">
+            <div class="table-responsive">
+                <table class="table table-dark table-hover mb-0 align-middle" id="gridsTable">
+                    <thead>
+                        <tr class="text-white-50 small text-uppercase">
+                            <th class="ps-4" style="width: 30%;">Nome do Grid</th>
+                            <th style="width: 20%;">Vagas</th>
+                            <th style="width: 15%;">Ordem</th>
+                            <th style="width: 25%;">Carros de Lastro</th>
+                            <th class="text-end pe-4" style="width: 10%;">Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody id="gridsBody">
+                        <!-- Linhas serão adicionadas via JS -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="p-3 text-center text-white-50 small" id="emptyMsg">
+                Nenhum grid adicionado. Clique em "Adicionar Grid" para começar.
+            </div>
+        </div>
+    </div>
+
+    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+        <button type="submit" class="btn btn-warning fw-bold text-dark px-5">CRIAR TEMPORADA</button>
+    </div>
+</form>
+
+<script>
+    // Adiciona um grid padrão ao carregar a página
+    document.addEventListener('DOMContentLoaded', function() {
+        addGridRow('', 1);
+    });
+
+    function addGridRow(name = '', order = '') {
+        const tbody = document.getElementById('gridsBody');
+        document.getElementById('emptyMsg').style.display = 'none';
+
+        const row = document.createElement('tr');
+        const rowId = Date.now(); // ID único para vincular checkbox
+
+        row.innerHTML = `
+            <td class="ps-4">
+                <input type="text" name="grid_name[]" class="form-control bg-secondary text-white border-0" placeholder="Nome (Ex: ELITE)" value="${name}" required>
+            </td>
+            <td>
+                <select name="grid_vagas[]" class="form-select bg-secondary text-white border-0">
+                    <option value="20">20 Pilotos</option>
+                    <option value="22">22 Pilotos</option>
+                </select>
+            </td>
+            <td>
+                <input type="number" name="grid_ordem[]" class="form-control bg-secondary text-white border-0" value="${order}" placeholder="1">
+            </td>
+            <td>
+                <div class="form-check form-switch">
+                    <input type="hidden" name="grid_lastro[]" id="hidden_lastro_${rowId}" value="1">
+                    <input class="form-check-input" type="checkbox" id="check_lastro_${rowId}" checked onchange="toggleLastro('${rowId}')">
+                    <label class="form-check-label text-white small" for="check_lastro_${rowId}">Exibir Carros</label>
+                </div>
+            </td>
+            <td class="text-end pe-4">
+                <button type="button" class="btn btn-outline-danger btn-sm border-0" onclick="removeGridRow(this)">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    }
+
+    function removeGridRow(btn) {
+        const row = btn.closest('tr');
+        row.remove();
+        
+        const tbody = document.getElementById('gridsBody');
+        if (tbody.children.length === 0) {
+            document.getElementById('emptyMsg').style.display = 'block';
+        }
+    }
+
+    function toggleLastro(id) {
+        const checkbox = document.getElementById(`check_lastro_${id}`);
+        const hidden = document.getElementById(`hidden_lastro_${id}`);
+        hidden.value = checkbox.checked ? '1' : '0';
+    }
+</script>
+{% endblock %}

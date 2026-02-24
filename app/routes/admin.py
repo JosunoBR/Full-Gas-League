@@ -355,14 +355,41 @@ def seasons():
     seasons = Season.query.order_by(Season.id.desc()).all()
     return render_template('admin/seasons.html', seasons=seasons)
 
-@admin_bp.route('/seasons/new', methods=['POST'])
+@admin_bp.route('/seasons/new', methods=['GET', 'POST'])
 def create_season():
-    nome = request.form.get('nome')
-    nova = Season(nome=nome, ativa=True, data_inicio=datetime.utcnow().date())
-    db.session.add(nova)
-    db.session.commit()
-    flash(f'Temporada {nome} criada!', 'success')
-    return redirect(url_for('admin.seasons'))
+    if request.method == 'POST':
+        nome = request.form.get('nome')
+        
+        # Cria a temporada
+        nova = Season(nome=nome, ativa=True, data_inicio=datetime.utcnow().date())
+        db.session.add(nova)
+        
+        # Processa os Grids Dinâmicos
+        # O formulário envia listas: grid_name[], grid_vagas[], grid_ordem[], grid_lastro[]
+        names = request.form.getlist('grid_name[]')
+        vagas = request.form.getlist('grid_vagas[]')
+        ordens = request.form.getlist('grid_ordem[]')
+        lastros = request.form.getlist('grid_lastro[]') # Vem como "1" ou "0"
+
+        # Limpa configurações globais anteriores (GridConfig define a estrutura atual do site)
+        GridConfig.query.delete()
+        
+        for i in range(len(names)):
+            if names[i].strip():
+                novo_grid = GridConfig(
+                    nome=names[i].strip(),
+                    vagas=int(vagas[i]),
+                    ordem=int(ordens[i]),
+                    exibir_lastro=(lastros[i] == '1')
+                )
+                db.session.add(novo_grid)
+                
+        db.session.commit()
+        flash(f'Temporada {nome} criada e grids configurados com sucesso!', 'success')
+        return redirect(url_for('admin.seasons'))
+    
+    # Se for GET, exibe o formulário completo
+    return render_template('admin/new_season.html')
 
 @admin_bp.route('/seasons/<int:season_id>', methods=['GET', 'POST'])
 def manage_season(season_id):
@@ -630,6 +657,11 @@ def generate_grid_text(race_id):
     if numero_etapa == 1 or numero_etapa == total_etapas:
         usar_lastro = False
         
+    # Verifica configuração do grid para ver se lastro está habilitado
+    grid_cfg = GridConfig.query.filter_by(nome=race.grid).first()
+    if grid_cfg and hasattr(grid_cfg, 'exibir_lastro') and not grid_cfg.exibir_lastro:
+        usar_lastro = False
+
     # FIX: Busca pilotos corretamente mesmo se tiverem múltiplos grids (ex: "ELITE, ADVANCED")
     all_pilots = PilotProfile.query.join(User).all()
     pilotos = [p for p in all_pilots if race.grid in [g.strip() for g in p.grid.split(',')]]
@@ -1185,13 +1217,15 @@ def seletiva():
             vagas_input = int(request.form.get('vagas') or 20)
             vagas = vagas_input if vagas_input in [20, 22] else 20
             ordem = int(request.form.get('ordem') or 0)
+            exibir_lastro = True if request.form.get('exibir_lastro') == 'on' else False
             
             existing = GridConfig.query.filter_by(nome=nome).first()
             if existing:
                 existing.vagas = vagas
                 existing.ordem = ordem
+                existing.exibir_lastro = exibir_lastro
             else:
-                db.session.add(GridConfig(nome=nome, vagas=vagas, ordem=ordem))
+                db.session.add(GridConfig(nome=nome, vagas=vagas, ordem=ordem, exibir_lastro=exibir_lastro))
             
             db.session.commit()
             flash(f'Configuração do grid {nome} salva.', 'success')

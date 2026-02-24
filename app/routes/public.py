@@ -13,7 +13,7 @@ public_bp = Blueprint('public', __name__)
 
 @public_bp.route('/')
 def home():
-    all_active_seasons = Season.query.filter_by(ativa=True).order_by(Season.id.desc()).all()
+    all_active_seasons = Season.query.filter_by(ativa=True).order_by(Season.id.asc()).all()
     
     # Permite selecionar a temporada via parâmetro 's' na URL
     selected_season_id = request.args.get('s', type=int)
@@ -94,15 +94,25 @@ def home():
                     standings[gname].append({'piloto': p, 'pontos': pontos_totais, 'vitorias': vitorias, 'carro': '', 'quali_ban': quali_ban})
         
         # 2. Ordenar e Aplicar Lastro (Carro)
+        # Cria mapa de configs para acesso rápido
+        grid_configs_map = {c.nome: c for c in GridConfig.query.all()}
+
         for grid in standings: 
             standings[grid].sort(key=lambda x: (x['pontos'], x['vitorias']), reverse=True)
             
+            # Verifica se o grid exibe lastro
+            cfg = grid_configs_map.get(grid)
+            exibir_lastro = cfg.exibir_lastro if cfg and hasattr(cfg, 'exibir_lastro') else True
+
             # Distribui os carros baseados na posição
             for i, item in enumerate(standings[grid]):
-                if i < len(ORDEM_CARROS):
-                    item['carro'] = ORDEM_CARROS[i]
+                if exibir_lastro:
+                    if i < len(ORDEM_CARROS):
+                        item['carro'] = ORDEM_CARROS[i]
+                    else:
+                        item['carro'] = "McLaren (Extra)"
                 else:
-                    item['carro'] = "McLaren (Extra)"
+                    item['carro'] = "-"
 
         # 3. Calcular Construtores
         # Otimização: Agregação no banco de dados para evitar N+1 queries

@@ -235,3 +235,4 @@ class GridConfig(db.Model):
     nome = db.Column(db.String(50), nullable=False, unique=True)
     vagas = db.Column(db.Integer, nullable=False, default=20)
     ordem = db.Column(db.Integer, default=0)
+    exibir_lastro = db.Column(db.Boolean, default=True)
