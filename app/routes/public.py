@@ -147,10 +147,29 @@ def home():
         
         team_stats = { s.team_id: {'pontos': float(s.total_pontos or 0), 'vitorias': int(s.total_vitorias or 0)} for s in stats_query }
 
+        # FIX: Buscar resultados LEGADO (sem team_id) para somar aos construtores
+        legacy_results_query = db.session.query(
+            RaceResult.pilot_id,
+            func.sum(RaceResult.pontos_ganhos).label('total_pontos'),
+            func.sum(case(( (RaceResult.posicao == 1) & (RaceResult.dsq == False), 1 ), else_=0)).label('total_vitorias')
+        ).join(Race).filter(
+            Race.season_id == season_ativa.id,
+            RaceResult.team_id.is_(None)
+        ).group_by(RaceResult.pilot_id).all()
+        
+        legacy_stats_by_pilot = { s.pilot_id: {'pontos': float(s.total_pontos or 0), 'vitorias': int(s.total_vitorias or 0)} for s in legacy_results_query }
+
         teams = Team.query.filter_by(ativa=True).all()
         for t in teams:
             if t.grid in constructors:
                 stats = team_stats.get(t.id, {'pontos': 0.0, 'vitorias': 0})
+                
+                # Soma pontos de legado dos pilotos atuais da equipe
+                for p in t.pilots:
+                    if p.id in legacy_stats_by_pilot:
+                        l_stats = legacy_stats_by_pilot[p.id]
+                        stats['pontos'] += l_stats['pontos']
+                        stats['vitorias'] += l_stats['vitorias']
                 
                 # Subtrai penalidades administrativas dos pilotos ATUAIS da equipe
                 penalidades_pilotos = sum(float(p.penalidade_campeonato or 0) for p in t.pilots)
@@ -686,33 +705,139 @@ def checkin_absent(race_id):
 def team_profile(team_id):
     team = Team.query.get_or_404(team_id)
     
-    # FIX: Suporte a Temporadas Paralelas
-    # Permite selecionar qual temporada visualizar (padrão: a mais recente ativa)
-    all_active_seasons = Season.query.filter_by(ativa=True).order_by(Season.id.desc()).all()
+    # FIX: Permitir visualizar histórico de TODAS as temporadas (Ativas e Inativas)
+    all_seasons = Season.query.order_by(Season.id.desc()).all()
     selected_season_id = request.args.get('s', type=int)
     
-    season_ativa = next((s for s in all_active_seasons if s.id == selected_season_id), None)
-    if not season_ativa and all_active_seasons:
-        season_ativa = all_active_seasons[0]
+    season_ativa = next((s for s in all_seasons if s.id == selected_season_id), None)
+    
+    # Se não selecionou, tenta pegar a mais recente ativa, senão a mais recente de todas
+    if not season_ativa:
+        # Lógica Inteligente: Em caso de múltiplas temporadas ativas (paralelas),
+        # seleciona aquela onde a equipe realmente tem dados.
+        active_seasons = [s for s in all_seasons if s.ativa]
+        
+        if active_seasons:
+            # 1. Tenta achar resultados explícitos (team_id)
+            for s in active_seasons:
+                has_results = RaceResult.query.join(Race).filter(
+                    Race.season_id == s.id,
+                    RaceResult.team_id == team.id
+                ).first()
+                if has_results:
+                    season_ativa = s
+                    break
+            
+            # 2. Se não achou, tenta achar resultados dos pilotos titulares (Legado)
+            if not season_ativa and team.pilots:
+                titular_ids = [p.id for p in team.pilots]
+                for s in active_seasons:
+                    has_pilot_results = RaceResult.query.join(Race).filter(
+                        Race.season_id == s.id,
+                        RaceResult.pilot_id.in_(titular_ids)
+                    ).first()
+                    if has_pilot_results:
+                        season_ativa = s
+                        break
+            
+            # 3. Fallback: Se não tem dados em nenhuma, pega a mais recente ativa
+            if not season_ativa:
+                season_ativa = active_seasons[0]
+        else:
+            season_ativa = all_seasons[0] if all_seasons else None
 
     total_pontos = 0
     total_vitorias = 0
     stats_pilotos = []
     if season_ativa:
+        # PASSO 1: Lógica Limpa - Apenas Pilotos Titulares
+        titulares_ids = []
+        # Itera sobre os pilotos atuais da equipe e soma seus pontos no grid da equipe
         for piloto in team.pilots:
-            pts = sum(r.pontos_ganhos for r in piloto.race_results if r.race.season_id == season_ativa.id)
-            wins = sum(1 for r in piloto.race_results if r.race.season_id == season_ativa.id and r.posicao == 1 and not r.dsq)
+            titulares_ids.append(piloto.id)
+            # Busca resultados do piloto na temporada
+            # Fazemos a filtragem em Python para garantir compatibilidade
+            results_pilot = [r for r in piloto.race_results if r.race.season_id == season_ativa.id]
             
-            # Aplica penalidade administrativa ao piloto individualmente
-            pts_liquidos = pts - float(piloto.penalidade_campeonato or 0)
+            pts_piloto = 0
+            wins_piloto = 0
             
-            stats_pilotos.append({'piloto': piloto, 'pontos': pts_liquidos, 'vitorias': wins})
+            for r in results_pilot:
+                # Verifica se o resultado pertence à equipe
+                # Normaliza nomes dos grids para comparação segura
+                r_grid = r.race.grid.strip().upper() if r.race and r.race.grid else ""
+                t_grid = team.grid.strip().upper() if team.grid else ""
+
+                # A) Explícito: ID da equipe gravado
+                is_explicit = (r.team_id == team.id)
+                
+                # B) Legado: Sem ID, mas mesmo grid
+                is_legacy = ((r.team_id is None or r.team_id == 0) and r_grid == t_grid)
+                
+                # FIX: Exige que o grid da corrida seja igual ao da equipe para evitar pontuação cruzada
+                if (is_explicit or is_legacy) and r_grid == t_grid:
+                    pts_piloto += r.pontos_ganhos
+                    if r.posicao == 1 and not r.dsq:
+                        wins_piloto += 1
             
-            # Soma ao total da equipe
+            # Aplica penalidade
+            pts_liquidos = pts_piloto - float(piloto.penalidade_campeonato or 0)
+            
+            stats_pilotos.append({
+                'piloto': piloto,
+                'pontos': pts_liquidos,
+                'vitorias': wins_piloto
+            })
+            
             total_pontos += pts_liquidos
-            total_vitorias += wins
+            total_vitorias += wins_piloto
+
+        # 2. Processar RESERVAS ou EX-PILOTOS (Apenas se pontuaram pela equipe)
+        # Busca resultados explícitos da equipe nesta temporada
+        extra_results_query = RaceResult.query.join(Race).filter(
+            RaceResult.team_id == team.id,
+            Race.season_id == season_ativa.id
+        ).all()
+        
+        # Filtra em Python para garantir a mesma normalização de grid dos titulares
+        t_grid = team.grid.strip().upper() if team.grid else ""
+        extra_results = []
+        for r in extra_results_query:
+            r_grid = r.race.grid.strip().upper() if r.race and r.race.grid else ""
+            if r_grid == t_grid:
+                extra_results.append(r)
+        
+        # Agrupa por piloto
+        extras_map = {}
+        for r in extra_results:
+            if r.pilot_id not in titulares_ids:
+                if r.pilot_id not in extras_map:
+                    extras_map[r.pilot_id] = {'pontos': 0, 'vitorias': 0}
+                
+                extras_map[r.pilot_id]['pontos'] += r.pontos_ganhos
+                if r.posicao == 1 and not r.dsq:
+                    extras_map[r.pilot_id]['vitorias'] += 1
+                    
+                # Soma ao total da equipe
+                total_pontos += r.pontos_ganhos
+                if r.posicao == 1 and not r.dsq:
+                    total_vitorias += 1
+        
+        # Adiciona os extras à lista
+        for pid, stats in extras_map.items():
+            p = PilotProfile.query.get(pid)
+            if p:
+                stats_pilotos.append({
+                    'piloto': p,
+                    'pontos': stats['pontos'],
+                    'vitorias': stats['vitorias']
+                })
+
+        # Ordena
+        stats_pilotos.sort(key=lambda x: x['pontos'], reverse=True)
+        # Fim do cálculo de estatísticas da equipe
             
-    return render_template('public/team_profile.html', team=team, total_pontos=total_pontos, total_vitorias=total_vitorias, stats_pilotos=stats_pilotos, season_ativa=season_ativa, all_active_seasons=all_active_seasons)
+    return render_template('public/team_profile.html', team=team, total_pontos=total_pontos, total_vitorias=total_vitorias, stats_pilotos=stats_pilotos, season_ativa=season_ativa, all_active_seasons=all_seasons)
 
 # --- AÇÕES DO PILOTO (DEFESA, ATUALIZAR PERFIL, PROTESTAR) ---
 
