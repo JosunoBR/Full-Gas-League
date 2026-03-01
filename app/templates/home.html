@@ -575,6 +575,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const gridId = grid.id;
         const gridStandings = standings[gridId];
         
+        console.log(`Renderizando filtro de pilotos para grid ${gridId}`, { gridStandings });
+        
         if (!gridStandings || gridStandings.length === 0) return;
         
         // Agrupa pilotos por equipe
@@ -601,7 +603,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Renderiza checkboxes agrupados por equipe
-        const filterMenu = document.getElementById(`filterMenu-${gridId}`);
+        const filterMenu = document.getElementById(`filterPilotMenu-${gridId}`);
+        if (!filterMenu) {
+            console.error(`Elemento filterPilotMenu-${gridId} não encontrado`);
+            return;
+        }
         filterMenu.innerHTML = '';
         
         // Opção "Selecionar Tudo"
@@ -630,8 +636,15 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
         
+        console.log(`Checkboxes de pilotos renderizados para grid ${gridId}. filterMenu HTML:`, filterMenu.innerHTML);
+        
         // Event listeners para os checkboxes
         const selectAllCheckbox = document.getElementById(`selectAll-${gridId}`);
+        console.log(`selectAllCheckbox para grid ${gridId}:`, selectAllCheckbox);
+        if (!selectAllCheckbox) {
+            console.error(`Elemento selectAll-${gridId} não encontrado`);
+            return;
+        }
         selectAllCheckbox.addEventListener('change', (e) => {
             const isChecked = e.target.checked;
             gridStandings.forEach(row => {
@@ -665,6 +678,8 @@ document.addEventListener('DOMContentLoaded', function() {
     function renderTeamFilterDropdown(grid) {
         const gridId = grid.id;
         const gridStandings = standings[gridId];
+        
+        console.log(`Renderizando filtro de equipes para grid ${gridId}`, { gridStandings });
         
         if (!gridStandings || gridStandings.length === 0) return;
         
@@ -712,8 +727,15 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
         });
         
+        console.log(`Checkboxes de equipes renderizados para grid ${gridId}. filterTeamMenu HTML:`, filterTeamMenu.innerHTML);
+        
         // Event listeners para "Selecionar Tudo" de equipes
         const selectAllTeamsCheckbox = document.getElementById(`selectAllTeams-${gridId}`);
+        console.log(`selectAllTeamsCheckbox para grid ${gridId}:`, selectAllTeamsCheckbox);
+        if (!selectAllTeamsCheckbox) {
+            console.error(`Elemento selectAllTeams-${gridId} não encontrado`);
+            return;
+        }
         selectAllTeamsCheckbox.addEventListener('change', (e) => {
             const isChecked = e.target.checked;
             teamNames.forEach(teamName => {
@@ -963,6 +985,10 @@ document.addEventListener('DOMContentLoaded', function() {
         renderTeamFilterDropdown(grid);
         renderChartForGrid(grid);
     });
+    
+    // Debug: verifica se elementos existem
+    console.log('gridConfigs:', gridConfigs);
+    console.log('filterState:', filterState);
 });
 </script>
 {% endblock %}
