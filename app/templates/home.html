@@ -240,6 +240,14 @@
                                 </table>
                             </div>
                         </div>
+                        
+                        <!-- Gráfico de Evolução de Pontos -->
+                        <div class="card bg-dark border-silver shadow mt-4">
+                            <div class="card-header bg-dark border-secondary"><h5 class="text-white mb-0 fw-bold">Evolução de Pontos</h5></div>
+                            <div class="card-body p-3">
+                                <canvas id="chart-evolucao-{{ grid.id }}" height="80"></canvas>
+                            </div>
+                        </div>
                     </div>
                     <!-- Construtores -->
                     <div class="col-lg-4">
@@ -477,6 +485,185 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             requestAnimationFrame(step);
         }
+    });
+
+    // --- GRÁFICOS DE EVOLUÇÃO DE PONTOS ---
+    const gridConfigs = {{ grid_configs|tojson }};
+    const standings = {{ standings|tojson }};
+    
+    // Cores base para equipes
+    const teamColorPalette = [
+        { h: 0, s: 70 },      // Vermelho
+        { h: 120, s: 70 },    // Verde
+        { h: 240, s: 70 },    // Azul
+        { h: 30, s: 70 },     // Laranja
+        { h: 270, s: 70 },    // Roxo
+        { h: 180, s: 70 },    // Ciano
+        { h: 60, s: 70 },     // Amarelo
+        { h: 300, s: 70 },    // Rosa
+        { h: 10, s: 60 },     // Vermelho escuro
+        { h: 140, s: 60 },    // Verde escuro
+        { h: 200, s: 60 },    // Azul claro
+        { h: 40, s: 60 },     // Laranja escuro
+        { h: 260, s: 60 },    // Roxo escuro
+        { h: 160, s: 60 },    // Verde-azulado
+        { h: 20, s: 70 },     // Laranja-vermelho
+        { h: 280, s: 60 },    // Violeta
+    ];
+    
+    // Função para converter HSL para RGB
+    function hslToRgb(h, s, l) {
+        s /= 100;
+        l /= 100;
+        let a = s * Math.min(l, 1 - l);
+        let f = n => {
+            let k = (n + h / 30) % 12;
+            return l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+        };
+        return {
+            r: Math.round(255 * f(0)),
+            g: Math.round(255 * f(8)),
+            b: Math.round(255 * f(4))
+        };
+    }
+    
+    // Função para gerar variação de cor (mais brilhante para menos pontos)
+    function getTeamColor(teamIndex, pilotoIndexNoTeam, totalPilotosNoTeam) {
+        const baseHsl = teamColorPalette[teamIndex % teamColorPalette.length];
+        
+        // Calcula a luminosidade baseada na posição (mais pontos = mais escuro)
+        const baseLight = 50;
+        const lightVariation = (totalPilotosNoTeam - pilotoIndexNoTeam - 1) * (30 / Math.max(totalPilotosNoTeam - 1, 1));
+        const light = Math.max(30, Math.min(70, baseLight - lightVariation / 2));
+        
+        const rgb = hslToRgb(baseHsl.h, baseHsl.s, light);
+        return `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`;
+    }
+    
+    gridConfigs.forEach((grid, gridIdx) => {
+        const canvasId = `chart-evolucao-${grid.id}`;
+        const canvas = document.getElementById(canvasId);
+        
+        if (!canvas || !standings[grid.id] || standings[grid.id].length === 0) return;
+        
+        const gridStandings = standings[grid.id];
+        
+        // Agrupa pilotos por equipe e calcula pontos totais
+        const equipas = {};
+        gridStandings.forEach((row) => {
+            const teamName = row.team_name || 'Sem Equipe';
+            if (!equipas[teamName]) {
+                equipas[teamName] = [];
+            }
+            equipas[teamName].push(row);
+        });
+        
+        // Ordena pilotos dentro de cada equipe por pontos (descendente)
+        Object.keys(equipas).forEach(teamName => {
+            equipas[teamName].sort((a, b) => b.pontos - a.pontos);
+        });
+        
+        // Coleta todos os GPs
+        let allGPs = new Set();
+        gridStandings.forEach((row) => {
+            (row.evolucao || []).forEach(e => allGPs.add(e.gp));
+        });
+        const gpsOrdenados = Array.from(allGPs);
+        
+        // Cria mapa de cores por piloto (baseado em equipe)
+        const colorMap = {};
+        let teamIdx = 0;
+        Object.keys(equipas).forEach(teamName => {
+            const pilotos = equipas[teamName];
+            pilotos.forEach((row, pilotoIdx) => {
+                colorMap[row.piloto.id] = getTeamColor(teamIdx, pilotoIdx, pilotos.length);
+            });
+            teamIdx++;
+        });
+        
+        // Cria datasets
+        const datasets = gridStandings
+            .filter(row => row.evolucao && row.evolucao.length > 0)
+            .map((row) => {
+                const piloto = row.piloto;
+                const evolucao = row.evolucao;
+                const color = colorMap[piloto.id];
+                
+                const data = gpsOrdenados.map(gp => {
+                    const ev = evolucao.find(e => e.gp === gp);
+                    return ev ? ev.pontos_acumulados : null;
+                });
+                
+                return {
+                    label: piloto.nome_real || piloto.nickname,
+                    data: data,
+                    borderColor: color,
+                    backgroundColor: color + '30',  // Adiciona transparência
+                    borderWidth: 2.5,
+                    fill: false,
+                    tension: 0.4,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: color,
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 1
+                };
+            });
+        
+        // Cria o gráfico
+        new Chart(canvas, {
+            type: 'line',
+            data: {
+                labels: gpsOrdenados,
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'right',
+                        labels: {
+                            color: '#e0e0e0',
+                            font: { size: 11 },
+                            padding: 10,
+                            boxWidth: 12,
+                            boxHeight: 12
+                        },
+                        maxHeight: 200
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: '#fff',
+                        bodyColor: '#e0e0e0',
+                        borderColor: '#C0C0C0',
+                        borderWidth: 1,
+                        padding: 10,
+                        titleFont: { size: 12, weight: 'bold' },
+                        bodyFont: { size: 11 },
+                        callbacks: {
+                            afterLabel: function(context) {
+                                return `Pontos: ${context.parsed.y}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { color: '#333333' },
+                        ticks: { color: '#888888', font: { size: 10 } },
+                        title: { display: true, text: 'Etapas', color: '#e0e0e0' }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: '#333333' },
+                        ticks: { color: '#888888', font: { size: 10 } },
+                        title: { display: true, text: 'Pontos Acumulados', color: '#e0e0e0' }
+                    }
+                }
+            }
+        });
     });
 });
 </script>

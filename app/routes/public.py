@@ -9,6 +9,86 @@ from app.utils import allowed_file, get_embed_url, ORDEM_CARROS
 
 public_bp = Blueprint('public', __name__)
 
+# --- FUNÇÕES AUXILIARES ---
+
+def calcular_perda(veredito):
+    """Calcula pontos perdidos por punição"""
+    if veredito == 'LEVE': return 3
+    if veredito == 'MEDIA': return 5
+    if veredito == 'GRAVE': return 10
+    return 0
+
+def converter_standings_para_json(standings):
+    """Converte standings com objetos SQLAlchemy para dicionários serializáveis"""
+    resultado = {}
+    for grid_id, pilotos_list in standings.items():
+        resultado[grid_id] = []
+        for item in pilotos_list:
+            piloto = item['piloto']
+            resultado[grid_id].append({
+                'piloto': {
+                    'id': piloto.id,
+                    'nome_real': piloto.nome_real,
+                    'nickname': piloto.nickname
+                },
+                'pontos': item['pontos'],
+                'vitorias': item['vitorias'],
+                'carro': item['carro'],
+                'quali_ban': item['quali_ban'],
+                'foto_url': item['foto_url'],
+                'team_name': item['team_name'],
+                'is_reserve': item['is_reserve'],
+                'evolucao': item.get('evolucao', [])
+            })
+    return resultado
+
+def gerar_evolucao_pontos(piloto_id, grid_id, season_id):
+    """
+    Gera dados de evolução de pontos para um piloto em um grid específico.
+    Retorna lista de dicts com: {'gp': nome_gp, 'data': data, 'pontos_acumulados': valor}
+    """
+    # Busca todas as corridas da temporada neste grid, ordenadas por data
+    corridas = Race.query.filter_by(season_id=season_id, grid_id=grid_id, status='Concluida')\
+        .order_by(Race.data_corrida).all()
+    
+    if not corridas:
+        return []
+    
+    # Busca resultados do piloto
+    resultados = RaceResult.query.filter_by(pilot_id=piloto_id).join(Race)\
+        .filter(Race.season_id == season_id, Race.grid_id == grid_id)\
+        .order_by(Race.data_corrida).all()
+    
+    # Cria dicionário para lookup rápido
+    results_dict = {r.race_id: r for r in resultados}
+    
+    # Busca punições do piloto (usando 'etapa' em vez de 'race')
+    punicoes = Protesto.query.filter_by(acusado_id=piloto_id, status='CONCLUIDO')\
+        .join(Race, Protesto.etapa_id == Race.id)\
+        .filter(Race.season_id == season_id, Race.grid_id == grid_id).all()
+    punicoes_dict = {p.etapa_id: calcular_perda(p.veredito_final) for p in punicoes}
+    
+    evolucao = []
+    pontos_acumulados = 0.0
+    
+    for corrida in corridas:
+        resultado = results_dict.get(corrida.id)
+        
+        if resultado:
+            # Piloto participou da corrida
+            pontos_corrida = float(resultado.pontos_ganhos or 0)
+            penalidade = punicoes_dict.get(corrida.id, 0)
+            pontos_acumulados += (pontos_corrida - penalidade)
+            
+            evolucao.append({
+                'gp': corrida.nome_gp,
+                'data': corrida.data_corrida.strftime('%d/%m'),
+                'pontos_acumulados': round(pontos_acumulados, 1),
+                'pontos_corrida': round(pontos_corrida - penalidade, 1)
+            })
+    
+    return evolucao
+
 # --- ROTAS PRINCIPAIS (HOME E LOGIN) ---
 
 @public_bp.route('/')
@@ -135,7 +215,11 @@ def home():
                             is_reserve = True
 
                     team_name = team.nome if team else 'Sem Equipe'
-                    standings[g_id].append({'piloto': p, 'pontos': pontos_totais, 'vitorias': vitorias, 'carro': '', 'quali_ban': quali_ban, 'foto_url': foto_final, 'team_name': team_name, 'is_reserve': is_reserve})
+                    
+                    # Gera dados de evolução de pontos
+                    evolucao = gerar_evolucao_pontos(p.id, g_id, season_ativa.id)
+                    
+                    standings[g_id].append({'piloto': p, 'pontos': pontos_totais, 'vitorias': vitorias, 'carro': '', 'quali_ban': quali_ban, 'foto_url': foto_final, 'team_name': team_name, 'is_reserve': is_reserve, 'evolucao': evolucao})
 
         # 3. Ordenação e Lastro (ID)
         for g in grid_configs:
@@ -235,7 +319,11 @@ def home():
                     if (team or not reserve_team) and not any(item['data'].id == p.id for item in pilots_by_grid[g.id]):
                         pilots_by_grid[g.id].append({'data': p, 'foto_url': foto_final, 'team': team})
 
-    return render_template('home.html', standings=standings, constructors=constructors, calendar=calendar, last_races=last_races, season_ativa=season_ativa, noticias=noticias, pilots_by_grid=pilots_by_grid, grid_configs=grid_configs, all_seasons=all_active_seasons)
+    # Converte dados para formato JSON-seguro
+    grid_configs_json = [{'id': g.id, 'nome': g.nome, 'vagas': g.vagas, 'exibir_lastro': g.exibir_lastro} for g in grid_configs]
+    standings_json = converter_standings_para_json(standings)
+
+    return render_template('home.html', standings=standings_json, constructors=constructors, calendar=calendar, last_races=last_races, season_ativa=season_ativa, noticias=noticias, pilots_by_grid=pilots_by_grid, grid_configs=grid_configs_json, all_seasons=all_active_seasons)
 
 @public_bp.route('/login', methods=['GET', 'POST'])
 def login():
