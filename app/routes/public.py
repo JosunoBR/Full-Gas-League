@@ -385,7 +385,13 @@ def public_profile(pilot_id):
                 grids.append(pg)
         
         for g in grids:
-            available_contexts.append({'season_id': s.id, 'season_nome': s.nome, 'grid': g})
+            cfg = next((c for c in configs if c.nome == g), None)
+            available_contexts.append({
+                'season_id': s.id, 
+                'season_nome': s.nome, 
+                'grid': g,
+                'grid_id': cfg.id if cfg else None
+            })
 
     sel_season_id = request.args.get('s', type=int)
     sel_grid = request.args.get('g')
@@ -398,6 +404,7 @@ def public_profile(pilot_id):
         default_grid = p_grids[0] if p_grids else 'SEM_GRID'
         current_context = next((c for c in available_contexts if c['grid'] == default_grid), available_contexts[0])
     
+    quali_ban = False
     if current_context:
         for gp in perfil.grid_photos:
             if gp.grid == current_context['grid']:
@@ -513,7 +520,13 @@ def my_profile():
                 grids.append(pg)
         
         for g in grids:
-            available_contexts.append({'season_id': s.id, 'season_nome': s.nome, 'grid': g})
+            cfg = next((c for c in configs if c.nome == g), None)
+            available_contexts.append({
+                'season_id': s.id, 
+                'season_nome': s.nome, 
+                'grid': g,
+                'grid_id': cfg.id if cfg else None
+            })
 
     sel_season_id = request.args.get('s', type=int)
     sel_grid = request.args.get('g')
@@ -526,6 +539,7 @@ def my_profile():
         default_grid = p_grids[0] if p_grids else 'SEM_GRID'
         current_context = next((c for c in available_contexts if c['grid'] == default_grid), available_contexts[0])
     
+    quali_ban = False
     if current_context:
         for gp in perfil.grid_photos:
             if gp.grid == current_context['grid']:
