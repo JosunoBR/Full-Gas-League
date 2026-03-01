@@ -425,13 +425,15 @@ def public_profile(pilot_id):
         perfil.pontos_cnh = cnh_info['cnh']
         perfil.advertencias_acumuladas = cnh_info['advertencias']
         
-        # Verificação de Quali Ban (Filtrado por Grid)
-        ultimo_p = Protesto.query.filter_by(acusado_id=perfil.id, grid_id=current_context.get('grid_id'), status='CONCLUIDO')\
+        # Verificação de Quali Ban (100% via ID do Grid)
+        grid_id_contexto = current_context.get('grid_id')
+        ultimo_p = Protesto.query.filter_by(acusado_id=perfil.id, grid_id=grid_id_contexto, status='CONCLUIDO')\
             .order_by(Protesto.data_fechamento.desc()).first()
+            
         if ultimo_p and ultimo_p.veredito_final in ['MEDIA', 'GRAVE']:
             ultima_res = RaceResult.query.join(Race).filter(
                 RaceResult.pilot_id == perfil.id, 
-                Race.grid_id == current_context.get('grid_id'),
+                Race.grid_id == grid_id_contexto,
                 Race.status == 'Concluida',
                 RaceResult.ausencia == None
             ).order_by(Race.data_corrida.desc()).first()
@@ -565,13 +567,15 @@ def my_profile():
         perfil.pontos_cnh = cnh_info['cnh']
         perfil.advertencias_acumuladas = cnh_info['advertencias']
         
-        # Verificação de Quali Ban (Filtrado por Grid)
-        ultimo_p = Protesto.query.filter_by(acusado_id=perfil.id, grid_id=current_context.get('grid_id'), status='CONCLUIDO')\
+        # Verificação de Quali Ban (100% via ID do Grid)
+        grid_id_contexto = current_context.get('grid_id')
+        ultimo_p = Protesto.query.filter_by(acusado_id=perfil.id, grid_id=grid_id_contexto, status='CONCLUIDO')\
             .order_by(Protesto.data_fechamento.desc()).first()
+            
         if ultimo_p and ultimo_p.veredito_final in ['MEDIA', 'GRAVE']:
             ultima_res = RaceResult.query.join(Race).filter(
                 RaceResult.pilot_id == perfil.id, 
-                Race.grid_id == current_context.get('grid_id'),
+                Race.grid_id == grid_id_contexto,
                 Race.status == 'Concluida',
                 RaceResult.ausencia == None
             ).order_by(Race.data_corrida.desc()).first()
