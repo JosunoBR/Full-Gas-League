@@ -764,10 +764,9 @@ def team_profile(team_id):
                 r_grid = (r.race.grid_config.nome if r.race.grid_config else r.race.grid).strip().upper()
                 t_grid = (team.grid_config.nome if team.grid_config else team.grid).strip().upper()
 
-                is_explicit = (r.team_id == team.id)
-                is_legacy = ((r.team_id is None or r.team_id == 0) and r_grid == t_grid)
-                
-                if (is_explicit or is_legacy) and r_grid == t_grid:
+                # Se o piloto é titular desta equipe e o grid da corrida bate com o grid da equipe,
+                # os pontos devem contar, mesmo que o team_id no banco esteja desatualizado.
+                if r_grid == t_grid:
                     pts_piloto += r.pontos_ganhos
                     if r.posicao == 1 and not r.dsq:
                         wins_piloto += 1
