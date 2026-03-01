@@ -443,14 +443,6 @@ def public_profile(pilot_id):
                 'dnf': resultado.dnf if resultado else False, 'dsq': resultado.dsq if resultado else False
             })
 
-    ultimo_p = Protesto.query.filter_by(acusado_id=perfil.id, status='CONCLUIDO')\
-        .order_by(Protesto.data_fechamento.desc()).first()
-    quali_ban = False
-    if ultimo_p and ultimo_p.veredito_final in ['MEDIA', 'GRAVE']:
-        ultima_res = RaceResult.query.join(Race).filter(RaceResult.pilot_id == perfil.id, Race.status == 'Concluida').order_by(Race.data_corrida.desc()).first()
-        if not ultima_res or ultimo_p.data_fechamento.date() >= ultima_res.race.data_corrida:
-            quali_ban = True
-
     seasons_fechadas = Season.query.filter_by(ativa=False).order_by(Season.id.desc()).all()
     historico_carreira = []
     for s in seasons_fechadas:
