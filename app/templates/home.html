@@ -283,7 +283,7 @@
                         <div class="card bg-dark border-silver shadow">
                             <div class="card-header bg-dark border-secondary"><h5 class="text-white mb-0 fw-bold">Evolução de Pontos</h5></div>
                             <div class="card-body p-3">
-                                <canvas id="chart-evolucao-{{ grid.id }}" height="300" style="width:100%;"></canvas>
+                                <canvas id="chart-evolucao-{{ grid.id }}" height="400" style="width:100%;"></canvas>
                             </div>
                         </div>
                     </div>
@@ -606,6 +606,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     backgroundColor: color + '30',  // Adiciona transparência
                     borderWidth: 2.5,
                     fill: false,
+                    // tension controls curve of the line: 0 => straight segments, >0 (e.g. 0.4) for smooth/“parabolic” curves
                     tension: 0.4,
                     pointRadius: 4,
                     pointHoverRadius: 6,
