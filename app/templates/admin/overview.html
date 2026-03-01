@@ -1,8 +1,6 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
 <style>
     /* filter dropdown styles reused from home */
     .filter-checkbox {
@@ -43,14 +41,16 @@
         white-space: nowrap;
     }
 </style>
-    <div>
+    <div class="mb-3">
         <h2 class="text-white mb-0"><i class="fa-solid fa-chart-line text-warning"></i> Visão Geral</h2>
         <small class="text-white-50">
             {% if season %} Temporada: {{ season.nome }} {% else %} Nenhuma temporada ativa {% endif %}
         </small>
     </div>
-    <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary">Voltar ao Painel</a>
-</div>
+    <div class="text-end mb-3">
+        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary btn-sm">Voltar ao Painel</a>
+    </div>
+    </div>
 
 {% if not season %}
     <div class="alert alert-warning">Nenhuma temporada ativa para exibir dados.</div>
