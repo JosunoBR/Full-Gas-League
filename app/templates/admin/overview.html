@@ -88,35 +88,41 @@
     {% for grid in grid_configs %}
     <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="pills-{{ grid.id }}" role="tabpanel">
         
-        <!-- Dashboard Cards -->
+        <!-- row 1: general statistics -->
         <div class="row mb-4 g-3">
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <div class="card bg-dark border-secondary text-center p-3 h-100 shadow-sm">
                     <small class="text-white-50 text-uppercase fw-bold" style="font-size: 0.7rem; letter-spacing: 1px;">Pilotos Ativos</small>
                     <h3 class="text-white mb-0 mt-1 fw-bold">{{ dados[grid.id]['stats']['total_pilotos'] }}</h3>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <div class="card bg-dark border-secondary text-center p-3 h-100 shadow-sm">
                     <small class="text-white-50 text-uppercase fw-bold" style="font-size: 0.7rem; letter-spacing: 1px;">Líder do Grid</small>
                     <h3 class="text-warning mb-0 mt-1 fw-bold text-truncate px-2">{{ dados[grid.id]['stats']['lider'] }}</h3>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <div class="card bg-dark border-secondary text-center p-3 h-100 shadow-sm">
                     <small class="text-white-50 text-uppercase fw-bold" style="font-size: 0.7rem; letter-spacing: 1px;">Etapas Concluídas</small>
                     <h3 class="text-info mb-0 mt-1 fw-bold">{{ dados[grid.id]['stats']['corridas_concluidas'] }}</h3>
                 </div>
             </div>
+            <div class="col-md-3">
+                <div class="card bg-dark border-secondary text-center p-3 h-100 shadow-sm">
+                    <small class="text-white-50 text-uppercase fw-bold" style="font-size: 0.7rem; letter-spacing: 1px;">Pontos médios/etapa</small>
+                    <h3 class="text-info mb-0 mt-1 fw-bold">{{ '%.1f'|format(dados[grid.id]['avg_points_per_race']) }}</h3>
+                </div>
+            </div>
         </div>
-        <!-- Additional Cards -->
+        <!-- row 2: operational / upcoming stats -->
         <div class="row mb-4 g-3">
             <div class="col-md-3">
                 <div class="card bg-dark border-secondary text-center p-3 h-100 shadow-sm">
                     <small class="text-white-50 text-uppercase fw-bold" style="font-size: 0.7rem; letter-spacing: 1px;">Próxima Etapa</small>
                     {% if dados[grid.id]['next_race'] %}
                     <h5 class="text-white mb-0 mt-1 fw-bold">{{ dados[grid.id]['next_race'].nome_gp }}</h5>
-                    <small class="text-white-50">{{ dados[grid.id]['next_race'].data_corrida.strftime('%d/%m/%Y') }}</small>
+                    <small class="text-white-50 d-block">{{ dados[grid.id]['next_race'].data_corrida.strftime('%d/%m/%Y') }}</small>
                     {% else %}
                     <div class="text-white-50">Nenhuma programada</div>
                     {% endif %}
@@ -138,35 +144,40 @@
             </div>
             <div class="col-md-3">
                 <div class="card bg-dark border-secondary text-center p-3 h-100 shadow-sm">
-                    <small class="text-white-50 text-uppercase fw-bold" style="font-size: 0.7rem; letter-spacing: 1px;">Pontos médios/etapa</small>
-                    <h3 class="text-info mb-0 mt-1 fw-bold">{{ '%.1f'|format(dados[grid.id]['avg_points_per_race']) }}</h3>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card bg-dark border-secondary text-center p-3 h-100 shadow-sm">
                     <small class="text-white-50 text-uppercase fw-bold" style="font-size: 0.7rem; letter-spacing: 1px;">Protestos Pendentes</small>
                     <h3 class="text-danger mb-0 mt-1 fw-bold">{{ dados[grid.id]['pending_protests'] }}</h3>
                 </div>
             </div>
+            <div class="col-md-3">
+                <div class="card bg-dark border-secondary text-center p-3 h-100 shadow-sm">
+                    <small class="text-white-50 text-uppercase fw-bold" style="font-size: 0.7rem; letter-spacing: 1px;">Sem pontos últimas 3</small>
+                    <h3 class="text-warning mb-0 mt-1 fw-bold">{{ dados[grid.id]['no_score_last3']|length }}</h3>
+                </div>
+            </div>
         </div>
 
+        <!-- toolbar: filtros / export -->
+        <div class="row mb-3">
+            <div class="col d-flex align-items-center">
+                <button class="btn btn-outline-light btn-sm me-2" id="filterOverviewBtn-{{ grid.id }}" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fa-solid fa-filter"></i> Filtros
+                </button>
+                <ul class="dropdown-menu dropdown-menu-dark" id="filterOverviewMenu-{{ grid.id }}">
+                    <li><a class="dropdown-item" href="#" id="filterPilots-{{ grid.id }}">Filtrar Pilotos</a></li>
+                    <li><a class="dropdown-item" href="#" id="filterTeams-{{ grid.id }}">Filtrar Equipes</a></li>
+                </ul>
+            </div>
+            <div class="col text-end">
+                <a href="{{ url_for('admin.export_classification', season_id=season.id, grid_id=grid.id) }}" class="btn btn-outline-light btn-sm" title="Exportar CSV">
+                    <i class="fa-solid fa-file-csv"></i> CSV
+                </a>
+            </div>
+        </div>
         <div class="row">
             <div class="col-lg-7">
                 <div class="card shadow border-secondary mb-4">
                     <div class="card-header bg-dark border-secondary">
-                        <div class="d-flex justify-content-between align-items-center">
                         <h6 class="mb-0 text-white"><i class="fa-solid fa-trophy text-warning"></i> Tabela de Classificação</h6>
-                        <div class="btn-group btn-group-sm" role="group">
-                            <button class="btn btn-outline-light" id="filterOverviewBtn-{{ grid.id }}" data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="fa-solid fa-filter"></i>
-                            </button>
-                            <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end p-2" style="min-width:200px;" id="filterOverviewMenu-{{ grid.id }}">
-                                <li><a class="dropdown-item" href="#" id="filterPilots-{{ grid.id }}">Filtrar Pilotos</a></li>
-                                <li><a class="dropdown-item" href="#" id="filterTeams-{{ grid.id }}">Filtrar Equipes</a></li>
-                            </ul>
-                            <a href="{{ url_for('admin.export_classification', season_id=season.id, grid_id=grid.id) }}" class="btn btn-outline-light" title="Exportar CSV"><i class="fa-solid fa-file-csv"></i></a>
-                        </div>
-                    </div>
                     </div>
                     <div class="table-responsive">
                         <table class="table table-dark table-hover table-sm mb-0 align-middle">
