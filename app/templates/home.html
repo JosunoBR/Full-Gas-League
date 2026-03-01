@@ -812,6 +812,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const gridStandings = standings[grid.id];
         const gridId = grid.id;
         
+        // Garante que filterState[gridId] sempre existe
+        if (!filterState[gridId]) {
+            filterState[gridId] = {};
+        }
+        
         // Destroi gráfico anterior se existir
         if (chartInstances[gridId]) {
             chartInstances[gridId].destroy();
@@ -831,6 +836,14 @@ document.addEventListener('DOMContentLoaded', function() {
         Object.keys(equipas).forEach(teamName => {
             equipas[teamName].sort((a, b) => b.pontos - a.pontos);
         });
+        
+        // Garantir que filterState[gridId].teams existe
+        if (!filterState[gridId].teams) {
+            filterState[gridId].teams = {};
+            Object.keys(equipas).forEach(teamName => {
+                filterState[gridId].teams[teamName] = true;
+            });
+        }
         
         // Coleta todos os GPs
         let allGPs = new Set();
@@ -852,7 +865,12 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Cria datasets (aplicando filtro de pilotos e equipes)
         const datasets = gridStandings
-            .filter(row => row.evolucao && row.evolucao.length > 0 && filterState[gridId][row.piloto.id] && filterState[gridId].teams[row.team_name || 'Sem Equipe'])
+            .filter(row => {
+                const pilotoValido = row.evolucao && row.evolucao.length > 0 && filterState[gridId][row.piloto.id];
+                const teamName = row.team_name || 'Sem Equipe';
+                const equipeValida = !filterState[gridId].teams || filterState[gridId].teams[teamName];
+                return pilotoValido && equipeValida;
+            })
             .map((row) => {
                 const piloto = row.piloto;
                 const evolucao = row.evolucao;
