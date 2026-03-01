@@ -281,15 +281,26 @@
                 <div class="row mt-4">
                     <div class="col-12">
                         <div class="card bg-dark border-silver shadow">
-                            <div class="card-header bg-dark border-secondary d-flex justify-content-between align-items-center">
+                            <div class="card-header bg-dark border-secondary d-flex justify-content-between align-items-center gap-2">
                                 <h5 class="text-white mb-0 fw-bold">Evolução de Pontos</h5>
-                                <!-- Dropdown de Filtro -->
-                                <div class="dropdown">
-                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="filterBtn-{{ grid.id }}" data-bs-toggle="dropdown" aria-expanded="false">
-                                        <i class="fa-solid fa-filter me-2"></i>Filtrar
-                                    </button>
-                                    <div class="dropdown-menu dropdown-menu-dark dropdown-menu-end p-3" id="filterMenu-{{ grid.id }}" style="min-width: 250px; max-height: 400px; overflow-y: auto;">
-                                        <!-- Checkboxes serão renderizadas por JS -->
+                                <div class="d-flex gap-2">
+                                    <!-- Dropdown Filtro Pilotos -->
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="filterPilotBtn-{{ grid.id }}" data-bs-toggle="dropdown" aria-expanded="false">
+                                            <i class="fa-solid fa-user me-2"></i>Pilotos
+                                        </button>
+                                        <div class="dropdown-menu dropdown-menu-dark dropdown-menu-end p-3" id="filterPilotMenu-{{ grid.id }}" style="min-width: 250px; max-height: 400px; overflow-y: auto;">
+                                            <!-- Checkboxes de pilotos serão renderizadas por JS -->
+                                        </div>
+                                    </div>
+                                    <!-- Dropdown Filtro Equipes -->
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="filterTeamBtn-{{ grid.id }}" data-bs-toggle="dropdown" aria-expanded="false">
+                                            <i class="fa-solid fa-users me-2"></i>Equipes
+                                        </button>
+                                        <div class="dropdown-menu dropdown-menu-dark dropdown-menu-end p-3" id="filterTeamMenu-{{ grid.id }}" style="min-width: 250px; max-height: 400px; overflow-y: auto;">
+                                            <!-- Checkboxes de equipes serão renderizadas por JS -->
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -582,6 +593,11 @@ document.addEventListener('DOMContentLoaded', function() {
             gridStandings.forEach(row => {
                 filterState[gridId][row.piloto.id] = true;
             });
+            // Inicializa também filtro de equipes
+            filterState[gridId].teams = {};
+            Object.keys(equipas).forEach(teamName => {
+                filterState[gridId].teams[teamName] = true;
+            });
         }
         
         // Renderiza checkboxes agrupados por equipe
@@ -639,6 +655,88 @@ document.addEventListener('DOMContentLoaded', function() {
                 const someChecked = Object.values(filterState[gridId]).some(v => v);
                 selectAllCheckbox.checked = allChecked;
                 selectAllCheckbox.indeterminate = someChecked && !allChecked;
+                
+                updateChart(gridId);
+            });
+        });
+    }
+    
+    // Função para renderizar dropdown de filtro de equipes
+    function renderTeamFilterDropdown(grid) {
+        const gridId = grid.id;
+        const gridStandings = standings[gridId];
+        
+        if (!gridStandings || gridStandings.length === 0) return;
+        
+        // Agrupa pilotos por equipe (para listar equipes únicas)
+        const equipas = {};
+        gridStandings.forEach((row) => {
+            const teamName = row.team_name || 'Sem Equipe';
+            if (!equipas[teamName]) {
+                equipas[teamName] = [];
+            }
+            equipas[teamName].push(row);
+        });
+        
+        const teamNames = Object.keys(equipas);
+        
+        // Inicializa filtro de equipes (todos selecionados por padrão)
+        if (!filterState[gridId].teams) {
+            filterState[gridId].teams = {};
+            teamNames.forEach(teamName => {
+                filterState[gridId].teams[teamName] = true;
+            });
+        }
+        
+        // Renderiza checkboxes de equipes
+        const filterTeamMenu = document.getElementById(`filterTeamMenu-${gridId}`);
+        filterTeamMenu.innerHTML = '';
+        
+        // Opção "Selecionar Tudo"
+        filterTeamMenu.innerHTML += `
+            <div class="filter-checkbox" style="margin-bottom: 1rem; border-bottom: 1px solid #555; padding-bottom: 0.5rem;">
+                <input type="checkbox" id="selectAllTeams-${gridId}" checked>
+                <label for="selectAllTeams-${gridId}" style="font-weight: 700; color: #ffb700;">Todas as Equipes</label>
+            </div>
+        `;
+        
+        // Checkboxes por equipe
+        teamNames.forEach(teamName => {
+            const isChecked = filterState[gridId].teams[teamName] ? 'checked' : '';
+            
+            filterTeamMenu.innerHTML += `
+                <div class="filter-checkbox">
+                    <input type="checkbox" id="team-${gridId}-${teamName}" data-grid="${gridId}" data-team="${teamName}" ${isChecked}>
+                    <label for="team-${gridId}-${teamName}">${teamName}</label>
+                </div>
+            `;
+        });
+        
+        // Event listeners para "Selecionar Tudo" de equipes
+        const selectAllTeamsCheckbox = document.getElementById(`selectAllTeams-${gridId}`);
+        selectAllTeamsCheckbox.addEventListener('change', (e) => {
+            const isChecked = e.target.checked;
+            teamNames.forEach(teamName => {
+                const checkbox = document.getElementById(`team-${gridId}-${teamName}`);
+                if (checkbox) {
+                    checkbox.checked = isChecked;
+                    filterState[gridId].teams[teamName] = isChecked;
+                }
+            });
+            updateChart(gridId);
+        });
+        
+        // Event listeners individuais para equipes
+        document.querySelectorAll(`input[data-grid="${gridId}"][data-team][type="checkbox"]`).forEach(checkbox => {
+            checkbox.addEventListener('change', (e) => {
+                const teamName = e.target.dataset.team;
+                filterState[gridId].teams[teamName] = e.target.checked;
+                
+                // Atualiza estado do "Selecionar Tudo"
+                const allChecked = Object.values(filterState[gridId].teams).every(v => v);
+                const someChecked = Object.values(filterState[gridId].teams).some(v => v);
+                selectAllTeamsCheckbox.checked = allChecked;
+                selectAllTeamsCheckbox.indeterminate = someChecked && !allChecked;
                 
                 updateChart(gridId);
             });
@@ -752,9 +850,9 @@ document.addEventListener('DOMContentLoaded', function() {
             teamIdx++;
         });
         
-        // Cria datasets (aplicando filtro)
+        // Cria datasets (aplicando filtro de pilotos e equipes)
         const datasets = gridStandings
-            .filter(row => row.evolucao && row.evolucao.length > 0 && filterState[gridId][row.piloto.id])
+            .filter(row => row.evolucao && row.evolucao.length > 0 && filterState[gridId][row.piloto.id] && filterState[gridId].teams[row.team_name || 'Sem Equipe'])
             .map((row) => {
                 const piloto = row.piloto;
                 const evolucao = row.evolucao;
@@ -841,9 +939,10 @@ document.addEventListener('DOMContentLoaded', function() {
         chartInstances[gridId] = chart;
     }
     
-    // Inicializa todos os grids: renderiza dropdown e gráfico
+    // Inicializa todos os grids: renderiza dropdowns e gráfico
     gridConfigs.forEach((grid) => {
         renderFilterDropdown(grid);
+        renderTeamFilterDropdown(grid);
         renderChartForGrid(grid);
     });
 });
