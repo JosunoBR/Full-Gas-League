@@ -528,10 +528,16 @@ def public_profile(pilot_id):
         # Verificação de Quali Ban (100% via ID do Grid)
         grid_id_contexto = current_context.get('grid_id')
         ultimo_p = Protesto.query.filter_by(acusado_id=perfil.id, grid_id=grid_id_contexto, status='CONCLUIDO')\
+<<<<<<< HEAD
             .filter(Protesto.veredito_final.in_(['MEDIA', 'GRAVE']))\
             .order_by(Protesto.data_fechamento.desc()).first()
             
         if ultimo_p:
+=======
+            .order_by(Protesto.data_fechamento.desc()).first()
+            
+        if ultimo_p and ultimo_p.veredito_final in ['MEDIA', 'GRAVE']:
+>>>>>>> 5c692fba3fe623b4d2f8650258f20d4237e204d6
             ultima_res = RaceResult.query.join(Race).filter(
                 RaceResult.pilot_id == perfil.id, 
                 Race.grid_id == grid_id_contexto,
@@ -678,10 +684,16 @@ def my_profile():
         # Verificação de Quali Ban (100% via ID do Grid)
         grid_id_contexto = current_context.get('grid_id')
         ultimo_p = Protesto.query.filter_by(acusado_id=perfil.id, grid_id=grid_id_contexto, status='CONCLUIDO')\
+<<<<<<< HEAD
             .filter(Protesto.veredito_final.in_(['MEDIA', 'GRAVE']))\
             .order_by(Protesto.data_fechamento.desc()).first()
             
         if ultimo_p:
+=======
+            .order_by(Protesto.data_fechamento.desc()).first()
+            
+        if ultimo_p and ultimo_p.veredito_final in ['MEDIA', 'GRAVE']:
+>>>>>>> 5c692fba3fe623b4d2f8650258f20d4237e204d6
             ultima_res = RaceResult.query.join(Race).filter(
                 RaceResult.pilot_id == perfil.id, 
                 Race.grid_id == grid_id_contexto,
