@@ -462,6 +462,14 @@
         -ms-overflow-style: none;
         scrollbar-width: none;
     }
+
+    /* Padronizar altura do gráfico de evolução em todos os grids e temporadas */
+    [id^="chart-evolucao-"] {
+        height: 400px !important;
+        max-height: 400px !important;
+        width: 100% !important;
+        display: block;
+    }
 </style>
 
 <script>
@@ -625,7 +633,7 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: true,
+                maintainAspectRatio: false,
                 plugins: {
                     legend: {
                         display: true,
