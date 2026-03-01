@@ -13,6 +13,8 @@
             background-color: #121212;
             color: #e0e0e0;
             font-family: 'Segoe UI', sans-serif;
+            /* leave space for fixed navbar */
+            padding-top: 90px;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
@@ -23,6 +25,11 @@
         .navbar {
             background-color: #000 !important;
             border-bottom: 2px solid #C0C0C0; /* Prata */
+            /* always keep navigation at top of viewport */
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 1000;
         }
         .navbar-brand span {
             color: #E60000; /* Vermelho */
