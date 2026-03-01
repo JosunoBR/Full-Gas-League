@@ -98,12 +98,19 @@ def home():
                     pontos_totais = pontos_corridas - total_punicoes_tribunal - float(p.penalidade_campeonato or 0)
                     vitorias = sum(1 for r in res_no_grid if r.posicao == 1 and not r.dsq)
 
-                    # Verificação de Quali Ban
-                    ultimo_p = Protesto.query.filter_by(acusado_id=p.id, status='CONCLUIDO')\
+                    # Verificação de Quali Ban (Filtrado por Grid)
+                    ultimo_p = Protesto.query.filter_by(acusado_id=p.id, grid_id=g_id, status='CONCLUIDO')\
                         .order_by(Protesto.data_fechamento.desc()).first()
                     quali_ban = False
                     if ultimo_p and ultimo_p.veredito_final in ['MEDIA', 'GRAVE']:
-                        ultima_res = RaceResult.query.join(Race).filter(RaceResult.pilot_id == p.id, Race.status == 'Concluida').order_by(Race.data_corrida.desc()).first()
+                        # Busca a última corrida que o piloto REALMENTE PARTICIPOU neste grid
+                        ultima_res = RaceResult.query.join(Race).filter(
+                            RaceResult.pilot_id == p.id, 
+                            Race.grid_id == g_id,
+                            Race.status == 'Concluida',
+                            RaceResult.ausencia == None
+                        ).order_by(Race.data_corrida.desc()).first()
+                        
                         if not ultima_res or ultimo_p.data_fechamento.date() >= ultima_res.race.data_corrida:
                             quali_ban = True
 
@@ -385,13 +392,7 @@ def public_profile(pilot_id):
                 grids.append(pg)
         
         for g in grids:
-            cfg = next((c for c in configs if c.nome == g), None)
-            available_contexts.append({
-                'season_id': s.id, 
-                'season_nome': s.nome, 
-                'grid': g,
-                'grid_id': cfg.id if cfg else None
-            })
+            available_contexts.append({'season_id': s.id, 'season_nome': s.nome, 'grid': g})
 
     sel_season_id = request.args.get('s', type=int)
     sel_grid = request.args.get('g')
@@ -404,7 +405,6 @@ def public_profile(pilot_id):
         default_grid = p_grids[0] if p_grids else 'SEM_GRID'
         current_context = next((c for c in available_contexts if c['grid'] == default_grid), available_contexts[0])
     
-    quali_ban = False
     if current_context:
         for gp in perfil.grid_photos:
             if gp.grid == current_context['grid']:
@@ -424,6 +424,19 @@ def public_profile(pilot_id):
         cnh_info = perfil.get_cnh_info(current_context['season_id'], current_context['grid'])
         perfil.pontos_cnh = cnh_info['cnh']
         perfil.advertencias_acumuladas = cnh_info['advertencias']
+        
+        # Verificação de Quali Ban (Filtrado por Grid)
+        ultimo_p = Protesto.query.filter_by(acusado_id=perfil.id, grid_id=current_context.get('grid_id'), status='CONCLUIDO')\
+            .order_by(Protesto.data_fechamento.desc()).first()
+        if ultimo_p and ultimo_p.veredito_final in ['MEDIA', 'GRAVE']:
+            ultima_res = RaceResult.query.join(Race).filter(
+                RaceResult.pilot_id == perfil.id, 
+                Race.grid_id == current_context.get('grid_id'),
+                Race.status == 'Concluida',
+                RaceResult.ausencia == None
+            ).order_by(Race.data_corrida.desc()).first()
+            if not ultima_res or ultimo_p.data_fechamento.date() >= ultima_res.race.data_corrida:
+                quali_ban = True
 
     meus_pontos_camp = 0
     desempenho_temporada = []
@@ -520,13 +533,7 @@ def my_profile():
                 grids.append(pg)
         
         for g in grids:
-            cfg = next((c for c in configs if c.nome == g), None)
-            available_contexts.append({
-                'season_id': s.id, 
-                'season_nome': s.nome, 
-                'grid': g,
-                'grid_id': cfg.id if cfg else None
-            })
+            available_contexts.append({'season_id': s.id, 'season_nome': s.nome, 'grid': g})
 
     sel_season_id = request.args.get('s', type=int)
     sel_grid = request.args.get('g')
@@ -539,7 +546,6 @@ def my_profile():
         default_grid = p_grids[0] if p_grids else 'SEM_GRID'
         current_context = next((c for c in available_contexts if c['grid'] == default_grid), available_contexts[0])
     
-    quali_ban = False
     if current_context:
         for gp in perfil.grid_photos:
             if gp.grid == current_context['grid']:
@@ -558,6 +564,19 @@ def my_profile():
         cnh_info = perfil.get_cnh_info(current_context['season_id'], current_context['grid'])
         perfil.pontos_cnh = cnh_info['cnh']
         perfil.advertencias_acumuladas = cnh_info['advertencias']
+        
+        # Verificação de Quali Ban (Filtrado por Grid)
+        ultimo_p = Protesto.query.filter_by(acusado_id=perfil.id, grid_id=current_context.get('grid_id'), status='CONCLUIDO')\
+            .order_by(Protesto.data_fechamento.desc()).first()
+        if ultimo_p and ultimo_p.veredito_final in ['MEDIA', 'GRAVE']:
+            ultima_res = RaceResult.query.join(Race).filter(
+                RaceResult.pilot_id == perfil.id, 
+                Race.grid_id == current_context.get('grid_id'),
+                Race.status == 'Concluida',
+                RaceResult.ausencia == None
+            ).order_by(Race.data_corrida.desc()).first()
+            if not ultima_res or ultimo_p.data_fechamento.date() >= ultima_res.race.data_corrida:
+                quali_ban = True
 
     if perfil.esta_banido():
         flash('ALERTA: Sua CNH está zerada ou negativa. Você está suspenso das atividades de pista.', 'danger')
