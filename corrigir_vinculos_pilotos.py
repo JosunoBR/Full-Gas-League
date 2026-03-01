@@ -25,8 +25,9 @@ def corrigir_vinculos():
 
             season_vincular_count = 0
             for res in resultados:
-                team = res.team
-                pilot = res.pilot
+                # Buscamos os objetos via ID para evitar erro caso o relacionamento não esteja mapeado no Model
+                team = db.session.get(Team, res.team_id)
+                pilot = db.session.get(PilotProfile, res.pilot_id)
                 
                 # Se o piloto correu pela equipe nesta temporada, ele deve ser titular dela
                 if team and pilot:
