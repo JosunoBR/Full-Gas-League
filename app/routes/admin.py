@@ -242,6 +242,20 @@ def overview():
                     past_races.append(r)
             dados_grids[g_id]['next_race'] = next_race
             dados_grids[g_id]['past_races'] = past_races[-3:]
+
+            # check‑in statistics for the upcoming race
+            if next_race:
+                regs = RaceRegistration.query.filter_by(race_id=next_race.id).all()
+                confirmed = sum(1 for r in regs if r.status == 'CONFIRMADO')
+                absent = sum(1 for r in regs if r.status == 'AUSENTE')
+                pending = max(0, len(regs) - confirmed - absent)
+            else:
+                confirmed = absent = pending = 0
+            dados_grids[g_id]['checkin'] = {
+                'confirmed': confirmed,
+                'absent': absent,
+                'pending': pending
+            }
             
             # constructors standings
             team_points = {}
