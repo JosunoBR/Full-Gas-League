@@ -49,6 +49,9 @@ def cadastrar_equipes():
     with app.app_context():
         print("\n=== INICIANDO CADASTRO E VINCULAÇÃO DE EQUIPES ===")
         
+        # Garante que as tabelas e colunas novas existam antes de inserir dados
+        db.create_all()
+        
         for s_data in DATA_ESTRUTURA:
             # 1. Garantir que a Temporada existe
             season = Season.query.filter_by(nome=s_data["season_nome"]).first()
