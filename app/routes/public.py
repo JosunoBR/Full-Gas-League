@@ -100,9 +100,10 @@ def home():
 
                     # Verificação de Quali Ban (Filtrado por Grid)
                     ultimo_p = Protesto.query.filter_by(acusado_id=p.id, grid_id=g_id, status='CONCLUIDO')\
+                        .filter(Protesto.veredito_final.in_(['MEDIA', 'GRAVE']))\
                         .order_by(Protesto.data_fechamento.desc()).first()
                     quali_ban = False
-                    if ultimo_p and ultimo_p.veredito_final in ['MEDIA', 'GRAVE']:
+                    if ultimo_p:
                         # Busca a última corrida que o piloto REALMENTE PARTICIPOU neste grid
                         ultima_res = RaceResult.query.join(Race).filter(
                             RaceResult.pilot_id == p.id, 
@@ -439,9 +440,10 @@ def public_profile(pilot_id):
         # Verificação de Quali Ban (100% via ID do Grid)
         grid_id_contexto = current_context.get('grid_id')
         ultimo_p = Protesto.query.filter_by(acusado_id=perfil.id, grid_id=grid_id_contexto, status='CONCLUIDO')\
+            .filter(Protesto.veredito_final.in_(['MEDIA', 'GRAVE']))\
             .order_by(Protesto.data_fechamento.desc()).first()
             
-        if ultimo_p and ultimo_p.veredito_final in ['MEDIA', 'GRAVE']:
+        if ultimo_p:
             ultima_res = RaceResult.query.join(Race).filter(
                 RaceResult.pilot_id == perfil.id, 
                 Race.grid_id == grid_id_contexto,
@@ -588,9 +590,10 @@ def my_profile():
         # Verificação de Quali Ban (100% via ID do Grid)
         grid_id_contexto = current_context.get('grid_id')
         ultimo_p = Protesto.query.filter_by(acusado_id=perfil.id, grid_id=grid_id_contexto, status='CONCLUIDO')\
+            .filter(Protesto.veredito_final.in_(['MEDIA', 'GRAVE']))\
             .order_by(Protesto.data_fechamento.desc()).first()
             
-        if ultimo_p and ultimo_p.veredito_final in ['MEDIA', 'GRAVE']:
+        if ultimo_p:
             ultima_res = RaceResult.query.join(Race).filter(
                 RaceResult.pilot_id == perfil.id, 
                 Race.grid_id == grid_id_contexto,
