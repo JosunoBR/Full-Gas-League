@@ -6,6 +6,9 @@ def reparar_arquitetura_grids():
     with app.app_context():
         print("--- VINCULANDO GRIDS ÀS TEMPORADAS ---")
         
+        # 0. Garante que as tabelas básicas existam
+        db.create_all()
+        
         # 1. Garante que a coluna season_id existe em grid_config
         print("Verificando estrutura da tabela grid_config...")
         
@@ -31,6 +34,15 @@ def reparar_arquitetura_grids():
                     GridConfig.__table__.create(trans_conn)
                     trans_conn.execute(text("PRAGMA foreign_keys = ON"))
                 print("  > Tabela grid_config recriada com sucesso.")
+
+        # 1.5 Garante que a coluna grid_id existe nas tabelas relacionadas
+        print("Verificando colunas grid_id em Race, Team e SeasonChampion...")
+        with db.engine.begin() as conn:
+            for table in ['race', 'team', 'season_champion']:
+                columns = [row[1] for row in conn.execute(text(f"PRAGMA table_info({table})")).fetchall()]
+                if 'grid_id' not in columns:
+                    print(f"  > Adicionando coluna 'grid_id' à tabela {table}...")
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN grid_id INTEGER REFERENCES grid_config(id)"))
 
         # 2. Limpa a tabela e remove vínculos antigos para reconstrução total
         print("Limpando tabela grid_config e resetando vínculos antigos...")
