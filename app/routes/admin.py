@@ -10,6 +10,9 @@ from app.utils import allowed_file, get_embed_url, PONTUACAO_20, PONTUACAO_22, O
 
 admin_bp = Blueprint('admin', __name__)
 
+# import helper from public (avoid circular by importing here)
+from app.routes.public import gerar_evolucao_pontos
+
 # Lista Oficial de Pistas (Referência 2025/2026)
 PISTAS_F1 = [
     {"nome": "Circuito Internacional do Bahrein", "gp": "GP do Bahrein"},
@@ -49,6 +52,37 @@ def restrict_access():
         return redirect(url_for('public.home'))
 
 # --- DASHBOARD E VISÃO GERAL ---
+
+def converter_overview_para_json(dados_grids):
+    """Transforma estrutura de dados de overview em formato serializável."""
+    resultado = {}
+    for grid_id, info in dados_grids.items():
+        resultado[grid_id] = {}
+        # classificaçao
+        resultado[grid_id]['classificacao'] = []
+        for row in info.get('classificacao', []):
+            piloto = row['piloto']
+            resultado[grid_id]['classificacao'].append({
+                'piloto': {
+                    'id': piloto.id,
+                    'nickname': piloto.nickname,
+                    'nome_real': piloto.nome_real
+                },
+                'vitorias': row.get('vitorias'),
+                'podios': row.get('podios'),
+                'pontos': row.get('pontos'),
+                'team_name': row.get('team_name')
+            })
+        # evol_chart
+        resultado[grid_id]['evol_chart'] = []
+        for entry in info.get('evol_chart', []):
+            piloto = entry['piloto']
+            resultado[grid_id]['evol_chart'].append({
+                'piloto': {'id': piloto.id, 'nickname': piloto.nickname, 'nome_real': piloto.nome_real},
+                'evol': entry['evol']
+            })
+    return resultado
+
 
 @admin_bp.route('/dashboard')
 def dashboard():
@@ -195,12 +229,150 @@ def overview():
                 'corridas_concluidas': Race.query.filter_by(season_id=season_ativa.id, grid_id=g_id, status='Concluida').count()
             }
             
+            # --- additional data for overview ---
+            # calendar summary
+            races = Race.query.filter_by(season_id=season_ativa.id, grid_id=g_id).order_by(Race.data_corrida).all()
+            today = datetime.utcnow().date()
+            next_race = None
+            past_races = []
+            for r in races:
+                if r.data_corrida and r.data_corrida >= today and not next_race:
+                    next_race = r
+                elif r.data_corrida and r.data_corrida < today:
+                    past_races.append(r)
+            dados_grids[g_id]['next_race'] = next_race
+            dados_grids[g_id]['past_races'] = past_races[-3:]
+            
+            # constructors standings
+            team_points = {}
+            results = RaceResult.query.join(Race).filter(Race.season_id == season_ativa.id, Race.grid_id == g_id).all()
+            for rr in results:
+                team = rr.team_snapshot if hasattr(rr, 'team_snapshot') else rr.team
+                if not team: continue
+                if team.id not in team_points:
+                    team_points[team.id] = {'team': team, 'points': 0.0}
+                team_points[team.id]['points'] += float(rr.pontos_ganhos or 0)
+            dados_grids[g_id]['constructors'] = sorted(team_points.values(), key=lambda x: x['points'], reverse=True)
+            
+            # pending protests
+            dados_grids[g_id]['pending_protests'] = Protesto.query.join(Race).filter(
+                Race.season_id == season_ativa.id,
+                Race.grid_id == g_id,
+                Protesto.status == 'PENDENTE'
+            ).count()
+            
+            # pilots with no score in last 3 races
+            last3 = past_races[-3:]
+            no_score = []
+            for row in dados_grids[g_id]['classificacao']:
+                pid = row['piloto'].id
+                pts = 0
+                for race in last3:
+                    rr = RaceResult.query.filter_by(pilot_id=pid, race_id=race.id).first()
+                    if rr:
+                        pts += float(rr.pontos_ganhos or 0)
+                if pts == 0:
+                    no_score.append(row['piloto'])
+            dados_grids[g_id]['no_score_last3'] = no_score
+            
+            # average points per race
+            pts_total = sum(x['pontos'] for x in classif)
+            dados_grids[g_id]['avg_points_per_race'] = pts_total / len(races) if races else 0
+            
+            # evolution chart data for top pilots
+            evol_list = []
+            for info in classif[:5]:
+                evol = gerar_evolucao_pontos(info['piloto'].id, g_id, season_ativa.id)
+                evol_list.append({'piloto': info['piloto'], 'evol': evol})
+            dados_grids[g_id]['evol_chart'] = evol_list
+            
+    # preparar versão serializável para uso em JS
+    overview_json = converter_overview_para_json(dados_grids)
+
     return render_template('admin/overview.html', 
                            dados=dados_grids, 
+                           overview_json=overview_json,
                            season=season_ativa,
                            season_ativa=season_ativa,
                            all_active_seasons=all_seasons,
                            grid_configs=grid_configs)
+
+@admin_bp.route('/overview/export')
+def export_classification():
+    # parameters
+    season_id = request.args.get('season_id', type=int)
+    grid_id = request.args.get('grid_id', type=int)
+    if not season_id or not grid_id:
+        flash('Parâmetros insuficientes para exportar.', 'danger')
+        return redirect(url_for('admin.overview', s=season_id))
+
+    # recreate classification same as overview
+    season = Season.query.get(season_id)
+    if not season:
+        flash('Temporada não encontrada.', 'danger')
+        return redirect(url_for('admin.overview'))
+
+    grid_cfg = GridConfig.query.get(grid_id)
+    if not grid_cfg:
+        flash('Grid não encontrado.', 'danger')
+        return redirect(url_for('admin.overview', s=season_id))
+
+    # gather pilots similar to overview logic
+    pilotos = PilotProfile.query.join(User).all()
+    dados = []
+    punicoes_temporada = Protesto.query.join(Race).filter(
+        Protesto.status == 'CONCLUIDO',
+        Race.season_id == season_id,
+        Race.grid_id == grid_id
+    ).all()
+    punicoes_by_pilot = {}
+    for prot in punicoes_temporada:
+        punicoes_by_pilot.setdefault(prot.acusado_id, []).append(prot)
+
+    all_season_teams = Team.query.filter_by(season_id=season_id).all()
+    for p in pilotos:
+        resultados_season = [r for r in p.race_results if r.race.season_id == season_id]
+        grids = set()
+        teams_season = [t for t in all_season_teams if any(pilot.id == p.id for pilot in t.pilots)]
+        for t in teams_season:
+            if t.grid_id: grids.add(t.grid_id)
+            else:
+                cfg = GridConfig.query.filter_by(nome=t.grid.upper(), season_id=season_id).first()
+                if cfg: grids.add(cfg.id)
+        reserves = [t for t in all_season_teams if any(pilot.id == p.id for pilot in t.reserves)]
+        for t in reserves:
+            if t.grid_id: grids.add(t.grid_id)
+            else:
+                cfg = GridConfig.query.filter_by(nome=t.grid.upper(), season_id=season_id).first()
+                if cfg: grids.add(cfg.id)
+        entries = [x.strip().upper() for x in p.grid.split(',')]
+        for g in GridConfig.query.filter_by(season_id=season_id).all():
+            if str(g.id) in entries or g.nome.upper() in entries:
+                grids.add(g.id)
+        if grid_id not in grids:
+            continue
+
+        g_cfg = grid_cfg
+        res_no_grid = [r for r in resultados_season if r.race.grid_id == grid_id or (not r.race.grid_id and r.race.grid.upper() == g_cfg.nome.upper())]
+        pontos_corridas = float(sum(r.pontos_ganhos for r in res_no_grid))
+        total_punicoes = sum(calcular_perda(pr.veredito_final) for pr in punicoes_temporada if pr.acusado_id == p.id and pr.grid_id == grid_id)
+        pontos_totais = pontos_corridas - total_punicoes - float(p.penalidade_campeonato or 0)
+        vitorias = sum(1 for r in res_no_grid if r.posicao == 1 and not r.dsq)
+        podios = sum(1 for r in res_no_grid if r.posicao in [1,2,3] and not r.dsq)
+        dados.append({'piloto':p.nickname,'vitorias':vitorias,'podios':podios,'pontos':pontos_totais})
+
+    dados.sort(key=lambda x:(x['pontos'], x['vitorias']), reverse=True)
+
+    # build csv
+    import csv, io
+    si = io.StringIO()
+    writer = csv.writer(si)
+    writer.writerow(['Pos','Piloto','Vitórias','Pódios','Pontos'])
+    for idx,row in enumerate(dados, start=1):
+        writer.writerow([idx, row['piloto'], row['vitorias'], row['podios'], row['pontos']])
+    output = si.getvalue()
+    return current_app.response_class(output, mimetype='text/csv',
+                                       headers={'Content-Disposition':f'attachment;filename=classificacao_grid_{grid_id}_season_{season_id}.csv'})
 
 @admin_bp.route('/manual')
 def manual():
