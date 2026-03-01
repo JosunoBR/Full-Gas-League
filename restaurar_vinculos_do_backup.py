@@ -5,12 +5,19 @@ from app.models import db, PilotProfile, Team, Season
 
 # Configurações
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-BKP_DB = os.path.join(BASE_DIR, 'f1_league-bkp.bd')
 
 def restaurar_vinculos():
-    if not os.path.exists(BKP_DB):
-        print(f"❌ Erro: Arquivo {BKP_DB} não encontrado na raiz do projeto.")
-        print("Certifique-se de que o nome do arquivo é exatamente 'f1_league-bkp.bd'.")
+    # Tenta encontrar o arquivo com as extensões .bd ou .db para evitar erros de digitação
+    bkp_path = None
+    for ext in ['.bd', '.db']:
+        temp_path = os.path.join(BASE_DIR, f'f1_league-bkp{ext}')
+        if os.path.exists(temp_path):
+            bkp_path = temp_path
+            break
+
+    if not bkp_path:
+        print(f"❌ Erro: Arquivo de backup não encontrado em {BASE_DIR}")
+        print("Certifique-se de que o arquivo 'f1_league-bkp.bd' (ou .db) está na raiz da pasta Full-Gas-League.")
         return
 
     with app.app_context():
@@ -33,7 +40,7 @@ def restaurar_vinculos():
             equipes_atuais[key].append(t)
 
         # 2. Conecta ao banco de backup
-        conn_bkp = sqlite3.connect(BKP_DB)
+        conn_bkp = sqlite3.connect(bkp_path)
         conn_bkp.row_factory = sqlite3.Row
         cursor_bkp = conn_bkp.cursor()
 
