@@ -43,9 +43,9 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label text-white-50 small">Grid / Categoria</label>
-                            <select name="grid" class="form-select bg-secondary text-white border-0" required>
+                            <select name="grid_id" class="form-select bg-secondary text-white border-0" required>
                                 {% for config in grid_configs %}
-                                    <option value="{{ config.nome }}" {% if team.grid == config.nome %}selected{% endif %}>{{ config.nome }}</option>
+                                    <option value="{{ config.id }}" {% if team.grid_id == config.id %}selected{% endif %}>{{ config.nome }}</option>
                                 {% endfor %}
                                 {% if not grid_configs %}
                                     <option value="ELITE" {% if team.grid == 'ELITE' %}selected{% endif %}>Elite</option>

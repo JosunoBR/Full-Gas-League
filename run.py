@@ -8,7 +8,7 @@ from app.routes.admin import admin_bp
 from app.routes.api import api_bp # Importa a nova API
 from config import Config
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Configuração do App
 app = Flask(__name__, template_folder='app/templates', static_folder='app/static')
@@ -30,11 +30,11 @@ login_manager.login_view = 'public.login'
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    return db.session.get(User, int(user_id))
 
 @app.context_processor
 def inject_now():
-    return {'now_year': datetime.utcnow().year}
+    return {'now_year': datetime.now(timezone.utc).year}
 
 # Registro das Rotas (Blueprints)
 app.register_blueprint(public_bp)

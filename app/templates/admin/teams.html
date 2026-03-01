@@ -3,14 +3,14 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2 class="text-danger fw-bold mb-0">Gestão de Equipes</h2>
-    <a href="{{ url_for('admin.create_team') }}" class="btn btn-red fw-bold">
+    <a href="{{ url_for('admin.create_team', season_id=season_ativa.id if season_ativa else None) }}" class="btn btn-red fw-bold">
         <i class="fa-solid fa-plus"></i> NOVA EQUIPE
     </a>
 </div>
 
-{% if all_active_seasons and all_active_seasons|length > 1 %}
+{% if all_seasons and all_seasons|length > 1 %}
 <div class="d-flex justify-content-center gap-2 mb-4">
-    {% for s in all_active_seasons %}
+    {% for s in all_seasons %}
     <a href="{{ url_for('admin.list_teams', s=s.id) }}" 
        class="btn btn-sm fw-bold {% if season_ativa and season_ativa.id == s.id %}btn-danger{% else %}btn-outline-secondary text-white{% endif %}">
         {{ s.nome }}
@@ -20,16 +20,16 @@
 {% endif %}
 
 <ul class="nav nav-pills justify-content-center mb-4" id="gridTabs" role="tablist">
-    {% for grid in grid_names %}
+    {% for grid in grid_configs %}
     <li class="nav-item" role="presentation">
-        <button class="nav-link {% if loop.first %}active{% endif %} fw-bold px-4" id="tab-{{ loop.index }}" data-bs-toggle="pill" data-bs-target="#content-{{ loop.index }}" type="button" role="tab">{{ grid }}</button>
+        <button class="nav-link {% if loop.first %}active{% endif %} fw-bold px-4 text-uppercase" id="tab-{{ grid.id or loop.index }}" data-bs-toggle="pill" data-bs-target="#content-{{ grid.id or loop.index }}" type="button" role="tab">{{ grid.nome }}</button>
     </li>
     {% endfor %}
 </ul>
 
 <div class="tab-content" id="gridTabsContent">
-    {% for grid in grid_names %}
-    <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="content-{{ loop.index }}" role="tabpanel">
+    {% for grid in grid_configs %}
+    <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="content-{{ grid.id or loop.index }}" role="tabpanel">
         <div class="card shadow border-silver">
             <div class="card-body bg-dark p-0">
                 <div class="table-responsive">
@@ -43,7 +43,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for team in teams if team.grid == grid %}
+                            {% for team in teams if (grid.id > 0 and team.grid_id == grid.id) or (grid.id == 0 and team.grid|upper == grid.nome|upper) %}
                             <tr class="{% if not team.ativa %}opacity-50{% endif %}">
                                 <td class="ps-4">
                                     {% if team.ativa %}

@@ -37,6 +37,10 @@ class Team(db.Model):
     nome = db.Column(db.String(100), nullable=False)
     logo_url = db.Column(db.String(200), nullable=True) 
     grid = db.Column(db.String(20), nullable=False) 
+    season_id = db.Column(db.Integer, db.ForeignKey('season.id'), nullable=True) # Vincula equipe à temporada
+    
+    # NOVA ESTRUTURA: Grid via ID
+    grid_id = db.Column(db.Integer, db.ForeignKey('grid_config.id'), nullable=True)
     ativa = db.Column(db.Boolean, default=True) 
     
     results = db.relationship('RaceResult', backref='team_snapshot', lazy=True)
@@ -44,6 +48,9 @@ class Team(db.Model):
     # Relacionamento para Reservas (separado dos titulares)
     reserves = db.relationship('PilotProfile', secondary=pilot_reserves, lazy='subquery',
         backref=db.backref('reserve_teams', lazy=True))
+        
+    # Relacionamento com a Configuração do Grid
+    grid_config = db.relationship('GridConfig', backref='teams')
 
     def to_dict(self):
         return {
@@ -73,13 +80,13 @@ class PilotProfile(db.Model):
     teams = db.relationship('Team', secondary=pilot_teams, lazy='subquery',
         backref=db.backref('pilots', lazy=True))
 
-    race_results = db.relationship('RaceResult', backref='pilot', lazy=True)
+    race_results = db.relationship('RaceResult', backref='pilot', lazy=True, cascade="all, delete-orphan")
     grid_photos = db.relationship('PilotGridPhoto', backref='pilot', lazy=True)
     
     def esta_banido(self):
         return self.pontos_cnh <= 0
 
-    def get_cnh_info(self, season_id, grid):
+    def get_cnh_info(self, season_id, grid_id):
         """
         Calcula a CNH e Advertências para um contexto específico (Temporada + Grid).
         Retorna um dicionário: {'cnh': int, 'advertencias': int}
@@ -95,7 +102,7 @@ class PilotProfile(db.Model):
             Protesto.acusado_id == self.id,
             Protesto.status == 'CONCLUIDO',
             Race.season_id == season_id,
-            Race.grid == grid
+            Race.grid_id == grid_id
         ).all()
         
         for p in protestos:
@@ -109,7 +116,7 @@ class PilotProfile(db.Model):
         cnh -= (adv_count // 3) * 3
         
         # 2. Descontos por W.O. (FNJ)
-        fnjs = RaceResult.query.join(Race).filter(RaceResult.pilot_id == self.id, RaceResult.ausencia == 'FNJ', Race.season_id == season_id, Race.grid == grid).count()
+        fnjs = RaceResult.query.join(Race).filter(RaceResult.pilot_id == self.id, RaceResult.ausencia == 'FNJ', Race.season_id == season_id, Race.grid_id == grid_id).count()
         cnh -= (fnjs * 2)
         
         return {'cnh': cnh, 'advertencias': adv_count}
@@ -136,7 +143,9 @@ class Season(db.Model):
     nome = db.Column(db.String(100), nullable=False)
     ativa = db.Column(db.Boolean, default=True)
     data_inicio = db.Column(db.Date, nullable=False)
-    races = db.relationship('Race', backref='season', lazy=True)
+    races = db.relationship('Race', backref='season', lazy=True, cascade="all, delete-orphan")
+    # FIX: Equipes agora são filhas da temporada. Se apagar a temporada, apaga as equipes.
+    teams = db.relationship('Team', backref='season', lazy=True, cascade="all, delete-orphan")
 
     def to_dict(self):
         return {
@@ -149,6 +158,9 @@ class SeasonChampion(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     season_id = db.Column(db.Integer, db.ForeignKey('season.id'), nullable=False)
     grid = db.Column(db.String(50), nullable=False)
+    
+    # NOVA ESTRUTURA
+    grid_id = db.Column(db.Integer, db.ForeignKey('grid_config.id'), nullable=True)
     category = db.Column(db.String(20), nullable=False) # 'PILOT' ou 'CONSTRUCTOR'
     position = db.Column(db.Integer, nullable=False) # 1, 2, 3
     
@@ -160,8 +172,9 @@ class SeasonChampion(db.Model):
     
     pontos = db.Column(db.Float, default=0.0)
     vitorias = db.Column(db.Integer, default=0)
+    grid_config = db.relationship('GridConfig')
     
-    season = db.relationship('Season', backref='champions')
+    season = db.relationship('Season', backref='champions', cascade="all, delete")
 
 class Race(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -170,10 +183,19 @@ class Race(db.Model):
     pista = db.Column(db.String(100), nullable=False)
     data_corrida = db.Column(db.Date, nullable=True)
     grid = db.Column(db.String(20), nullable=False)
+    
+    # NOVA ESTRUTURA: Grid via ID
+    grid_id = db.Column(db.Integer, db.ForeignKey('grid_config.id'), nullable=True)
     status = db.Column(db.String(20), default='Agendada')
     tipo_etapa = db.Column(db.String(20), default='NORMAL')
     
-    results = db.relationship('RaceResult', backref='race', lazy=True)
+    results = db.relationship('RaceResult', backref='race', lazy=True, cascade="all, delete-orphan")
+    
+    # Relacionamentos para garantir limpeza em cascata
+    registrations = db.relationship('RaceRegistration', backref='race_parent', lazy=True, cascade="all, delete-orphan")
+    protestos = db.relationship('Protesto', back_populates='etapa', lazy=True, cascade="all, delete-orphan")
+
+    grid_config = db.relationship('GridConfig', backref='races')
 
     def to_dict(self):
         return {
@@ -226,11 +248,13 @@ class RaceResult(db.Model):
 class Protesto(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     etapa_id = db.Column(db.Integer, db.ForeignKey('race.id'), nullable=False)
-    etapa = db.relationship('Race')
+    etapa = db.relationship('Race', back_populates='protestos')
+    grid_id = db.Column(db.Integer, db.ForeignKey('grid_config.id'), nullable=True)
+    grid_rel = db.relationship('GridConfig')
     acusador_id = db.Column(db.Integer, db.ForeignKey('pilot_profile.id'), nullable=False)
-    acusador = db.relationship('PilotProfile', foreign_keys=[acusador_id])
+    acusador = db.relationship('PilotProfile', foreign_keys=[acusador_id], backref=db.backref('protestos_feitos', cascade="all, delete-orphan"))
     acusado_id = db.Column(db.Integer, db.ForeignKey('pilot_profile.id'), nullable=False)
-    acusado = db.relationship('PilotProfile', foreign_keys=[acusado_id])
+    acusado = db.relationship('PilotProfile', foreign_keys=[acusado_id], backref=db.backref('protestos_recebidos', cascade="all, delete-orphan"))
     
     video_link = db.Column(db.String(300), nullable=True)
     minuto = db.Column(db.String(50), nullable=True)
@@ -245,7 +269,7 @@ class Protesto(db.Model):
     data_criacao = db.Column(db.DateTime, default=datetime.utcnow)
     data_fechamento = db.Column(db.DateTime, nullable=True)
 
-    votos = db.relationship('VotoComissario', backref='protesto_rel', lazy=True)
+    votos = db.relationship('VotoComissario', backref='protesto_rel', lazy=True, cascade="all, delete-orphan")
 
 class VotoComissario(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -291,7 +315,10 @@ class News(db.Model):
 
 class GridConfig(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    nome = db.Column(db.String(50), nullable=False, unique=True)
+    season_id = db.Column(db.Integer, db.ForeignKey('season.id'), nullable=True)
+    nome = db.Column(db.String(50), nullable=False)
     vagas = db.Column(db.Integer, nullable=False, default=20)
     ordem = db.Column(db.Integer, default=0)
     exibir_lastro = db.Column(db.Boolean, default=True)
+
+    season_rel = db.relationship('Season', backref=db.backref('grid_configs', cascade="all, delete-orphan"))

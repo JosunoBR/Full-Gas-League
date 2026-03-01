@@ -35,9 +35,9 @@
                     
                     <div class="col-md-2">
                         <label class="form-label text-white-50 small">Grid</label>
-                        <select name="grid" class="form-select bg-secondary text-white border-0" required>
+                        <select name="grid_id" class="form-select bg-secondary text-white border-0" required>
                             {% for config in grid_configs %}
-                                <option value="{{ config.nome }}">{{ config.nome }}</option>
+                                <option value="{{ config.id }}">{{ config.nome }}</option>
                             {% endfor %}
                             {% if not grid_configs %}
                                 <option value="ELITE">Elite</option>
@@ -99,7 +99,7 @@
 <ul class="nav nav-pills mb-3" id="pills-tab" role="tablist">
     {% for config in grid_configs %}
     <li class="nav-item" role="presentation">
-        <button class="nav-link {% if loop.first %}active{% endif %} fw-bold" id="pills-{{ config.nome|lower }}-tab" data-bs-toggle="pill" data-bs-target="#pills-{{ config.nome|lower }}" type="button" role="tab">GRID {{ config.nome }}</button>
+        <button class="nav-link {% if loop.first %}active{% endif %} fw-bold" id="pills-{{ config.id or config.nome|lower }}-tab" data-bs-toggle="pill" data-bs-target="#pills-{{ config.id or config.nome|lower }}" type="button" role="tab">GRID {{ config.nome }}</button>
     </li>
     {% endfor %}
     {% if not grid_configs %}
@@ -112,14 +112,13 @@
 </ul>
 
 <div class="tab-content" id="pills-tabContent">
-    {% set loop_grids = grid_configs if grid_configs else [{'nome': 'ELITE'}, {'nome': 'ADVANCED'}, {'nome': 'INITIAL'}] %}
+    {% set loop_grids = grid_configs if grid_configs else [{'id': 0, 'nome': 'ELITE'}, {'id': 0, 'nome': 'ADVANCED'}, {'id': 0, 'nome': 'INITIAL'}] %}
     {% for g_item in loop_grids %}
-    {% set g_name = g_item.nome %}
-    <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="pills-{{ g_name|lower }}" role="tabpanel">
+    <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="pills-{{ g_item.id or g_item.nome|lower }}" role="tabpanel">
         
         <div class="card shadow border-secondary">
             <div class="card-header bg-dark border-secondary">
-                <strong class="text-white">Calendário {{ g_name }}</strong>
+                <strong class="text-white">Calendário {{ g_item.nome }}</strong>
             </div>
             <div class="card-body bg-dark p-0">
                 <div class="table-responsive">
@@ -134,7 +133,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for race in season.races|sort(attribute='data_corrida') if race.grid == g_name %}
+                            {% for race in season.races|sort(attribute='data_corrida') if (g_item.id > 0 and race.grid_id == g_item.id) or (g_item.id == 0 and race.grid == g_item.nome) %}
                             <tr>
                                 <td class="ps-4 text-white-50 font-monospace">
                                     {{ race.data_corrida.strftime('%d/%m') if race.data_corrida else '--/--' }}
@@ -200,7 +199,7 @@
                             {% else %}
                             <tr>
                                 <td colspan="5" class="text-center py-5 text-white-50">
-                                    Nenhuma corrida cadastrada para o grid {{ g_name }}.
+                                    Nenhuma corrida cadastrada para o grid {{ g_item.nome }}.
                                 </td>
                             </tr>
                             {% endfor %}

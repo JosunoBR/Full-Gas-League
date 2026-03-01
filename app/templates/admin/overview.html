@@ -15,22 +15,56 @@
     <div class="alert alert-warning">Nenhuma temporada ativa para exibir dados.</div>
 {% else %}
 
+{% if all_active_seasons and all_active_seasons|length > 1 %}
+<div class="row mb-4 text-center">
+    <div class="col-12">
+        <div class="d-flex justify-content-center gap-2 flex-wrap">
+            {% for s in all_active_seasons %}
+                <a href="{{ url_for('admin.overview', s=s.id) }}" 
+                   class="btn btn-sm fw-bold {% if season_ativa and season_ativa.id == s.id %}btn-danger{% else %}btn-outline-secondary text-white{% endif %}">
+                    {{ s.nome }}
+                </a>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <ul class="nav nav-pills nav-fill mb-4" id="pills-tab" role="tablist">
+    {% for grid in grid_configs %}
     <li class="nav-item" role="presentation">
-        <button class="nav-link active fw-bold border border-secondary mx-1" id="pills-elite-tab" data-bs-toggle="pill" data-bs-target="#pills-elite" type="button" role="tab">GRID ELITE</button>
+        <button class="nav-link {% if loop.first %}active{% endif %} fw-bold border border-secondary mx-1 text-uppercase" 
+                id="pills-{{ grid.id }}-tab" data-bs-toggle="pill" data-bs-target="#pills-{{ grid.id }}" type="button" role="tab">GRID {{ grid.nome }}</button>
     </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link fw-bold border border-secondary mx-1" id="pills-advanced-tab" data-bs-toggle="pill" data-bs-target="#pills-advanced" type="button" role="tab">GRID ADVANCED</button>
-    </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link fw-bold border border-secondary mx-1" id="pills-initial-tab" data-bs-toggle="pill" data-bs-target="#pills-initial" type="button" role="tab">GRID INITIAL</button>
-    </li>
+    {% endfor %}
 </ul>
 
 <div class="tab-content" id="pills-tabContent">
-    {% for grid_name in ['ELITE', 'ADVANCED', 'INITIAL'] %}
-    <div class="tab-pane fade {% if grid_name == 'ELITE' %}show active{% endif %}" id="pills-{{ grid_name|lower }}" role="tabpanel">
+    {% for grid in grid_configs %}
+    <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="pills-{{ grid.id }}" role="tabpanel">
         
+        <!-- Dashboard Cards -->
+        <div class="row mb-4 g-3">
+            <div class="col-md-4">
+                <div class="card bg-dark border-secondary text-center p-3 h-100 shadow-sm">
+                    <small class="text-white-50 text-uppercase fw-bold" style="font-size: 0.7rem; letter-spacing: 1px;">Pilotos Ativos</small>
+                    <h3 class="text-white mb-0 mt-1 fw-bold">{{ dados[grid.id]['stats']['total_pilotos'] }}</h3>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-dark border-secondary text-center p-3 h-100 shadow-sm">
+                    <small class="text-white-50 text-uppercase fw-bold" style="font-size: 0.7rem; letter-spacing: 1px;">Líder do Grid</small>
+                    <h3 class="text-warning mb-0 mt-1 fw-bold text-truncate px-2">{{ dados[grid.id]['stats']['lider'] }}</h3>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-dark border-secondary text-center p-3 h-100 shadow-sm">
+                    <small class="text-white-50 text-uppercase fw-bold" style="font-size: 0.7rem; letter-spacing: 1px;">Etapas Concluídas</small>
+                    <h3 class="text-info mb-0 mt-1 fw-bold">{{ dados[grid.id]['stats']['corridas_concluidas'] }}</h3>
+                </div>
+            </div>
+        </div>
+
         <div class="row">
             <div class="col-lg-7">
                 <div class="card shadow border-secondary mb-4">
@@ -49,7 +83,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for row in dados[grid_name]['classificacao'] %}
+                                {% for row in dados[grid.id]['classificacao'] %}
                                 <tr>
                                     <td class="text-center fw-bold ps-3 text-secondary">{{ loop.index }}º</td>
                                     <td class="fw-bold">{{ row.piloto.nickname }}</td>
@@ -81,16 +115,16 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for row in dados[grid_name]['disciplina'] %}
+                                {% for row in dados[grid.id]['disciplina'] %}
                                 <tr>
                                     <td class="ps-3">
                                         {% if row.punicoes %}
-                                            <a href="#" data-bs-toggle="modal" data-bs-target="#modalPunicao{{ row.piloto.id }}_{{ grid_name }}" class="text-white text-decoration-none">
+                                            <a href="#" data-bs-toggle="modal" data-bs-target="#modalPunicao{{ row.piloto.id }}_{{ grid.id }}" class="text-white text-decoration-none">
                                                 {{ row.piloto.nickname }} <i class="fa-solid fa-gavel text-danger ms-1" style="font-size: 0.8em;" title="Ver histórico de punições"></i>
                                             </a>
 
                                             <!-- Modal de Punições -->
-                                            <div class="modal fade" id="modalPunicao{{ row.piloto.id }}_{{ grid_name }}" tabindex="-1" aria-hidden="true">
+                                            <div class="modal fade" id="modalPunicao{{ row.piloto.id }}_{{ grid.id }}" tabindex="-1" aria-hidden="true">
                                                 <div class="modal-dialog modal-dialog-centered">
                                                     <div class="modal-content bg-dark border-secondary text-white">
                                                         <div class="modal-header border-secondary">
@@ -125,7 +159,7 @@
                                         {% endif %}
 
                                         {# Verifica se o piloto pertence a este grid atualmente. Se não, marca como Reserva/Externo #}
-                                        {% if grid_name not in row.piloto.grid %}
+                                        {% if grid.nome.upper() not in row.piloto.grid.upper() %}
                                             <span class="badge bg-secondary border border-dark text-white ms-1" style="font-size: 0.65em; vertical-align: middle;" title="Piloto Reserva ou de outro Grid">R</span>
                                         {% endif %}
                                     </td>

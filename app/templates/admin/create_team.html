@@ -9,21 +9,17 @@
             </div>
             <div class="card-body bg-dark">
                 <form method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="season_id" value="{{ season_id }}">
                     <div class="mb-3">
                         <label class="form-label text-white">Nome da Equipe</label>
                         <input type="text" name="nome" class="form-control bg-secondary text-white border-0" required>
                     </div>
                     <div class="mb-3">
                         <label class="form-label text-white">Grid</label>
-                        <select name="grid" class="form-select bg-secondary text-white border-0" required>
+                        <select name="grid_id" class="form-select bg-secondary text-white border-0" required>
                             {% for config in grid_configs %}
-                                <option value="{{ config.nome }}">{{ config.nome }}</option>
+                                <option value="{{ config.id }}">{{ config.nome }}</option>
                             {% endfor %}
-                            {% if not grid_configs %}
-                                <option value="ELITE">Elite</option>
-                                <option value="ADVANCED">Advanced</option>
-                                <option value="INITIAL">Initial</option>
-                            {% endif %}
                         </select>
                     </div>
                     <div class="mb-4">

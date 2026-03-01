@@ -21,13 +21,25 @@ Para testar o site em outros dispositivos ou enviar para amigos sem fazer deploy
 3. Copie o link `https://....ngrok-free.app` e envie.
 
 ## Regras de Negócio (Pontuação e Grids)
-O sistema possui lógica automática para pontuação baseada no tamanho do grid configurado na Seletiva/Corrida:
+### Pontuação do Campeonato
+O sistema utiliza um cálculo **dinâmico** de pontuação. Os pontos salvos no banco de dados (`RaceResult`) representam o desempenho bruto na pista. As deduções são aplicadas em tempo real na visualização:
+- **Pontos de Corrida:** Baseados no tamanho do grid (20 ou 22 pilotos).
 - **Grid Padrão (20 Pilotos):** Pontuação de P1 (35) até P20 (1).
 - **Grid Cheio (22 Pilotos):** Pontuação estendida de P1 (35) até P22 (1), com suavização do meio do pelotão.
+- **Punições do Tribunal:** Subtraídas automaticamente do total do piloto no grid específico onde ocorreu o protesto (Leve: -3, Média: -5, Grave: -10).
+- **Penalidades Administrativas:** Subtraídas do total global do piloto na temporada (definidas no perfil do piloto).
 
-**Lastro Invertido:**
-A ordem de desempenho dos carros é fixa no código (`app/utils.py`):
-Sauber (Líderes) -> Haas -> Alpine -> RB -> Williams -> Aston -> Ferrari -> Mercedes -> RBR -> McLaren (Últimos).
+### CNH (Carteira Nacional de Habilitação)
+Sistema global de conduta com base de **25 pontos**:
+- **Protestos:** Descontos de 3, 5 ou 10 pontos conforme o veredito.
+- **Advertências:** A cada 3 advertências acumuladas, o piloto perde 3 pontos na CNH.
+- **FNJ (Falta Não Justificada):** Cada W.O. sem justificativa desconta 2 pontos automaticamente.
+
+### Arquitetura de Grids
+O sistema utiliza `GridConfig` vinculados a cada temporada. Isso permite que grids com o mesmo nome (ex: ELITE) tenham configurações de vagas e lastro independentes entre temporadas.
+
+### Lastro Invertido
+A ordem de desempenho dos carros é fixa: Sauber (Líderes) -> Haas -> Alpine -> RB -> Williams -> Aston -> Ferrari -> Mercedes -> RBR -> McLaren (Últimos).
 
 ## Deploy (Hospedagem)
 Este projeto está configurado para o **PythonAnywhere**.
@@ -56,7 +68,23 @@ Para configurar `www.fullgasleague.com.br`:
 - **Migrações:** Use `flask db migrate` e `flask db upgrade` ao alterar `models.py`.
 - **Backup:** O arquivo `f1_league.db` contém todos os dados. Faça download regular dele pelo painel do PythonAnywhere.
 
-## 📱 Integração com Aplicativo Móvel (API)
+## 🛠️ Scripts de Manutenção
+Localizados na raiz, devem ser usados para auditoria e migração:
+- `verificar_pontos.py`: Audita a CNH de todos os pilotos e aponta divergências.
+- `corrigir_pontos.py`: Sincroniza o saldo da CNH baseado no histórico de protestos e faltas.
+- `estornar_punicoes.py`: Reverte punições fixas no banco para o novo modelo de cálculo dinâmico.
+- `estornar_penalidades_manuais.py`: Zera penalidades administrativas aplicadas nos perfis.
+- `vincular_grids_temporadas.py`: Migra dados da arquitetura antiga (texto) para a nova (IDs).
+
+## 📜 Padrões de Código (Bíblia)
+Para manter a consistência e segurança do sistema, siga este padrão em todas as rotas de busca:
+
+**Busca de Registros com Blindagem:**
+```python
+protesto = db.session.get(Protesto, protest_id) or abort(404)
+```
+
+## � Integração com Aplicativo Móvel (API)
 O sistema foi preparado para suportar um aplicativo nativo (Android/iOS) através de uma arquitetura de API REST.
 
 ### Estado Atual

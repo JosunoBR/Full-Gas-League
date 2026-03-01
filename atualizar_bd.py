@@ -34,6 +34,22 @@ def atualizar_banco():
                 print("- Adicionando coluna 'exibir_lastro' em grid_config...")
                 conn.execute(text("ALTER TABLE grid_config ADD COLUMN exibir_lastro BOOLEAN DEFAULT 1"))
 
+            # Verifica e adiciona season_id em team
+            try:
+                conn.execute(text("SELECT season_id FROM team LIMIT 1"))
+            except:
+                print("- Adicionando coluna 'season_id' em team...")
+                conn.execute(text("ALTER TABLE team ADD COLUMN season_id INTEGER REFERENCES season(id)"))
+                
+                # MIGRAÇÃO DE DADOS: Vincula equipes existentes à temporada ativa mais recente
+                # Isso impede que as equipes sumam da tela após a atualização
+                print("- Vinculando equipes existentes à temporada ativa mais recente...")
+                result = conn.execute(text("SELECT id FROM season WHERE ativa = 1 ORDER BY id DESC LIMIT 1")).first()
+                if result:
+                    latest_season_id = result[0]
+                    conn.execute(text("UPDATE team SET season_id = :sid WHERE season_id IS NULL"), {"sid": latest_season_id})
+                    print(f"  > Equipes antigas vinculadas à temporada ID {latest_season_id}")
+
             # MIGRAÇÃO DE EQUIPES (De team_id para pilot_teams)
             # Verifica se existem dados na tabela antiga e migra para a nova
             try:

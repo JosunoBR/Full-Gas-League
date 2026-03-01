@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify
-from app.models import News, Season, Race, PilotProfile, Team, RaceResult
+from app.models import News, Season, Race, PilotProfile, Team, RaceResult, Protesto, GridConfig
 
 api_bp = Blueprint('api', __name__)
 
@@ -14,16 +14,37 @@ def get_standings(grid):
     if not season:
         return jsonify([])
     
-    pilotos = PilotProfile.query.filter_by(grid=grid.upper()).all()
+    # Busca a config do grid para garantir o ID correto
+    grid_cfg = GridConfig.query.filter_by(season_id=season.id, nome=grid.upper()).first()
+    if not grid_cfg:
+        return jsonify([])
+
+    pilotos = PilotProfile.query.all()
     ranking = []
+    
+    def calcular_perda(veredito):
+        if veredito == 'LEVE': return 3
+        if veredito == 'MEDIA': return 5
+        if veredito == 'GRAVE': return 10
+        return 0
+
     for p in pilotos:
-        pts = float(sum(r.pontos_ganhos for r in p.race_results if r.race.season_id == season.id))
+        # Filtra resultados apenas deste grid e temporada
+        res_no_grid = [r for r in p.race_results if r.race.season_id == season.id and r.race.grid_id == grid_cfg.id]
+        if not res_no_grid and grid.upper() not in [g.strip().upper() for g in p.grid.split(',')]:
+            continue
+
+        pontos_corridas = float(sum(r.pontos_ganhos for r in res_no_grid))
+        punicoes = Protesto.query.filter_by(acusado_id=p.id, grid_id=grid_cfg.id, status='CONCLUIDO').all()
+        total_punicoes = sum(calcular_perda(pr.veredito_final) for pr in punicoes)
+        
+        pts_finais = pontos_corridas - total_punicoes - float(p.penalidade_campeonato or 0)
+
         ranking.append({
             'id': p.id,
             'nickname': p.nickname,
-            'pontos': pts,
+            'pontos': pts_finais,
             'telefone': p.telefone,
-            'equipe': p.team.nome if p.team else 'Sem Equipe',
             'foto': p.foto_url
         })
     

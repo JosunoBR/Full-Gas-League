@@ -30,9 +30,9 @@
                     <div class="row mb-3">
                         <div class="col-md-4">
                             <label class="form-label text-white-50 small fw-bold">GRID</label>
-                            <select class="form-select bg-dark text-white border-secondary" name="grid">
+                            <select class="form-select bg-dark text-white border-secondary" name="grid_id">
                                 {% for config in grid_configs %}
-                                    <option value="{{ config.nome }}" {% if race.grid == config.nome %}selected{% endif %}>{{ config.nome }}</option>
+                                    <option value="{{ config.id }}" {% if race.grid_id == config.id %}selected{% endif %}>{{ config.nome }}</option>
                                 {% endfor %}
                                 {% if not grid_configs %}
                                     <option value="ELITE" {% if race.grid == 'ELITE' %}selected{% endif %}>ELITE</option>
