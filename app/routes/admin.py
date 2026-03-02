@@ -1861,7 +1861,10 @@ def view_protest(protest_id):
                            embed_acusacao=embed_acusacao,
                            embed_defesa=embed_defesa)
 
-
-
-
-
+@admin_bp.route('/protests/delete/<int:protest_id>', methods=['POST'])
+def delete_protest_admin(protest_id):
+    protesto = Protesto.query.get_or_404(protest_id)
+    db.session.delete(protesto)
+    db.session.commit()
+    flash('Protesto removido pela administração.', 'success')
+    return redirect(url_for('admin.protests'))
