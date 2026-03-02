@@ -18,6 +18,43 @@ def calcular_perda(veredito):
     if veredito == 'GRAVE': return 10
     return 0
 
+def calcular_pontos_totais_piloto(piloto_id, season_id, grid_id):
+    """
+    Calcula os pontos totais de um piloto em uma temporada/grid específico.
+    Desconta punições do tribunal E penalidade manual.
+    Fonte única de verdade para cálculo de pontos.
+    """
+    piloto = PilotProfile.query.get(piloto_id)
+    if not piloto:
+        return 0.0
+    
+    # Busca todos os resultados do piloto nesta temporada/grid
+    resultados = RaceResult.query.join(Race).filter(
+        RaceResult.pilot_id == piloto_id,
+        Race.season_id == season_id,
+        Race.grid_id == grid_id
+    ).all()
+    
+    # Soma pontos das corridas
+    pontos_corridas = float(sum(r.pontos_ganhos or 0 for r in resultados))
+    
+    # Soma punições do tribunal para este grid específico nesta temporada
+    punicoes_tribunal = Protesto.query.join(Race).filter(
+        Protesto.acusado_id == piloto_id,
+        Protesto.grid_id == grid_id,
+        Race.season_id == season_id,
+        Protesto.status == 'CONCLUIDO'
+    ).all()
+    total_punicoes_tribunal = sum(calcular_perda(p.veredito_final) for p in punicoes_tribunal)
+    
+    # Penalidade manual do campeonato
+    penalidade_manual = float(piloto.penalidade_campeonato or 0)
+    
+    # Cálculo final
+    pontos_totais = pontos_corridas - total_punicoes_tribunal - penalidade_manual
+    
+    return round(pontos_totais, 1)
+
 def converter_standings_para_json(standings):
     """Converte standings com objetos SQLAlchemy para dicionários serializáveis"""
     resultado = {}
@@ -129,12 +166,6 @@ def home():
             Race.season_id == season_ativa.id,
             Protesto.status == 'CONCLUIDO'
         ).all()
-        
-        def calcular_perda(veredito):
-            if veredito == 'LEVE': return 3
-            if veredito == 'MEDIA': return 5
-            if veredito == 'GRAVE': return 10
-            return 0
 
         for p in pilotos:
             resultados = [r for r in p.race_results if r.race.season_id == season_ativa.id]
@@ -170,12 +201,8 @@ def home():
                     res_no_grid = [r for r in resultados if r.race.grid_id == g_id or 
                                    (not r.race.grid_id and r.race.grid.upper() == g_cfg_atual.nome.upper())]
 
-                    # Soma pontos das corridas
-                    pontos_corridas = float(sum(r.pontos_ganhos for r in res_no_grid))
-                    # Soma punições do tribunal para este grid específico
-                    total_punicoes_tribunal = sum(calcular_perda(pr.veredito_final) for pr in punicoes_temporada if pr.acusado_id == p.id and pr.grid_id == g_id)
-                    
-                    pontos_totais = pontos_corridas - total_punicoes_tribunal - float(p.penalidade_campeonato or 0)
+                    # Usa a função centralizada para calcular pontos totais
+                    pontos_totais = calcular_pontos_totais_piloto(p.id, season_ativa.id, g_id)
                     vitorias = sum(1 for r in res_no_grid if r.posicao == 1 and not r.dsq)
 
                     # Verificação de Quali Ban (Filtrado por Grid)
@@ -546,12 +573,11 @@ def public_profile(pilot_id):
     if current_context:
         s_id = current_context['season_id']
         g_name = current_context['grid']
+        grid_id_calc = current_context.get('grid_id')
         
-        # Filtra resultados usando ID ou Texto
-        resultados_contexto = [r for r in perfil.race_results if r.race.season_id == s_id and 
-                               ((r.race.grid_config and r.race.grid_config.nome == g_name) or r.race.grid == g_name)]
-        
-        meus_pontos_camp = float(sum(r.pontos_ganhos for r in resultados_contexto)) - float(perfil.penalidade_campeonato or 0)
+        # Usa a função centralizada para calcular pontos totais
+        if grid_id_calc:
+            meus_pontos_camp = calcular_pontos_totais_piloto(perfil.id, s_id, grid_id_calc)
         
         all_races_season = Race.query.filter_by(season_id=s_id).order_by(Race.data_corrida).all()
         corridas = [r for r in all_races_season if (r.grid_config and r.grid_config.nome == g_name) or r.grid == g_name]
@@ -727,11 +753,11 @@ def my_profile():
     if current_context:
         s_id = current_context['season_id']
         g_name = current_context['grid']
+        grid_id_calc = current_context.get('grid_id')
         
-        resultados_contexto = [r for r in perfil.race_results if r.race.season_id == s_id and 
-                               ((r.race.grid_config and r.race.grid_config.nome == g_name) or r.race.grid == g_name)]
-        
-        meus_pontos_camp = float(sum(r.pontos_ganhos for r in resultados_contexto)) - float(perfil.penalidade_campeonato or 0)
+        # Usa a função centralizada para calcular pontos totais
+        if grid_id_calc:
+            meus_pontos_camp = calcular_pontos_totais_piloto(perfil.id, s_id, grid_id_calc)
         
         all_races_season = Race.query.filter_by(season_id=s_id).order_by(Race.data_corrida).all()
         corridas = [r for r in all_races_season if (r.grid_config and r.grid_config.nome == g_name) or r.grid == g_name]
@@ -909,7 +935,13 @@ def team_profile(team_id):
                     if r.posicao == 1 and not r.dsq:
                         wins_piloto += 1
             
-            pts_liquidos = pts_piloto - float(piloto.penalidade_campeonato or 0)
+            # Usa cálculo centralizado descontando também punições do tribunal
+            grid_id_team = team.grid_config.id if team.grid_config else None
+            if grid_id_team:
+                pts_liquidos = calcular_pontos_totais_piloto(piloto.id, season_ativa.id, grid_id_team)
+            else:
+                # Fallback se não houver grid_config
+                pts_liquidos = pts_piloto - float(piloto.penalidade_campeonato or 0)
             
             stats_pilotos.append({
                 'piloto': piloto,
