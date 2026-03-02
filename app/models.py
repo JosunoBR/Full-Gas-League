@@ -277,6 +277,52 @@ class VotoComissario(db.Model):
     admin_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     escolha = db.Column(db.String(50), nullable=False)
 
+
+# --- AUDIT LOG PARA CONTROLE DE ALTERAÇÕES ---
+class AuditLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    action = db.Column(db.String(50), nullable=False)      # ex: 'insert','update','delete'
+    model = db.Column(db.String(50), nullable=False)       # nome da classe alvo
+    record_id = db.Column(db.Integer, nullable=True)       # id da entidade alterada
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    details = db.Column(db.Text, nullable=True)            # opcional: JSON com antes/depois
+
+
+# registrar alterações automaticamente usando listeners do SQLAlchemy
+# (a ligação é feita ao final do arquivo, depois que todas as classes são definidas)
+from flask_login import current_user
+from sqlalchemy import event
+
+
+
+# helper that actually inserts a row; action is passed in from the listener
+
+def _log_action(connection, target, action_type):
+    uid = getattr(current_user, 'id', None)
+    ins = AuditLog.__table__.insert().values(
+        user_id=uid,
+        action=action_type,
+        model=target.__class__.__name__,
+        record_id=getattr(target, 'id', None),
+        timestamp=datetime.utcnow()
+    )
+    connection.execute(ins)
+
+
+def _log_insert(mapper, connection, target):
+    _log_action(connection, target, 'insert')
+
+
+def _log_update(mapper, connection, target):
+    _log_action(connection, target, 'update')
+
+
+def _log_delete(mapper, connection, target):
+    _log_action(connection, target, 'delete')
+
+# NOTE: a associação com modelos específicos será montada no final do arquivo
+
 class Invite(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     token = db.Column(db.String(10), unique=True, nullable=False)
@@ -313,6 +359,8 @@ class News(db.Model):
             'texto': self.texto
         }
 
+
+
 class GridConfig(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     season_id = db.Column(db.Integer, db.ForeignKey('season.id'), nullable=True)
@@ -322,3 +370,11 @@ class GridConfig(db.Model):
     exibir_lastro = db.Column(db.Boolean, default=True)
 
     season_rel = db.relationship('Season', backref=db.backref('grid_configs', cascade="all, delete-orphan"))
+
+
+# === REGISTRO DOS LISTENERS DE AUDITORIA ===
+# agora que todo modelo foi definido, associamos os eventos
+for _cls in (PilotProfile, Team, Race, Protesto, Season, GridConfig):
+    event.listen(_cls, 'after_insert', _log_insert)
+    event.listen(_cls, 'after_update', _log_update)
+    event.listen(_cls, 'after_delete', _log_delete)
