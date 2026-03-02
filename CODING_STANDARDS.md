@@ -208,16 +208,5 @@ Quando revisar PRs:
 
 ---
 
-## 11. AUDITORIA E MIGRAÇÕES 📜
-
-### Uso de AuditLog
-- Sempre que um novo modelo importante for criado ou uma tabela precisar ser monitorada, adicione-o ao loop de listeners em `app/models.py`.
-- A ação (`insert`/`update`/`delete`) deve ser registrada através das funções helpers `_log_insert`, `_log_update` e `_log_delete`.
-- Evite manipular diretamente a tabela `audit_log`; use o modelo e deixe o listener cuidar da escrita.
-
-### Migrações obrigatórias
-- Após modificar `models.py` (inclusive add `AuditLog`), rode `flask db migrate` e `flask db upgrade` na sequência.
-- Em produção, **execute `flask db upgrade` sempre que fizer `git pull`** para evitar falhas de tabela inexistente.
-
 *Documento criado após Code Audit (2025-03-02)*
-*Última atualização: 2026-03-02*
+*Última atualização: 2025-03-02*

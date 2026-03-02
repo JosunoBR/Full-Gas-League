@@ -65,7 +65,7 @@ Para configurar `www.fullgasleague.com.br`:
 3. Na aba **Web** do PythonAnywhere: Clicar em **Reload**.
 
 ## Banco de Dados
-- **Migrações:** Use `flask db migrate` e `flask db upgrade` ao alterar `models.py`. Após atualizar o repositório (por exemplo, ao puxar as últimas mudanças que adicionam novos modelos como o `AuditLog`), execute sempre `flask db upgrade` para aplicar as migrações pendentes.
+- **Migrações:** Use `flask db migrate` e `flask db upgrade` ao alterar `models.py`.
 - **Backup:** O arquivo `f1_league.db` contém todos os dados. Faça download regular dele pelo painel do PythonAnywhere.
 
 ## 🛠️ Scripts de Manutenção

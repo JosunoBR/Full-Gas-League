@@ -5,7 +5,7 @@ from datetime import datetime
 from flask import Blueprint, render_template, request, flash, redirect, url_for, current_app, abort
 from flask_login import login_required, current_user
 from sqlalchemy import func, case
-from app.models import db, User, PilotProfile, Season, Race, RaceResult, Invite, Protesto, VotoComissario, Team, RaceRegistration, SeletivaEntry, News, GridConfig, SeasonChampion, PilotGridPhoto, AuditLog
+from app.models import db, User, PilotProfile, Season, Race, RaceResult, Invite, Protesto, VotoComissario, Team, RaceRegistration, SeletivaEntry, News, GridConfig, SeasonChampion, PilotGridPhoto
 from app.utils import allowed_file, get_embed_url, PONTUACAO_20, PONTUACAO_22, ORDEM_CARROS, calcular_perda, get_grid_name, find_grid_config, gerar_evolucao_pontos
 
 admin_bp = Blueprint('admin', __name__)
@@ -1864,18 +1864,4 @@ def view_protest(protest_id):
 
 
 
-# --------------------------------------------------
-# ROTA DO PAINEL DE AUDITORIA
-# --------------------------------------------------
-@admin_bp.route('/audit')
-@login_required
-def view_audit():
-    # apenas administradores podem visualizar (role pode ajustar conforme necessidade)
-    # note: application uses 'ADM' not 'ADMIN' for role names
-    if current_user.role not in ['ADM', 'SUPER_ADM']:
-        abort(403)
-
-    page = request.args.get('page', type=int, default=1)
-    logs = AuditLog.query.order_by(AuditLog.timestamp.desc()).paginate(page=page, per_page=25)
-    return render_template('admin/audit.html', logs=logs)
 

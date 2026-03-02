@@ -121,7 +121,6 @@
                                 <li><a class="dropdown-item" href="{{ url_for('admin.list_pilots') }}">Pilotos</a></li>
                                 <li><a class="dropdown-item" href="{{ url_for('admin.protests') }}">Tribunal</a></li>
                                 <li><a class="dropdown-item" href="{{ url_for('admin.manual') }}">Manual da Direção</a></li>
-                                <li><a class="dropdown-item" href="{{ url_for('admin.view_audit') }}">Auditoria</a></li>
                                 {% if current_user.role == 'SUPER_ADM' %}
                                     <li><a class="dropdown-item" href="{{ url_for('admin.invites') }}">Convites</a></li>
                                 {% endif %}
