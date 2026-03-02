@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify
 from app.models import News, Season, Race, PilotProfile, Team, RaceResult, Protesto, GridConfig
+from app.utils import calcular_perda
 
 api_bp = Blueprint('api', __name__)
 
@@ -21,12 +22,6 @@ def get_standings(grid):
 
     pilotos = PilotProfile.query.all()
     ranking = []
-    
-    def calcular_perda(veredito):
-        if veredito == 'LEVE': return 3
-        if veredito == 'MEDIA': return 5
-        if veredito == 'GRAVE': return 10
-        return 0
 
     for p in pilotos:
         # Filtra resultados apenas deste grid e temporada

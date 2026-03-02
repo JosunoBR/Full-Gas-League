@@ -6,12 +6,9 @@ from flask import Blueprint, render_template, request, flash, redirect, url_for,
 from flask_login import login_required, current_user
 from sqlalchemy import func, case
 from app.models import db, User, PilotProfile, Season, Race, RaceResult, Invite, Protesto, VotoComissario, Team, RaceRegistration, SeletivaEntry, News, GridConfig, SeasonChampion, PilotGridPhoto
-from app.utils import allowed_file, get_embed_url, PONTUACAO_20, PONTUACAO_22, ORDEM_CARROS
+from app.utils import allowed_file, get_embed_url, PONTUACAO_20, PONTUACAO_22, ORDEM_CARROS, calcular_perda, get_grid_name, find_grid_config, gerar_evolucao_pontos
 
 admin_bp = Blueprint('admin', __name__)
-
-# import helper from public (avoid circular by importing here)
-from app.routes.public import gerar_evolucao_pontos
 
 # Lista Oficial de Pistas (Referência 2025/2026)
 PISTAS_F1 = [

@@ -5,18 +5,11 @@ from flask_login import login_required, current_user, login_user, logout_user
 from werkzeug.security import check_password_hash
 from sqlalchemy import func, case
 from app.models import db, Season, Race, PilotProfile, Protesto, RaceResult, VotoComissario, Team, RaceRegistration, User, Invite, News, GridConfig, SeasonChampion, PilotGridPhoto
-from app.utils import allowed_file, get_embed_url, ORDEM_CARROS
+from app.utils import allowed_file, get_embed_url, ORDEM_CARROS, calcular_perda, get_grid_name, find_grid_config, gerar_evolucao_pontos
 
 public_bp = Blueprint('public', __name__)
 
 # --- FUNÇÕES AUXILIARES ---
-
-def calcular_perda(veredito):
-    """Calcula pontos perdidos por punição"""
-    if veredito == 'LEVE': return 3
-    if veredito == 'MEDIA': return 5
-    if veredito == 'GRAVE': return 10
-    return 0
 
 def calcular_pontos_totais_piloto(piloto_id, season_id, grid_id):
     """
@@ -78,53 +71,6 @@ def converter_standings_para_json(standings):
                 'evolucao': item.get('evolucao', [])
             })
     return resultado
-
-def gerar_evolucao_pontos(piloto_id, grid_id, season_id):
-    """
-    Gera dados de evolução de pontos para um piloto em um grid específico.
-    Retorna lista de dicts com: {'gp': nome_gp, 'data': data, 'pontos_acumulados': valor}
-    """
-    # Busca todas as corridas da temporada neste grid, ordenadas por data
-    corridas = Race.query.filter_by(season_id=season_id, grid_id=grid_id, status='Concluida')\
-        .order_by(Race.data_corrida).all()
-    
-    if not corridas:
-        return []
-    
-    # Busca resultados do piloto
-    resultados = RaceResult.query.filter_by(pilot_id=piloto_id).join(Race)\
-        .filter(Race.season_id == season_id, Race.grid_id == grid_id)\
-        .order_by(Race.data_corrida).all()
-    
-    # Cria dicionário para lookup rápido
-    results_dict = {r.race_id: r for r in resultados}
-    
-    # Busca punições do piloto (usando 'etapa' em vez de 'race')
-    punicoes = Protesto.query.filter_by(acusado_id=piloto_id, status='CONCLUIDO')\
-        .join(Race, Protesto.etapa_id == Race.id)\
-        .filter(Race.season_id == season_id, Race.grid_id == grid_id).all()
-    punicoes_dict = {p.etapa_id: calcular_perda(p.veredito_final) for p in punicoes}
-    
-    evolucao = []
-    pontos_acumulados = 0.0
-    
-    for corrida in corridas:
-        resultado = results_dict.get(corrida.id)
-        
-        if resultado:
-            # Piloto participou da corrida
-            pontos_corrida = float(resultado.pontos_ganhos or 0)
-            penalidade = punicoes_dict.get(corrida.id, 0)
-            pontos_acumulados += (pontos_corrida - penalidade)
-            
-            evolucao.append({
-                'gp': corrida.nome_gp,
-                'data': corrida.data_corrida.strftime('%d/%m'),
-                'pontos_acumulados': round(pontos_acumulados, 1),
-                'pontos_corrida': round(pontos_corrida - penalidade, 1)
-            })
-    
-    return evolucao
 
 # --- ROTAS PRINCIPAIS (HOME E LOGIN) ---
 
@@ -925,8 +871,8 @@ def team_profile(team_id):
             
             for r in results_pilot:
                 # Normaliza nomes dos grids para comparação segura
-                r_grid = (r.race.grid_config.nome if r.race.grid_config else r.race.grid).strip().upper()
-                t_grid = (team.grid_config.nome if team.grid_config else team.grid).strip().upper()
+                r_grid = get_grid_name(r.race)
+                t_grid = get_grid_name(team)
 
                 # Se o piloto é titular desta equipe e o grid da corrida bate com o grid da equipe,
                 # os pontos devem contar, mesmo que o team_id no banco esteja desatualizado.
@@ -940,8 +886,20 @@ def team_profile(team_id):
             if grid_id_team:
                 pts_liquidos = calcular_pontos_totais_piloto(piloto.id, season_ativa.id, grid_id_team)
             else:
-                # Fallback se não houver grid_config
-                pts_liquidos = pts_piloto - float(piloto.penalidade_campeonato or 0)
+                # Fallback: se não houver grid_config, busca por nome de grid
+                # Tenta encontrar um GridConfig que bata com team.grid
+                all_grids_season = GridConfig.query.filter_by(season_id=season_ativa.id).all()
+                t_grid_name = get_grid_name(team)
+                grid_config_found = find_grid_config(t_grid_name, all_grids_season)
+                if grid_config_found:
+                    pts_liquidos = calcular_pontos_totais_piloto(piloto.id, season_ativa.id, grid_config_found.id)
+                else:
+                    # Último recurso: cálculo manual que desconta punições do tribunal
+                    pts_liquidos = pts_piloto
+                    punicoes = Protesto.query.filter_by(acusado_id=piloto.id, status='CONCLUIDO').all()
+                    total_punicoes = sum(calcular_perda(p.veredito_final) for p in punicoes)
+                    pts_liquidos -= total_punicoes
+                    pts_liquidos -= float(piloto.penalidade_campeonato or 0)
             
             stats_pilotos.append({
                 'piloto': piloto,
@@ -957,10 +915,10 @@ def team_profile(team_id):
             Race.season_id == season_ativa.id
         ).all()
         
-        t_grid = (team.grid_config.nome if team.grid_config else team.grid).strip().upper()
+        t_grid = get_grid_name(team)
         extra_results = []
         for r in extra_results_query:
-            r_grid = (r.race.grid_config.nome if r.race.grid_config else r.race.grid).strip().upper()
+            r_grid = get_grid_name(r.race)
             if r_grid == t_grid:
                 extra_results.append(r)
         
