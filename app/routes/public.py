@@ -922,6 +922,7 @@ def team_profile(team_id):
             if r_grid == t_grid:
                 extra_results.append(r)
         
+        
         extras_map = {}
         for r in extra_results:
             if r.pilot_id not in titulares_ids:
