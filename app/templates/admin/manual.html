@@ -1,109 +1,104 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="text-white fw-bold"><i class="fa-solid fa-book text-info"></i> Manual de Operações do Sistema</h2>
-    <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary">Voltar ao Dashboard</a>
-</div>
-
-<div class="row">
-    <div class="col-md-3 mb-4">
-        <div class="list-group sticky-top" style="top: 20px; z-index: 1;">
-            <a href="#intro" class="list-group-item list-group-item-action bg-dark text-white border-secondary active">Introdução</a>
-            <a href="#season" class="list-group-item list-group-item-action bg-dark text-white border-secondary">1. Temporadas e Corridas</a>
-            <a href="#results" class="list-group-item list-group-item-action bg-dark text-white border-secondary">2. Lançamento de Resultados</a>
-            <a href="#tribunal" class="list-group-item list-group-item-action bg-dark text-white border-secondary">3. Tribunal e Punições</a>
-            <a href="#pilots" class="list-group-item list-group-item-action bg-dark text-white border-secondary">4. Gestão de Pilotos</a>
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2 class="text-white fw-bold" style="font-family: 'Cinzel', serif;">
+                <i class="fa-solid fa-book-open text-danger me-2"></i> MANUAL DA DIREÇÃO DE PROVA
+            </h2>
+            <p class="text-white-50">Guia de operação das novas funcionalidades do Sistema Full Gas.</p>
         </div>
     </div>
-    
-    <div class="col-md-9">
-        <!-- Intro -->
-        <div id="intro" class="card bg-dark border-silver mb-4 shadow">
-            <div class="card-body text-white">
-                <h4 class="text-info fw-bold">Bem-vindo ao Painel Administrativo</h4>
-                <p class="text-white-50 mb-0">Este guia explica como operar as funções vitais do sistema FullGas. O sistema foi desenhado para automatizar cálculos, então seu trabalho principal é <strong>inserir os dados corretamente</strong>.</p>
-            </div>
-        </div>
 
-        <!-- Season -->
-        <div id="season" class="card bg-dark border-silver mb-4 shadow">
-            <div class="card-header border-secondary"><h5 class="text-white mb-0 fw-bold">1. Temporadas e Corridas</h5></div>
-            <div class="card-body text-white">
-                <p class="text-white-50">Tudo começa aqui. Você não consegue lançar resultados sem uma temporada ativa.</p>
-                <ul class="text-white-50">
-                    <li class="mb-2"><strong class="text-white">Criar Temporada:</strong> Vá em <em>Temporadas > Nova Temporada</em>. Apenas uma pode estar ativa por vez.</li>
-                    <li class="mb-2"><strong class="text-white">Adicionar Corridas:</strong> Dentro da temporada, use o formulário para adicionar etapas. Defina corretamente o <strong>Grid</strong> (Elite/Advanced) e o <strong>Tipo</strong> (Normal/Sprint/Final) pois isso afeta a pontuação.</li>
-                    <li class="mb-0"><strong class="text-white">Gerar Grid (Texto):</strong> Antes da corrida, você pode clicar no ícone de "Lista" na corrida para gerar o texto do grid com os carros (Lastro) já definidos para enviar no WhatsApp.</li>
-                </ul>
-            </div>
-        </div>
-
-        <!-- Results -->
-        <div id="results" class="card bg-dark border-silver mb-4 shadow">
-            <div class="card-header border-secondary"><h5 class="text-white mb-0 fw-bold">2. Lançamento de Resultados</h5></div>
-            <div class="card-body text-white">
-                <p class="text-white-50">Esta é a parte mais crítica. Ao clicar em "Resultados" na lista de corridas:</p>
-                <h6 class="text-warning fw-bold">Pilotos Titulares</h6>
-                <p class="small text-white-50">O sistema lista automaticamente quem é do grid. Marque a presença:</p>
-                <ul class="small text-white-50">
-                    <li><strong class="text-white">OK:</strong> Correu. Preencha a Posição.</li>
-                    <li><strong class="text-white">FJ (Falta Justificada):</strong> Não correu, não perde pontos na CNH.</li>
-                    <li><strong class="text-white">FNJ (Falta Não Justificada):</strong> O sistema descontará automaticamente 5 pontos da CNH.</li>
-                </ul>
-                
-                <h6 class="text-warning fw-bold mt-3">Pilotos Reservas</h6>
-                <p class="small text-white-50">Se alguém de fora correu, adicione na seção inferior. <strong>Importante:</strong> Você deve selecionar por qual Equipe ele correu para que os pontos de construtores sejam somados corretamente.</p>
-                
-                <div class="alert alert-secondary border-0 py-2 mt-3">
-                    <i class="fa-solid fa-circle-exclamation me-2"></i> <strong>Atenção:</strong> Se precisar corrigir algo, basta editar os resultados novamente. O sistema recalcula tudo (inclusive punições de W.O.) automaticamente.
+    <div class="row g-4">
+        <!-- Sistema de Quali Ban -->
+        <div class="col-md-6">
+            <div class="card bg-dark border-silver h-100 shadow">
+                <div class="card-header border-secondary bg-dark">
+                    <h5 class="text-white mb-0 fw-bold"><i class="fa-solid fa-ban text-danger me-2"></i> Sistema de Quali Ban</h5>
+                </div>
+                <div class="card-body text-white-50">
+                    <p>O Quali Ban agora é <strong>totalmente automatizado</strong> e baseado no ID do Grid.</p>
+                    <ul>
+                        <li><strong>Ativação:</strong> Ocorre automaticamente quando um protesto é fechado com veredito <span class="text-warning">MÉDIO</span> ou <span class="text-danger">GRAVE</span>.</li>
+                        <li><strong>Exibição:</strong> O selo aparece na Home e no Perfil do Piloto apenas no grid onde a punição foi aplicada.</li>
+                        <li><strong>Remoção:</strong> O selo desaparece sozinho após o piloto completar uma corrida (sem marcar ausência/W.O.) que tenha data posterior ao fechamento do protesto.</li>
+                    </ul>
                 </div>
             </div>
         </div>
 
-        <!-- Tribunal -->
-        <div id="tribunal" class="card bg-dark border-silver mb-4 shadow">
-            <div class="card-header border-secondary"><h5 class="text-white mb-0 fw-bold">3. Tribunal</h5></div>
-            <div class="card-body text-white">
-                <p class="text-white-50">O fluxo de protestos é semi-automático:</p>
-                <ol class="text-white-50">
-                    <li>Piloto abre protesto.</li>
-                    <li>Acusado envia defesa (status muda para <em>Em Votação</em>).</li>
-                    <li>Admins votam.</li>
-                    <li><strong>Super Admin</strong> encerra o caso escolhendo o Veredito Final.</li>
-                </ol>
-                <p class="text-white-50">Ao encerrar como <strong>Leve, Média ou Grave</strong>, o sistema desconta os pontos da CNH e da Corrida (se aplicável) na hora. Não precisa editar o perfil do piloto manualmente.</p>
-            </div>
-        </div>
-        
-        <!-- Pilots -->
-        <div id="pilots" class="card bg-dark border-silver mb-4 shadow">
-            <div class="card-header border-secondary"><h5 class="text-white mb-0 fw-bold">4. Gestão de Pilotos</h5></div>
-            <div class="card-body text-white">
-                <p class="text-white-50">Em <em>Pilotos > Editar</em>, você pode:</p>
-                <ul class="text-white-50">
-                    <li>Ajustar o Grid do piloto.</li>
-                    <li>Alterar a Equipe (embora seja melhor fazer isso no menu Equipes).</li>
-                    <li><strong>Resetar Senha:</strong> Se o piloto esquecer, você pode definir uma nova aqui.</li>
-                    <li><strong>Ajuste Manual de CNH:</strong> Use com cuidado. O sistema já gerencia isso pelos protestos.</li>
-                </ul>
+        <!-- Cálculo de Pontos -->
+        <div class="col-md-6">
+            <div class="card bg-dark border-silver h-100 shadow">
+                <div class="card-header border-secondary bg-dark">
+                    <h5 class="text-white mb-0 fw-bold"><i class="fa-solid fa-calculator text-info me-2"></i> Pontuação e CNH</h5>
+                </div>
+                <div class="card-body text-white-50">
+                    <p>O cálculo de pontos é dinâmico para evitar erros de estorno manual.</p>
+                    <ul>
+                        <li><strong>Fórmula:</strong> (Soma de Pontos em Corrida) - (Punições do Tribunal) - (Penalidade Manual).</li>
+                        <li><strong>CNH:</strong> Cada piloto inicia com 25 pontos por Grid/Temporada.</li>
+                        <li><strong>Advertências:</strong> A cada 3 advertências acumuladas no mesmo grid, o sistema desconta automaticamente 3 pontos na CNH.</li>
+                    </ul>
+                </div>
             </div>
         </div>
 
-        <!-- New Features -->
-        <div id=\"newfeatures\" class=\"card bg-dark border-silver mb-4 shadow\">
-            <div class=\"card-header border-secondary\"><h5 class=\"text-white mb-0 fw-bold\">5. Novas Funções</h5></div>
-            <div class=\"card-body text-white\">
-                <p class=\"text-white-50\">As últimas atualizações trouxeram melhorias e ferramentas para facilitar ainda mais a gestão:</p>
-                <ul class=\"text-white-50\">
-                    <li><strong>Cálculo de Pontos Centralizado:</strong> Não é mais necessário ajustar manualmente os pontos de corrida ou as penalidades – utilize sempre o sistema automático. Os pontos já são normalizados por grid e temporada.</li>
-                    <li><strong>Normalização de Grids:</strong> O sistema reconhece automaticamente o grid de cada etapa (F1, STOCK, etc.) sem precisar escrever o nome. Apenas selecione o grid correto ao criar corridas.</li>
-                    <li><strong>Geração de CSV e Exportação de Dados:</strong> Agora há opções para exportar classificação e resultados diretamente na tela (ícones disponíveis nas páginas de standings).</li>
-                    <li><strong>Links de Twitch Atualizados:</strong> Acusação e defesa devem usar URL padrão (https://www.twitch.tv/...). A incorporação foi corrigida para evitar falhas de embed.</li>
-                    <li><strong>Gráficos Interativos:</strong> Nas páginas de overview e perfil de equipe existem novos gráficos com filtros para visualizar evolução de pontos e desempenho ao longo da temporada.</li>
-                </ul>
-                <p class=\"text-white-50\">Essas funcionalidades foram incluídas para reduzir retrabalho e tornar o painel mais intuitivo.</p>
+        <!-- Gestão de Grids -->
+        <div class="col-md-6">
+            <div class="card bg-dark border-silver h-100 shadow">
+                <div class="card-header border-secondary bg-dark">
+                    <h5 class="text-white mb-0 fw-bold"><i class="fa-solid fa-gears text-secondary me-2"></i> Configuração de Grids</h5>
+                </div>
+                <div class="card-body text-white-50">
+                    <p>Ao criar uma temporada ou seletiva, você define as regras do Grid:</p>
+                    <ul>
+                        <li><strong>Vagas (20 ou 22):</strong> Define se o sistema usará a tabela de pontos para 20 ou 22 pilotos no lançamento de resultados.</li>
+                        <li><strong>Lastro:</strong> Define se a coluna de "Carro/Lastro" será exibida na classificação da Home.</li>
+                        <li><strong>Ordem:</strong> Define a prioridade de exibição das abas no site.</li>
+                    </ul>
+                </div>
             </div>
-        </div>    </div>
+        </div>
+
+        <!-- Encerramento de Temporada -->
+        <div class="col-md-6">
+            <div class="card bg-dark border-silver h-100 shadow">
+                <div class="card-header border-secondary bg-dark">
+                    <h5 class="text-white mb-0 fw-bold"><i class="fa-solid fa-flag-checkered text-success me-2"></i> Encerramento e Hall of Fame</h5>
+                </div>
+                <div class="card-body text-white-50">
+                    <p>O encerramento de temporada agora é um processo de "congelamento":</p>
+                    <ul>
+                        <li><strong>Snapshot:</strong> O sistema salva o Top 3 de Pilotos e a Equipe Campeã com as fotos e logos atuais.</li>
+                        <li><strong>Limpeza:</strong> Ao encerrar, os grids daquela temporada são removidos dos perfis dos pilotos (a menos que o grid exista em outra temporada ativa).</li>
+                        <li><strong>Segurança:</strong> Punições de temporadas encerradas não afetam a CNH da temporada nova.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-5">
+        <div class="col-12">
+            <div class="alert alert-info bg-dark border-info text-white">
+                <h5 class="fw-bold"><i class="fa-solid fa-circle-info me-2"></i> Dica de Ouro</h5>
+                <p class="mb-0">Sempre que realizar uma migração de banco de dados ou restaurar um backup, execute o script <code>estornar_punicoes.py</code> no terminal do servidor. Isso garante que todos os protestos antigos sejam vinculados aos IDs de grid corretos e que o Quali Ban funcione retroativamente.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="text-center mt-4">
+        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-light">
+            <i class="fa-solid fa-arrow-left me-2"></i> Voltar ao Dashboard
+        </a>
+    </div>
 </div>
+
+<style>
+    .card { transition: transform 0.2s; }
+    .card:hover { transform: translateY(-5px); }
+</style>
 {% endblock %}
