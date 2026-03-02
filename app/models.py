@@ -1,3 +1,4 @@
+from sqlalchemy import event
 from datetime import datetime
 from flask_login import UserMixin
 from flask_sqlalchemy import SQLAlchemy
@@ -327,9 +328,3 @@ class GridConfig(db.Model):
     season_rel = db.relationship('Season', backref=db.backref('grid_configs', cascade="all, delete-orphan"))
 
 
-# === REGISTRO DOS LISTENERS DE AUDITORIA ===
-# agora que todo modelo foi definido, associamos os eventos
-for _cls in (PilotProfile, Team, Race, Protesto, Season, GridConfig):
-    event.listen(_cls, 'after_insert', _log_insert)
-    event.listen(_cls, 'after_update', _log_update)
-    event.listen(_cls, 'after_delete', _log_delete)
