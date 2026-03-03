@@ -6,7 +6,7 @@ from flask import Blueprint, render_template, request, flash, redirect, url_for,
 from flask_login import login_required, current_user
 from sqlalchemy import func, case
 from app.models import db, User, PilotProfile, Season, Race, RaceResult, Invite, Protesto, VotoComissario, Team, RaceRegistration, SeletivaEntry, News, GridConfig, SeasonChampion, PilotGridPhoto
-from app.utils import allowed_file, get_embed_url, PONTUACAO_20, PONTUACAO_22, ORDEM_CARROS, calcular_perda, get_grid_name, find_grid_config, gerar_evolucao_pontos
+from app.utils import allowed_file, get_embed_url, PONTUACAO_20, PONTUACAO_22, ORDEM_CARROS, calcular_perda, get_grid_name, find_grid_config, gerar_evolucao_pontos, grid_matches, calcular_pontos_totais_piloto
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -152,18 +152,14 @@ def overview():
             # 1. Identifica Grids via Equipe Titular (ID com Fallback)
             teams_season = [t for t in all_season_teams if any(pilot.id == p.id for pilot in t.pilots)]
             for t in teams_season:
-                if t.grid_id: grids_participados_ids.add(t.grid_id)
-                else:
-                    cfg = next((c for c in grid_configs if c.nome.upper() == t.grid.upper()), None)
-                    if cfg: grids_participados_ids.add(cfg.id)
+                g_id = t.grid_id or (find_grid_config(t.grid, grid_configs).id if find_grid_config(t.grid, grid_configs) else None)
+                if g_id: grids_participados_ids.add(g_id)
             
             # 2. Identifica Grids via Equipe Reserva (ID com Fallback)
             reserves_season = [t for t in all_season_teams if any(pilot.id == p.id for pilot in t.reserves)]
             for t in reserves_season:
-                if t.grid_id: grids_participados_ids.add(t.grid_id)
-                else:
-                    cfg = next((c for c in grid_configs if c.nome.upper() == t.grid.upper()), None)
-                    if cfg: grids_participados_ids.add(cfg.id)
+                g_id = t.grid_id or (find_grid_config(t.grid, grid_configs).id if find_grid_config(t.grid, grid_configs) else None)
+                if g_id: grids_participados_ids.add(g_id)
 
             # 3. Identifica Grids via Perfil (Caso o piloto ainda não tenha equipe na temporada)
             p_grid_entries = [x.strip().upper() for x in p.grid.split(',')]
@@ -175,18 +171,12 @@ def overview():
                 if g_id in dados_grids:
                     # Filtra resultados comparando ID ou Nome (Fallback)
                     g_cfg_atual = dados_grids[g_id]['config']
-                    res_no_grid = [r for r in resultados_season if r.race.grid_id == g_id or 
-                                   (not r.race.grid_id and r.race.grid.upper() == g_cfg_atual.nome.upper())]
+                    res_no_grid = [r for r in resultados_season if grid_matches(r.race, g_cfg_atual)]
                     
                     my_punicoes = punicoes_by_pilot.get(p.id, [])
                     my_punicoes_grid = [pun for pun in my_punicoes if pun.grid_id == g_id]
                     
-                    # Soma pontos das corridas
-                    pontos_corridas = float(sum(r.pontos_ganhos for r in res_no_grid))
-                    # Soma punições do tribunal para este grid específico
-                    total_punicoes_tribunal = sum(calcular_perda(pr.veredito_final) for pr in punicoes_temporada if pr.acusado_id == p.id and pr.grid_id == g_id)
-                    
-                    pontos_totais = pontos_corridas - total_punicoes_tribunal - float(p.penalidade_campeonato or 0)
+                    pontos_totais = calcular_pontos_totais_piloto(p.id, season_ativa.id, g_id)
                     
                     vitorias = sum(1 for r in res_no_grid if r.posicao == 1 and not r.dsq)
                     podios = sum(1 for r in res_no_grid if r.posicao in [1, 2, 3] and not r.dsq)
@@ -363,11 +353,9 @@ def export_classification():
         if grid_id not in grids:
             continue
 
-        g_cfg = grid_cfg
-        res_no_grid = [r for r in resultados_season if r.race.grid_id == grid_id or (not r.race.grid_id and r.race.grid.upper() == g_cfg.nome.upper())]
-        pontos_corridas = float(sum(r.pontos_ganhos for r in res_no_grid))
-        total_punicoes = sum(calcular_perda(pr.veredito_final) for pr in punicoes_temporada if pr.acusado_id == p.id and pr.grid_id == grid_id)
-        pontos_totais = pontos_corridas - total_punicoes - float(p.penalidade_campeonato or 0)
+        pontos_totais = calcular_pontos_totais_piloto(p.id, season_id, grid_id)
+        res_no_grid = [r for r in resultados_season if grid_matches(r.race, grid_cfg)]
+        
         vitorias = sum(1 for r in res_no_grid if r.posicao == 1 and not r.dsq)
         podios = sum(1 for r in res_no_grid if r.posicao in [1,2,3] and not r.dsq)
         dados.append({'piloto':p.nickname,'vitorias':vitorias,'podios':podios,'pontos':pontos_totais})

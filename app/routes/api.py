@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify
 from app.models import News, Season, Race, PilotProfile, Team, RaceResult, Protesto, GridConfig
-from app.utils import calcular_perda
+from app.utils import calcular_perda, grid_matches, calcular_pontos_totais_piloto
 
 api_bp = Blueprint('api', __name__)
 
@@ -25,15 +25,11 @@ def get_standings(grid):
 
     for p in pilotos:
         # Filtra resultados apenas deste grid e temporada
-        res_no_grid = [r for r in p.race_results if r.race.season_id == season.id and r.race.grid_id == grid_cfg.id]
+        res_no_grid = [r for r in p.race_results if r.race.season_id == season.id and grid_matches(r.race, grid_cfg)]
         if not res_no_grid and grid.upper() not in [g.strip().upper() for g in p.grid.split(',')]:
             continue
 
-        pontos_corridas = float(sum(r.pontos_ganhos for r in res_no_grid))
-        punicoes = Protesto.query.filter_by(acusado_id=p.id, grid_id=grid_cfg.id, status='CONCLUIDO').all()
-        total_punicoes = sum(calcular_perda(pr.veredito_final) for pr in punicoes)
-        
-        pts_finais = pontos_corridas - total_punicoes - float(p.penalidade_campeonato or 0)
+        pts_finais = calcular_pontos_totais_piloto(p.id, season.id, grid_cfg.id)
 
         ranking.append({
             'id': p.id,

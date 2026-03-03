@@ -128,6 +128,46 @@ def calcular_perda(veredito):
     return 0
 
 
+def calcular_pontos_totais_piloto(piloto_id, season_id, grid_id):
+    """
+    Calcula os pontos totais de um piloto em uma temporada/grid específico.
+    Desconta punições do tribunal E penalidade manual.
+    Fonte única de verdade para cálculo de pontos.
+    """
+    from app.models import PilotProfile, RaceResult, Race, Protesto
+    
+    piloto = PilotProfile.query.get(piloto_id)
+    if not piloto:
+        return 0.0
+    
+    # Busca todos os resultados do piloto nesta temporada/grid
+    resultados = RaceResult.query.join(Race).filter(
+        RaceResult.pilot_id == piloto_id,
+        Race.season_id == season_id,
+        Race.grid_id == grid_id
+    ).all()
+    
+    # Soma pontos das corridas
+    pontos_corridas = float(sum(r.pontos_ganhos or 0 for r in resultados))
+    
+    # Soma punições do tribunal para este grid específico nesta temporada
+    punicoes_tribunal = Protesto.query.join(Race).filter(
+        Protesto.acusado_id == piloto_id,
+        Protesto.grid_id == grid_id,
+        Race.season_id == season_id,
+        Protesto.status == 'CONCLUIDO'
+    ).all()
+    total_punicoes_tribunal = sum(calcular_perda(p.veredito_final) for p in punicoes_tribunal)
+    
+    # Penalidade manual do campeonato
+    penalidade_manual = float(piloto.penalidade_campeonato or 0)
+    
+    # Cálculo final
+    pontos_totais = pontos_corridas - total_punicoes_tribunal - penalidade_manual
+    
+    return round(pontos_totais, 1)
+
+
 # --- GRID HELPERS (Normalização e Matching) ---
 
 def get_grid_name(obj):
@@ -217,38 +257,38 @@ def gerar_evolucao_pontos(piloto_id, grid_id, season_id):
               {'gp': nome_gp, 'data': data, 'pontos_acumulados': float, 'pontos_corrida': float}
     """
     # Import late para evitar circular imports
-    from app.models import Race, RaceResult, Protesto
+    from app.models import db, Race, RaceResult, Protesto
     
-    # Busca todas as corridas da temporada neste grid, ordenadas por data
-    corridas = Race.query.filter_by(season_id=season_id, grid_id=grid_id, status='Concluida')\
+    # 1. Busca apenas os dados necessários das corridas concluídas
+    corridas = db.session.query(Race.id, Race.nome_gp, Race.data_corrida)\
+        .filter(Race.season_id == season_id, Race.grid_id == grid_id, Race.status == 'Concluida')\
         .order_by(Race.data_corrida).all()
     
     if not corridas:
         return []
     
-    # Busca resultados do piloto
-    resultados = RaceResult.query.filter_by(pilot_id=piloto_id).join(Race)\
-        .filter(Race.season_id == season_id, Race.grid_id == grid_id)\
-        .order_by(Race.data_corrida).all()
+    # 2. Busca apenas os pontos ganhos pelo piloto
+    resultados = db.session.query(RaceResult.race_id, RaceResult.pontos_ganhos)\
+        .join(Race)\
+        .filter(RaceResult.pilot_id == piloto_id, Race.season_id == season_id, Race.grid_id == grid_id)\
+        .all()
     
-    # Cria dicionário para lookup rápido
-    results_dict = {r.race_id: r for r in resultados}
+    results_dict = {r.race_id: r.pontos_ganhos for r in resultados}
     
-    # Busca punições do piloto (usando 'etapa' em vez de 'race')
-    punicoes = Protesto.query.filter_by(acusado_id=piloto_id, status='CONCLUIDO')\
+    # 3. Busca punições do tribunal para este grid
+    punicoes = db.session.query(Protesto.etapa_id, Protesto.veredito_final)\
         .join(Race, Protesto.etapa_id == Race.id)\
-        .filter(Race.season_id == season_id, Race.grid_id == grid_id).all()
+        .filter(Protesto.acusado_id == piloto_id, Protesto.status == 'CONCLUIDO', 
+                Race.season_id == season_id, Race.grid_id == grid_id).all()
+    
     punicoes_dict = {p.etapa_id: calcular_perda(p.veredito_final) for p in punicoes}
     
     evolucao = []
     pontos_acumulados = 0.0
     
     for corrida in corridas:
-        resultado = results_dict.get(corrida.id)
-        
-        if resultado:
-            # Piloto participou da corrida
-            pontos_corrida = float(resultado.pontos_ganhos or 0)
+        if corrida.id in results_dict:
+            pontos_corrida = float(results_dict[corrida.id] or 0.0)
             penalidade = punicoes_dict.get(corrida.id, 0)
             pontos_acumulados += (pontos_corrida - penalidade)
             

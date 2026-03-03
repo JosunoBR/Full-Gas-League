@@ -4,49 +4,13 @@ from flask import Blueprint, render_template, request, flash, redirect, url_for,
 from flask_login import login_required, current_user, login_user, logout_user
 from werkzeug.security import check_password_hash
 from sqlalchemy import func, case
+from sqlalchemy.orm import joinedload
 from app.models import db, Season, Race, PilotProfile, Protesto, RaceResult, VotoComissario, Team, RaceRegistration, User, Invite, News, GridConfig, SeasonChampion, PilotGridPhoto
-from app.utils import allowed_file, get_embed_url, ORDEM_CARROS, calcular_perda, get_grid_name, find_grid_config, gerar_evolucao_pontos
+from app.utils import allowed_file, get_embed_url, ORDEM_CARROS, calcular_perda, get_grid_name, find_grid_config, gerar_evolucao_pontos, grid_matches, calcular_pontos_totais_piloto
 
 public_bp = Blueprint('public', __name__)
 
 # --- FUNÇÕES AUXILIARES ---
-
-def calcular_pontos_totais_piloto(piloto_id, season_id, grid_id):
-    """
-    Calcula os pontos totais de um piloto em uma temporada/grid específico.
-    Desconta punições do tribunal E penalidade manual.
-    Fonte única de verdade para cálculo de pontos.
-    """
-    piloto = PilotProfile.query.get(piloto_id)
-    if not piloto:
-        return 0.0
-    
-    # Busca todos os resultados do piloto nesta temporada/grid
-    resultados = RaceResult.query.join(Race).filter(
-        RaceResult.pilot_id == piloto_id,
-        Race.season_id == season_id,
-        Race.grid_id == grid_id
-    ).all()
-    
-    # Soma pontos das corridas
-    pontos_corridas = float(sum(r.pontos_ganhos or 0 for r in resultados))
-    
-    # Soma punições do tribunal para este grid específico nesta temporada
-    punicoes_tribunal = Protesto.query.join(Race).filter(
-        Protesto.acusado_id == piloto_id,
-        Protesto.grid_id == grid_id,
-        Race.season_id == season_id,
-        Protesto.status == 'CONCLUIDO'
-    ).all()
-    total_punicoes_tribunal = sum(calcular_perda(p.veredito_final) for p in punicoes_tribunal)
-    
-    # Penalidade manual do campeonato
-    penalidade_manual = float(piloto.penalidade_campeonato or 0)
-    
-    # Cálculo final
-    pontos_totais = pontos_corridas - total_punicoes_tribunal - penalidade_manual
-    
-    return round(pontos_totais, 1)
 
 def converter_standings_para_json(standings):
     """Converte standings com objetos SQLAlchemy para dicionários serializáveis"""
@@ -104,7 +68,13 @@ def home():
     noticias = News.query.order_by(News.data_publicacao.desc()).limit(5).all()
     
     if season_ativa:
-        pilotos = PilotProfile.query.join(User).all()
+        # OTIMIZAÇÃO: Eager Loading para evitar o problema de N+1 consultas no banco
+        pilotos = PilotProfile.query.options(
+            joinedload(PilotProfile.user),
+            joinedload(PilotProfile.race_results).joinedload(RaceResult.race),
+            joinedload(PilotProfile.teams),
+            joinedload(PilotProfile.grid_photos)
+        ).all()
         all_season_teams = Team.query.filter_by(season_id=season_ativa.id).all()
         
         # Pré-carrega todas as punições concluídas da temporada para performance
@@ -144,8 +114,7 @@ def home():
                 if g_id in standings:
                     # Filtra resultados comparando ID ou Nome (Fallback)
                     g_cfg_atual = next(c for c in grid_configs if c.id == g_id)
-                    res_no_grid = [r for r in resultados if r.race.grid_id == g_id or 
-                                   (not r.race.grid_id and r.race.grid.upper() == g_cfg_atual.nome.upper())]
+                    res_no_grid = [r for r in resultados if grid_matches(r.race, g_cfg_atual)]
 
                     # Usa a função centralizada para calcular pontos totais
                     pontos_totais = calcular_pontos_totais_piloto(p.id, season_ativa.id, g_id)
@@ -870,36 +839,14 @@ def team_profile(team_id):
             wins_piloto = 0
             
             for r in results_pilot:
-                # Normaliza nomes dos grids para comparação segura
-                r_grid = get_grid_name(r.race)
-                t_grid = get_grid_name(team)
-
-                # Se o piloto é titular desta equipe e o grid da corrida bate com o grid da equipe,
-                # os pontos devem contar, mesmo que o team_id no banco esteja desatualizado.
-                if r_grid == t_grid:
+                if grid_matches(r.race, team):
                     pts_piloto += r.pontos_ganhos
                     if r.posicao == 1 and not r.dsq:
                         wins_piloto += 1
             
-            # Usa cálculo centralizado descontando também punições do tribunal
-            grid_id_team = team.grid_config.id if team.grid_config else None
-            if grid_id_team:
-                pts_liquidos = calcular_pontos_totais_piloto(piloto.id, season_ativa.id, grid_id_team)
-            else:
-                # Fallback: se não houver grid_config, busca por nome de grid
-                # Tenta encontrar um GridConfig que bata com team.grid
-                all_grids_season = GridConfig.query.filter_by(season_id=season_ativa.id).all()
-                t_grid_name = get_grid_name(team)
-                grid_config_found = find_grid_config(t_grid_name, all_grids_season)
-                if grid_config_found:
-                    pts_liquidos = calcular_pontos_totais_piloto(piloto.id, season_ativa.id, grid_config_found.id)
-                else:
-                    # Último recurso: cálculo manual que desconta punições do tribunal
-                    pts_liquidos = pts_piloto
-                    punicoes = Protesto.query.filter_by(acusado_id=piloto.id, status='CONCLUIDO').all()
-                    total_punicoes = sum(calcular_perda(p.veredito_final) for p in punicoes)
-                    pts_liquidos -= total_punicoes
-                    pts_liquidos -= float(piloto.penalidade_campeonato or 0)
+            # Usa a fonte única de verdade para pontos (descontando tribunal e penalidades)
+            g_id = team.grid_id or (team.grid_config.id if team.grid_config else None)
+            pts_liquidos = calcular_pontos_totais_piloto(piloto.id, season_ativa.id, g_id) if g_id else pts_piloto
             
             stats_pilotos.append({
                 'piloto': piloto,
