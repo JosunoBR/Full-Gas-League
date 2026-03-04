@@ -4,6 +4,9 @@
 Sistema de gerenciamento de campeonatos de F1 virtual, com controle de pilotos, equipes, pontuação, punições e estatísticas.
 O sistema suporta múltiplos grids, temporadas, sistema de lastro invertido e cálculo automático de pontuação baseado no tamanho do grid.
 
+**Contato:** [Instagram](https://www.instagram.com/fullgasleague) | [E-mail](mailto:fullgasracingf1@gmail.com)
+**Desenvolvedor:** Josué Nogueira
+
 ## Instalação Local
 1. Crie um ambiente virtual: `python -m venv venv`
 2. Ative o ambiente:
@@ -28,6 +31,11 @@ O sistema utiliza um cálculo **dinâmico** de pontuação. Os pontos salvos no 
 - **Grid Cheio (22 Pilotos):** Pontuação estendida de P1 (35) até P22 (1), com suavização do meio do pelotão.
 - **Punições do Tribunal:** Subtraídas automaticamente do total do piloto no grid específico onde ocorreu o protesto (Leve: -3, Média: -5, Grave: -10).
 - **Penalidades Administrativas:** Subtraídas do total global do piloto na temporada (definidas no perfil do piloto).
+
+### Gestão de Equipes e Reservas
+- **Composição:** Cada equipe suporta 2 pilotos titulares e até **4 pilotos reservas** oficiais.
+- **Visualização:** As tabelas de classificação separam automaticamente Titulares de Reservas. A aba de Reservas não possui limitação de vagas, permitindo listar todos os pilotos vinculados.
+- **Fotos por Grid:** Pilotos podem ter fotos de perfil diferentes para cada grid que participam (ex: macacões diferentes).
 
 ### CNH (Carteira Nacional de Habilitação)
 Sistema global de conduta com base de **25 pontos**:
@@ -75,11 +83,13 @@ Localizados na raiz, devem ser usados para auditoria e migração:
 - `estornar_punicoes.py`: Reverte punições fixas no banco para o novo modelo de cálculo dinâmico.
 - `estornar_penalidades_manuais.py`: Zera penalidades administrativas aplicadas nos perfis.
 - `vincular_grids_temporadas.py`: Migra dados da arquitetura antiga (texto) para a nova (IDs).
+- `migrar_fotos_grid.py`: Converte o endereçamento de fotos de grid de nomes para IDs.
+- `reparar_fotos_grid.py`: Corrige vínculos de fotos baseando-se na temporada ativa.
 
 ## 📜 Padrões de Código (Bíblia)
 Para manter a consistência e segurança do sistema, siga este padrão em todas as rotas de busca:
 
-**Busca de Registros com Blindagem:**
+### 1. Busca de Registros com Blindagem
 ```python
 protesto = db.session.get(Protesto, protest_id) or abort(404)
 ```
