@@ -150,13 +150,13 @@ def overview():
             resultados_season = [r for r in p.race_results if r.race.season_id == season_ativa.id]
             grids_participados_ids = set()
             
-            # 1. Identifica Grids via Equipe Titular (ID com Fallback)
+            # 1. Identifica Grids via Equipe Titular (ID-only)
             teams_season = [t for t in all_season_teams if any(pilot.id == p.id for pilot in t.pilots)]
             for t in teams_season:
                 g_id = t.grid_id
                 if g_id: grids_participados_ids.add(g_id)
             
-            # 2. Identifica Grids via Equipe Reserva (ID com Fallback)
+            # 2. Identifica Grids via Equipe Reserva (ID-only)
             reserves_season = [t for t in all_season_teams if any(pilot.id == p.id for pilot in t.reserves)]
             for t in reserves_season:
                 g_id = t.grid_id

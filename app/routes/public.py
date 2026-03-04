@@ -87,36 +87,24 @@ def home():
             resultados = [r for r in p.race_results if r.race.season_id == season_ativa.id]
             grids_ids_participacao = set()
 
-            # 1. Identifica Grids via Equipe Titular (ID com Fallback)
+            # 1. Identifica Grids via Equipe Titular (ID-only)
             teams_season = [t for t in all_season_teams if any(pilot.id == p.id for pilot in t.pilots)]
             for t in teams_season:
                 if t.grid_id: grids_ids_participacao.add(t.grid_id)
-                else:
-                    # Fallback: Busca o ID da config pelo nome do grid da equipe
-                    cfg = next((c for c in grid_configs if c.nome.upper() == t.grid.upper()), None)
-                    if cfg: grids_ids_participacao.add(cfg.id)
             
-            # 2. Identifica Grids via Equipe Reserva (ID com Fallback)
+            # 2. Identifica Grids via Equipe Reserva (ID-only)
             reserves_season = [t for t in all_season_teams if any(pilot.id == p.id for pilot in t.reserves)]
             for t in reserves_season:
                 if t.grid_id: grids_ids_participacao.add(t.grid_id)
-                else:
-                    cfg = next((c for c in grid_configs if c.nome.upper() == t.grid.upper()), None)
-                    if cfg: grids_ids_participacao.add(cfg.id)
             
-            # 3. Identifica Grids via resultados na temporada (garante inclusão por participação real)
+            # 3. Identifica Grids via resultados na temporada (ID-only)
             for r in resultados:
                 if r.race.grid_id:
                     grids_ids_participacao.add(r.race.grid_id)
-                else:
-                    # Fallback por nome do grid em registros legados
-                    cfg = next((c for c in grid_configs if c.nome.upper() == (r.race.grid or '').upper()), None)
-                    if cfg:
-                        grids_ids_participacao.add(cfg.id)
 
             for g_id in grids_ids_participacao:
                 if g_id in standings:
-                    # Filtra resultados comparando ID ou Nome (Fallback)
+                    # Filtra resultados comparando ID
                     g_cfg_atual = next(c for c in grid_configs if c.id == g_id)
                     res_no_grid = [r for r in resultados if grid_matches(r.race, g_cfg_atual)]
 
@@ -147,13 +135,12 @@ def home():
                     if grid_photo:
                         foto_final = grid_photo.foto_url
 
-                    # Equipe (ID ou Nome)
-                    team = next((t for t in teams_season if t.grid_id == g_id or 
-                                 (not t.grid_id and t.grid.upper() == g_cfg.nome.upper())), None)
+                    # Equipe (ID-only)
+                    team = next((t for t in teams_season if t.grid_id == g_id), None)
                     is_reserve = False
 
                     if not team:
-                        reserve_team = next((t for t in all_season_teams if any(pilot.id == p.id for pilot in t.reserves) and (t.grid_id == g_id or (not t.grid_id and t.grid.upper() == g_cfg.nome.upper()))), None)
+                        reserve_team = next((t for t in all_season_teams if any(pilot.id == p.id for pilot in t.reserves) and t.grid_id == g_id), None)
                         if reserve_team:
                             team = reserve_team
                             is_reserve = True
@@ -205,9 +192,7 @@ def home():
         for t in all_season_teams:
             # Identifica o ID do grid da equipe para a tabela de construtores
             t_grid_id = t.grid_id
-            if not t_grid_id:
-                cfg = next((c for c in grid_configs if c.nome.upper() == t.grid.upper()), None)
-                t_grid_id = cfg.id if cfg else None
+            # Fallback por nome removido para garantir consistência
 
             if t_grid_id and t_grid_id in constructors:
                 stats = team_stats.get(t.id, {'pontos': 0.0, 'vitorias': 0})
@@ -231,9 +216,6 @@ def home():
         all_races = Race.query.filter_by(season_id=season_ativa.id).order_by(Race.data_corrida).all()
         for r in all_races:
             r_grid_id = r.grid_id
-            if not r_grid_id:
-                cfg = next((c for c in grid_configs if c.nome.upper() == r.grid.upper()), None)
-                r_grid_id = cfg.id if cfg else None
             
             if r_grid_id and r_grid_id in calendar:
                 calendar[r_grid_id].append(r)
@@ -246,14 +228,12 @@ def home():
         all_pilots_query = PilotProfile.query.join(User).order_by(PilotProfile.nickname).all()
         for g in grid_configs:
             for p in all_pilots_query:
-                # Verifica se o piloto pertence a este grid via equipe (titular/reserva) ou por resultados reais nesta temporada
-                team = next((t for t in all_season_teams if any(pilot.id == p.id for pilot in t.pilots) and (t.grid_id == g.id or (not t.grid_id and t.grid.upper() == g.nome.upper()))), None)
-                reserve_team = next((t for t in all_season_teams if any(pilot.id == p.id for pilot in t.reserves) and (t.grid_id == g.id or (not t.grid_id and t.grid.upper() == g.nome.upper()))), None)
+                # Verifica se o piloto pertence a este grid via equipe (titular/reserva) ou por resultados reais nesta temporada (ID-only)
+                team = next((t for t in all_season_teams if any(pilot.id == p.id for pilot in t.pilots) and t.grid_id == g.id), None)
+                reserve_team = next((t for t in all_season_teams if any(pilot.id == p.id for pilot in t.reserves) and t.grid_id == g.id), None)
 
                 has_results_in_grid = any(
-                    (rr.race.season_id == season_ativa.id) and (
-                        (rr.race.grid_id == g.id) or (not rr.race.grid_id and (rr.race.grid or '').upper() == g.nome.upper())
-                    )
+                    (rr.race.season_id == season_ativa.id) and (rr.race.grid_id == g.id)
                     for rr in p.race_results
                 )
 
@@ -1025,12 +1005,6 @@ def open_protest():
     # 1. Determina os grids do usuário (IDs e Nomes para compatibilidade)
     user_grid_ids = set()
     user_grid_names = set()
-    
-    for g in user_profile.grid.split(','):
-        g = g.strip()
-        if g.isdigit(): user_grid_ids.add(int(g))
-        else: user_grid_names.add(g.upper())
-
     for t in user_profile.teams:
         if t.grid_id: user_grid_ids.add(t.grid_id)
         if t.grid: user_grid_names.add(t.grid.upper())

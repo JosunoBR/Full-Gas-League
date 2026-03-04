@@ -327,7 +327,7 @@
                                         {% endif %}
 
                                         {# Verifica se o piloto pertence a este grid atualmente. Se não, marca como Reserva/Externo #}
-                                        {% if grid.nome.upper() not in row.piloto.grid.upper() %}
+                                        {% if row.is_reserve %}
                                             <span class="badge bg-secondary border border-dark text-white ms-1" style="font-size: 0.65em; vertical-align: middle;" title="Piloto Reserva ou de outro Grid">R</span>
                                         {% endif %}
                                     </td>
