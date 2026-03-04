@@ -87,6 +87,16 @@ def home():
             resultados = [r for r in p.race_results if r.race.season_id == season_ativa.id]
             grids_ids_participacao = set()
 
+            # 0. Identifica Grids declarados no PERFIL (IDs numéricos, pilot-centric)
+            declared_ids = set()
+            if p.grid:
+                for token in [x.strip() for x in p.grid.split(',') if x.strip()]:
+                    if token.isdigit():
+                        declared_ids.add(int(token))
+            for g_cfg in grid_configs:
+                if g_cfg.id in declared_ids:
+                    grids_ids_participacao.add(g_cfg.id)
+
             # 1. Identifica Grids via Equipe Titular (ID-only)
             teams_season = [t for t in all_season_teams if any(pilot.id == p.id for pilot in t.pilots)]
             for t in teams_season:
@@ -228,23 +238,28 @@ def home():
         all_pilots_query = PilotProfile.query.join(User).order_by(PilotProfile.nickname).all()
         for g in grid_configs:
             for p in all_pilots_query:
-                # Verifica se o piloto pertence a este grid via equipe (titular/reserva) ou por resultados reais nesta temporada (ID-only)
-                team = next((t for t in all_season_teams if any(pilot.id == p.id for pilot in t.pilots) and t.grid_id == g.id), None)
-                reserve_team = next((t for t in all_season_teams if any(pilot.id == p.id for pilot in t.reserves) and t.grid_id == g.id), None)
+                # Critério pilot-centric: declarado no perfil por ID ou tem RESULTADOS neste grid/temporada
+                declared_ids = set()
+                if p.grid:
+                    for token in [x.strip() for x in p.grid.split(',') if x.strip()]:
+                        if token.isdigit():
+                            declared_ids.add(int(token))
 
                 has_results_in_grid = any(
                     (rr.race.season_id == season_ativa.id) and (rr.race.grid_id == g.id)
                     for rr in p.race_results
                 )
 
-                if (team or reserve_team or has_results_in_grid):
+                if (g.id in declared_ids) or has_results_in_grid:
+                    # Equipe é apenas metadado (se existir)
+                    team = next((t for t in all_season_teams if any(pilot.id == p.id for pilot in t.pilots) and t.grid_id == g.id), None)
+
                     foto_final = p.foto_url
                     grid_photo = next((gp for gp in p.grid_photos if hasattr(gp, 'grid_id') and gp.grid_id == g.id), None)
                     if grid_photo:
                         foto_final = grid_photo.foto_url
 
-                    # Mantém apenas titulares no carrossel, como antes
-                    if (team or not reserve_team) and not any(item['data'].id == p.id for item in pilots_by_grid[g.id]):
+                    if not any(item['data'].id == p.id for item in pilots_by_grid[g.id]):
                         pilots_by_grid[g.id].append({'data': p, 'foto_url': foto_final, 'team': team})
 
     # Converte dados para formato JSON-seguro
