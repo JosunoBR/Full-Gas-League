@@ -23,4 +23,5 @@ class Config:
 
     # --- REDES SOCIAIS E CONTATO ---
     INSTAGRAM_URL = 'https://www.instagram.com/fullgasleague?igsh=MTJ4djMxbmZncm1heQ=='
+    YOUTUBE_URL = 'https://www.youtube.com/@FullGasLeagueF1Oficial'
     CONTACT_EMAIL = 'fullgasracingf1@gmail.com'
