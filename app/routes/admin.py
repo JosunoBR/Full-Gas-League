@@ -1196,23 +1196,15 @@ def edit_pilot(pilot_id):
         pilot.user.username = new_nickname # Sincroniza o login do usuário
         pilot.nome_real = request.form.get('nome_real')[:100] # Garante salvar Nome Real
         
-        # CORREÇÃO: O campo 'pilot.grid' é um campo de TEXTO que armazena NOMES de grids.
-        # O formulário envia IDs numéricos. Esta lógica converte os IDs recebidos
-        # para seus respectivos NOMES antes de salvar, evitando a criação de grids numéricos ("1", "2", etc.).
+        # NOVO: PilotProfile.grid passa a armazenar APENAS IDs numéricos de grids (ex.: "1,2").
+        # O formulário envia IDs; salvamos somente IDs (sem nomes) para suportar a Home pilot-centric por ID.
         grid_ids_selecionados = request.form.getlist('grids')
-        grid_names_para_salvar = []
-
+        ids_limpos = []
         if grid_ids_selecionados:
-            # Busca todos os GridConfigs para mapear ID -> Nome de forma eficiente.
-            all_configs = GridConfig.query.all()
-            mapa_id_para_nome = {str(c.id): c.nome for c in all_configs}
-
-            for grid_valor in grid_ids_selecionados:
-                # Se o valor for um ID conhecido, usa o nome. Senão, mantém o valor (ex: 'RESERVA').
-                nome_grid = mapa_id_para_nome.get(grid_valor, grid_valor)
-                grid_names_para_salvar.append(nome_grid)
-        
-        pilot.grid = ",".join(sorted(list(set(grid_names_para_salvar)))) if grid_names_para_salvar else 'SEM_GRID'
+            for val in grid_ids_selecionados:
+                if val and val.strip().isdigit():
+                    ids_limpos.append(str(int(val.strip())))
+        pilot.grid = ",".join(sorted(set(ids_limpos))) if ids_limpos else 'SEM_GRID'
         pilot.telefone = request.form.get('telefone')[:20] if request.form.get('telefone') else None
         
         pontos = request.form.get('pontos_cnh')
