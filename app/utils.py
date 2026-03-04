@@ -195,7 +195,7 @@ def grid_matches(obj, grid_ref):
     Verifica se um objeto (Race, Team, etc) pertence a um grid específico.
     
     Suporta dois modos:
-    - Se grid_ref é int: compara com grid_id, com fallback para nome
+    - Se grid_ref é int: compara estritamente com grid_id
     - Se grid_ref é GridConfig: compara nome normalizado
     
     Args:

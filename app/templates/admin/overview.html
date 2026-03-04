@@ -214,17 +214,17 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {% set count_titular_ov = 1 %}
+                                        {% set ns_titular_ov = namespace(count=1) %}
                                         {% for row in dados[grid.id]['classificacao'] if not row.is_reserve %}
-                                        {% if count_titular_ov <= grid.vagas %}
+                                        {% if ns_titular_ov.count <= grid.vagas %}
                                         <tr>
-                                            <td class="text-center fw-bold ps-3 text-secondary">{{ count_titular_ov }}º</td>
+                                            <td class="text-center fw-bold ps-3 text-secondary">{{ ns_titular_ov.count }}º</td>
                                             <td class="fw-bold">{{ row.piloto.nickname }}</td>
                                             <td class="text-center text-white small">{{ row.vitorias }}</td>
                                             <td class="text-center text-white small">{{ row.podios }}</td>
                                             <td class="text-center fw-bold pe-3 fs-6">{{ '%g' | format(row.pontos|float) }}</td>
                                         </tr>
-                                        {% set count_titular_ov = count_titular_ov + 1 %}
+                                        {% set ns_titular_ov.count = ns_titular_ov.count + 1 %}
                                         {% endif %}
                                         {% else %}
                                         <tr><td colspan="5" class="text-center py-3 text-white">Sem titulares.</td></tr>
@@ -247,16 +247,16 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {% set count_reserva_ov = 1 %}
+                                        {% set ns_reserva_ov = namespace(count=1) %}
                                         {% for row in dados[grid.id]['classificacao'] if row.is_reserve %}
                                         <tr>
-                                            <td class="text-center fw-bold ps-3 text-secondary">{{ count_reserva_ov }}º</td>
+                                            <td class="text-center fw-bold ps-3 text-secondary">{{ ns_reserva_ov.count }}º</td>
                                             <td class="fw-bold">{{ row.piloto.nickname }}</td>
                                             <td class="text-center text-white small">{{ row.vitorias }}</td>
                                             <td class="text-center text-white small">{{ row.podios }}</td>
                                             <td class="text-center fw-bold pe-3 fs-6">{{ '%g' | format(row.pontos|float) }}</td>
                                         </tr>
-                                        {% set count_reserva_ov = count_reserva_ov + 1 %}
+                                        {% set ns_reserva_ov.count = ns_reserva_ov.count + 1 %}
                                         {% else %}
                                         <tr><td colspan="5" class="text-center py-3 text-white">Sem reservas.</td></tr>
                                         {% endfor %}

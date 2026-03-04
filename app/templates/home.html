@@ -218,11 +218,11 @@
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {% set count_titular = 1 %}
+                                                {% set ns_titular = namespace(count=1) %}
                                                 {% for row in standings[grid.id] if not row.is_reserve %}
-                                                {% if count_titular <= grid.vagas %}
+                                                {% if ns_titular.count <= grid.vagas %}
                                                 <tr>
-                                                    <td class="text-center fw-bold text-secondary">{{ count_titular }}</td>
+                                                    <td class="text-center fw-bold text-secondary">{{ ns_titular.count }}</td>
                                                     <td>
                                                         <div class="d-flex align-items-center">
                                                             {% if row.foto_url %}
@@ -247,7 +247,7 @@
                                                     <td class="text-center text-warning">{{ row.vitorias }}</td>
                                                     <td class="text-center fw-bold text-warning">{{ '%g' | format(row.pontos|float) }}</td>
                                                 </tr>
-                                                {% set count_titular = count_titular + 1 %}
+                                                {% set ns_titular.count = ns_titular.count + 1 %}
                                                 {% endif %}
                                                 {% endfor %}
                                             </tbody>
@@ -267,10 +267,10 @@
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {% set count_reserva = 1 %}
+                                                {% set ns_reserva = namespace(count=1) %}
                                                 {% for row in standings[grid.id] if row.is_reserve %}
                                                 <tr>
-                                                    <td class="text-center fw-bold text-secondary">{{ count_reserva }}</td>
+                                                    <td class="text-center fw-bold text-secondary">{{ ns_reserva.count }}</td>
                                                     <td>
                                                         <div class="d-flex align-items-center">
                                                             {% if row.foto_url %}
@@ -289,7 +289,7 @@
                                                     <td class="text-center text-warning">{{ row.vitorias }}</td>
                                                     <td class="text-center fw-bold text-warning">{{ '%g' | format(row.pontos|float) }}</td>
                                                 </tr>
-                                                {% set count_reserva = count_reserva + 1 %}
+                                                {% set ns_reserva.count = ns_reserva.count + 1 %}
                                                 {% endfor %}
                                             </tbody>
                                         </table>

@@ -264,7 +264,7 @@ def overview():
             dados_grids[g_id]['pending_protests'] = Protesto.query.join(Race).filter(
                 Race.season_id == season_ativa.id,
                 Race.grid_id == g_id,
-                Protesto.status == 'PENDENTE'
+                Protesto.status.in_(['AGUARDANDO_DEFESA', 'EM_VOTACAO'])
             ).count()
             
             # pilots with no score in last 3 races
@@ -663,6 +663,10 @@ def close_season(season_id):
     season.ativa = False
     
     # --- HALL OF FAME SNAPSHOT (CONGELAMENTO) ---
+    # Identifica grids usados nesta temporada para limpeza posterior
+    grids_season_rows = db.session.query(Race.grid).filter_by(season_id=season.id).distinct().all()
+    grids_in_season = set([r[0] for r in grids_season_rows])
+
     # Busca as configurações de grid reais da temporada para garantir o uso de IDs
     grid_configs = GridConfig.query.filter_by(season_id=season.id).all()
 

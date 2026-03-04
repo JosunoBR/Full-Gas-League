@@ -841,7 +841,7 @@ def team_profile(team_id):
             wins_piloto = 0
             
             for r in results_pilot:
-                if grid_matches(r.race, team):
+                if grid_matches(r.race, team.grid_config if team.grid_config else team.grid):
                     pts_piloto += r.pontos_ganhos
                     if r.posicao == 1 and not r.dsq:
                         wins_piloto += 1
@@ -1000,8 +1000,11 @@ def update_profile():
 def open_protest():
     if not current_user.pilot_profile: return redirect(url_for('public.home'))
     if request.method == 'POST':
+        etapa_id = request.form.get('race_id')
+        race = db.session.get(Race, etapa_id)
         novo = Protesto(
-            etapa_id=request.form.get('race_id'),
+            etapa_id=etapa_id,
+            grid_id=race.grid_id if race else None,
             acusador_id=current_user.pilot_profile.id,
             acusado_id=request.form.get('acusado_id'),
             video_link=request.form.get('video'),
