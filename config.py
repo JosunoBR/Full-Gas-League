@@ -20,3 +20,7 @@ class Config:
     MAX_CONTENT_LENGTH = 2 * 1024 * 1024 
     # Extensões permitidas
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+
+    # --- REDES SOCIAIS E CONTATO ---
+    INSTAGRAM_URL = 'https://www.instagram.com/fullgasleague?igsh=MTJ4djMxbmZncm1heQ=='
+    CONTACT_EMAIL = 'fullgasracingf1@gmail.com'

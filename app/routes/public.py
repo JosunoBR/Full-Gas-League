@@ -164,8 +164,7 @@ def home():
         # 3. Ordenação e Lastro (ID)
         for g in grid_configs:
             standings[g.id].sort(key=lambda x: (x['pontos'], x['vitorias']), reverse=True)
-            # Limita a exibição ao número de vagas configurado para o grid (ex: 20 ou 22)
-            standings[g.id] = standings[g.id][:g.vagas]
+            # A limitação de vagas agora é aplicada apenas visualmente na aba de Titulares no HTML.
             for i, item in enumerate(standings[g.id]):
                 if g.exibir_lastro:
                     item['carro'] = ORDEM_CARROS[i] if i < len(ORDEM_CARROS) else "McLaren (Extra)"

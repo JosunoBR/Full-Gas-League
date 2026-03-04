@@ -40,6 +40,18 @@
     #pills-tab .nav-link {
         white-space: nowrap;
     }
+    /* sub-pills styles */
+    .nav-pills-sm .nav-link {
+        font-size: 0.7rem;
+        padding: 0.15rem 0.6rem;
+        color: #e0e0e0;
+        border: 1px solid #444;
+        margin-left: 5px;
+    }
+    .nav-pills-sm .nav-link.active {
+        background-color: #E60000 !important;
+        border-color: #E60000;
+    }
 </style>
     <div class="mb-3">
         <h2 class="text-white mb-0"><i class="fa-solid fa-chart-line text-warning"></i> Visão Geral</h2>
@@ -176,34 +188,82 @@
         <div class="row">
             <div class="col-lg-7">
                 <div class="card shadow border-secondary mb-4">
-                    <div class="card-header bg-dark border-secondary">
+                    <div class="card-header bg-dark border-secondary d-flex justify-content-between align-items-center">
                         <h6 class="mb-0 text-white"><i class="fa-solid fa-trophy text-warning"></i> Tabela de Classificação</h6>
+                        <ul class="nav nav-pills nav-pills-sm" id="pills-overview-tab-{{ grid.id }}" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active py-0 px-2 fw-bold" id="pills-titulares-ov-tab-{{ grid.id }}" data-bs-toggle="pill" data-bs-target="#pills-titulares-ov-{{ grid.id }}" type="button" role="tab">Titulares</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link py-0 px-2 fw-bold" id="pills-reservas-ov-tab-{{ grid.id }}" data-bs-toggle="pill" data-bs-target="#pills-reservas-ov-{{ grid.id }}" type="button" role="tab">Reservas</button>
+                            </li>
+                        </ul>
                     </div>
-                    <div class="table-responsive">
-                        <table class="table table-dark table-hover table-sm mb-0 align-middle">
-                            <thead>
-                                <tr class="text-white-50 small">
-                                    <th class="ps-3 text-center">Pos</th>
-                                    <th>Piloto</th>
-                                    <th class="text-center">Vitórias</th>
-                                    <th class="text-center">Pódios</th>
-                                    <th class="text-center pe-3 text-white">Pontos</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for row in dados[grid.id]['classificacao'] %}
-                                <tr>
-                                    <td class="text-center fw-bold ps-3 text-secondary">{{ loop.index }}º</td>
-                                    <td class="fw-bold">{{ row.piloto.nickname }}</td>
-                                    <td class="text-center text-white small">{{ row.vitorias }}</td>
-                                    <td class="text-center text-white small">{{ row.podios }}</td>
-                                    <td class="text-center fw-bold pe-3 fs-6">{{ '%g' | format(row.pontos|float) }}</td>
-                                </tr>
-                                {% else %}
-                                <tr><td colspan="5" class="text-center py-3 text-white">Sem dados.</td></tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                    <div class="tab-content" id="pills-overview-tabContent-{{ grid.id }}">
+                        <!-- Aba Titulares -->
+                        <div class="tab-pane fade show active" id="pills-titulares-ov-{{ grid.id }}" role="tabpanel">
+                            <div class="table-responsive">
+                                <table class="table table-dark table-hover table-sm mb-0 align-middle">
+                                    <thead>
+                                        <tr class="text-white-50 small">
+                                            <th class="ps-3 text-center">Pos</th>
+                                            <th>Piloto</th>
+                                            <th class="text-center">Vitórias</th>
+                                            <th class="text-center">Pódios</th>
+                                            <th class="text-center pe-3 text-white">Pontos</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% set count_titular_ov = 1 %}
+                                        {% for row in dados[grid.id]['classificacao'] if not row.is_reserve %}
+                                        {% if count_titular_ov <= grid.vagas %}
+                                        <tr>
+                                            <td class="text-center fw-bold ps-3 text-secondary">{{ count_titular_ov }}º</td>
+                                            <td class="fw-bold">{{ row.piloto.nickname }}</td>
+                                            <td class="text-center text-white small">{{ row.vitorias }}</td>
+                                            <td class="text-center text-white small">{{ row.podios }}</td>
+                                            <td class="text-center fw-bold pe-3 fs-6">{{ '%g' | format(row.pontos|float) }}</td>
+                                        </tr>
+                                        {% set count_titular_ov = count_titular_ov + 1 %}
+                                        {% endif %}
+                                        {% else %}
+                                        <tr><td colspan="5" class="text-center py-3 text-white">Sem titulares.</td></tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <!-- Aba Reservas -->
+                        <div class="tab-pane fade" id="pills-reservas-ov-{{ grid.id }}" role="tabpanel">
+                            <div class="table-responsive">
+                                <table class="table table-dark table-hover table-sm mb-0 align-middle">
+                                    <thead>
+                                        <tr class="text-white-50 small">
+                                            <th class="ps-3 text-center">Pos</th>
+                                            <th>Piloto</th>
+                                            <th class="text-center">Vitórias</th>
+                                            <th class="text-center">Pódios</th>
+                                            <th class="text-center pe-3 text-white">Pontos</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% set count_reserva_ov = 1 %}
+                                        {% for row in dados[grid.id]['classificacao'] if row.is_reserve %}
+                                        <tr>
+                                            <td class="text-center fw-bold ps-3 text-secondary">{{ count_reserva_ov }}º</td>
+                                            <td class="fw-bold">{{ row.piloto.nickname }}</td>
+                                            <td class="text-center text-white small">{{ row.vitorias }}</td>
+                                            <td class="text-center text-white small">{{ row.podios }}</td>
+                                            <td class="text-center fw-bold pe-3 fs-6">{{ '%g' | format(row.pontos|float) }}</td>
+                                        </tr>
+                                        {% set count_reserva_ov = count_reserva_ov + 1 %}
+                                        {% else %}
+                                        <tr><td colspan="5" class="text-center py-3 text-white">Sem reservas.</td></tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

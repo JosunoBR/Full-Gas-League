@@ -68,7 +68,8 @@ def converter_overview_para_json(dados_grids):
                 'vitorias': row.get('vitorias'),
                 'podios': row.get('podios'),
                 'pontos': row.get('pontos'),
-                'team_name': row.get('team_name')
+                'team_name': row.get('team_name'),
+                'is_reserve': row.get('is_reserve', False)
             })
         # evol_chart
         resultado[grid_id]['evol_chart'] = []
@@ -181,6 +182,13 @@ def overview():
                     vitorias = sum(1 for r in res_no_grid if r.posicao == 1 and not r.dsq)
                     podios = sum(1 for r in res_no_grid if r.posicao in [1, 2, 3] and not r.dsq)
                     
+                    # Determina se é reserva neste grid específico
+                    is_reserve = False
+                    # Se não está em nenhuma equipe titular deste grid, mas está em uma reserva, é reserva
+                    is_titular = any(t.grid_id == g_id or (not t.grid_id and find_grid_config(t.grid, grid_configs) and find_grid_config(t.grid, grid_configs).id == g_id) for t in teams_season)
+                    if not is_titular:
+                        is_reserve = any(t.grid_id == g_id or (not t.grid_id and find_grid_config(t.grid, grid_configs) and find_grid_config(t.grid, grid_configs).id == g_id) for t in reserves_season)
+
                     info = {
                         'piloto': p, 
                         'pontos': pontos_totais, 
@@ -188,7 +196,8 @@ def overview():
                         'podios': podios, 
                         'cnh': p.pontos_cnh, 
                         'advertencias': p.advertencias_acumuladas,
-                        'punicoes': my_punicoes_grid
+                        'punicoes': my_punicoes_grid,
+                        'is_reserve': is_reserve
                     }
                     
                     # Evita duplicatas
@@ -200,10 +209,6 @@ def overview():
             # Ordena por pontos e vitórias
             dados_grids[g_id]['classificacao'].sort(key=lambda x: (x['pontos'], x['vitorias']), reverse=True)
             
-            # Limita a quantidade de pilotos exibidos com base nas vagas do grid (20 ou 22)
-            vagas = dados_grids[g_id]['config'].vagas
-            dados_grids[g_id]['classificacao'] = dados_grids[g_id]['classificacao'][:vagas]
-
             # A tabela de disciplina deve mostrar os mesmos pilotos do grid limitado, mas ordenados por CNH
             dados_grids[g_id]['disciplina'] = list(dados_grids[g_id]['classificacao'])
             dados_grids[g_id]['disciplina'].sort(key=lambda x: x['cnh'])
@@ -211,7 +216,7 @@ def overview():
             # Estatísticas para o Dashboard do Grid
             classif = dados_grids[g_id]['classificacao']
             dados_grids[g_id]['stats'] = {
-                'total_pilotos': len(classif),
+                'total_pilotos': len([x for x in classif if not x.get('is_reserve')]),
                 'lider': classif[0]['piloto'].nickname if classif else 'N/A',
                 'corridas_concluidas': Race.query.filter_by(season_id=season_ativa.id, grid_id=g_id, status='Concluida').count()
             }
@@ -1547,6 +1552,16 @@ def edit_team(team_id):
         if reserve2_id:
             r2 = PilotProfile.query.get(reserve2_id)
             if r2: team.reserves.append(r2)
+            
+        reserve3_id = request.form.get('reserve_pilot_3')
+        if reserve3_id:
+            r3 = PilotProfile.query.get(reserve3_id)
+            if r3: team.reserves.append(r3)
+            
+        reserve4_id = request.form.get('reserve_pilot_4')
+        if reserve4_id:
+            r4 = PilotProfile.query.get(reserve4_id)
+            if r4: team.reserves.append(r4)
             
         db.session.commit()
         flash('Equipe atualizada!', 'success')

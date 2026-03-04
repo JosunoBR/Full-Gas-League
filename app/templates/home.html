@@ -192,52 +192,109 @@
                     <!-- Pilotos -->
                     <div class="col-lg-8 mb-4">
                         <div class="card bg-dark border-silver shadow">
-                            <div class="card-header bg-dark border-secondary"><h5 class="text-white mb-0 fw-bold">Pilotos</h5></div>
-                            <div class="table-responsive">
-                                <table class="table table-dark table-hover align-middle mb-0">
-                                    <thead>
-                                        <tr class="text-white-50 small">
-                                            <th class="text-center">Pos</th>
-                                            <th>Piloto</th>
-                                            <th>Carro (Lastro)</th>
-                                            <th class="text-center">Vitórias</th>
-                                            <th class="text-center">Pts</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for row in standings[grid.id] %}
-                                        <tr>
-                                            <td class="text-center fw-bold text-secondary">{{ loop.index }}</td>
-                                            <td>
-                                                <div class="d-flex align-items-center">
-                                                    {% if row.foto_url %}
-                                                        <img src="{{ url_for('static', filename='uploads/' + row.foto_url) }}" class="rounded-circle me-2" width="30" height="30" style="object-fit: cover;">
-                                                    {% else %}
-                                                        <i class="fa-solid fa-circle-user text-secondary me-2 fa-lg"></i>
-                                                    {% endif %}
-                                                    <div>
+                            <div class="card-header bg-dark border-secondary d-flex justify-content-between align-items-center">
+                                <h5 class="text-white mb-0 fw-bold">Pilotos</h5>
+                                <ul class="nav nav-pills nav-pills-sm" id="pills-tab-{{ grid.id }}" role="tablist">
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link active py-1 px-3 fw-bold" id="pills-titulares-tab-{{ grid.id }}" data-bs-toggle="pill" data-bs-target="#pills-titulares-{{ grid.id }}" type="button" role="tab">Titulares</button>
+                                    </li>
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link py-1 px-3 fw-bold" id="pills-reservas-tab-{{ grid.id }}" data-bs-toggle="pill" data-bs-target="#pills-reservas-{{ grid.id }}" type="button" role="tab">Reservas</button>
+                                    </li>
+                                </ul>
+                            </div>
+                            <div class="tab-content" id="pills-tabContent-{{ grid.id }}">
+                                <!-- Aba Titulares -->
+                                <div class="tab-pane fade show active" id="pills-titulares-{{ grid.id }}" role="tabpanel">
+                                    <div class="table-responsive">
+                                        <table class="table table-dark table-hover align-middle mb-0">
+                                            <thead>
+                                                <tr class="text-white-50 small">
+                                                    <th class="text-center">Pos</th>
+                                                    <th>Piloto</th>
+                                                    <th>Carro (Lastro)</th>
+                                                    <th class="text-center">Vitórias</th>
+                                                    <th class="text-center">Pts</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% set count_titular = 1 %}
+                                                {% for row in standings[grid.id] if not row.is_reserve %}
+                                                {% if count_titular <= grid.vagas %}
+                                                <tr>
+                                                    <td class="text-center fw-bold text-secondary">{{ count_titular }}</td>
+                                                    <td>
                                                         <div class="d-flex align-items-center">
-                                                            <a href="{{ url_for('public.public_profile', pilot_id=row.piloto.id) }}" class="text-white text-decoration-none fw-bold">{{ row.piloto.nome_real }}</a>
-                                                            {% if row.is_reserve %}
-                                                                <span class="badge bg-secondary ms-2" title="Piloto Reserva" style="font-size: 0.65rem;">R</span>
+                                                            {% if row.foto_url %}
+                                                                <img src="{{ url_for('static', filename='uploads/' + row.foto_url) }}" class="rounded-circle me-2" width="30" height="30" style="object-fit: cover;">
+                                                            {% else %}
+                                                                <i class="fa-solid fa-circle-user text-secondary me-2 fa-lg"></i>
                                                             {% endif %}
-                                                            {% if row.quali_ban %}
-                                                                <span class="badge bg-danger ms-2" title="Quali Ban: Proibido de participar da classificação na próxima etapa" style="font-size: 0.65rem;">
-                                                                    <i class="fa-solid fa-ban me-1"></i>QUALI BAN
-                                                                </span>
-                                                            {% endif %}
+                                                            <div>
+                                                                <div class="d-flex align-items-center">
+                                                                    <a href="{{ url_for('public.public_profile', pilot_id=row.piloto.id) }}" class="text-white text-decoration-none fw-bold">{{ row.piloto.nome_real }}</a>
+                                                                    {% if row.quali_ban %}
+                                                                        <span class="badge bg-danger ms-2" title="Quali Ban: Proibido de participar da classificação na próxima etapa" style="font-size: 0.65rem;">
+                                                                            <i class="fa-solid fa-ban me-1"></i>QUALI BAN
+                                                                        </span>
+                                                                    {% endif %}
+                                                                </div>
+                                                                <small class="text-white-50">{{ row.piloto.nickname }}</small>
+                                                            </div>
                                                         </div>
-                                                        <small class="text-white-50">{{ row.piloto.nickname }}</small>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td class="small text-white-50">{{ row.carro }}</td>
-                                            <td class="text-center text-warning">{{ row.vitorias }}</td>
-                                            <td class="text-center fw-bold text-warning">{{ '%g' | format(row.pontos|float) }}</td>
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
+                                                    </td>
+                                                    <td class="small text-white-50">{{ row.carro }}</td>
+                                                    <td class="text-center text-warning">{{ row.vitorias }}</td>
+                                                    <td class="text-center fw-bold text-warning">{{ '%g' | format(row.pontos|float) }}</td>
+                                                </tr>
+                                                {% set count_titular = count_titular + 1 %}
+                                                {% endif %}
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <!-- Aba Reservas -->
+                                <div class="tab-pane fade" id="pills-reservas-{{ grid.id }}" role="tabpanel">
+                                    <div class="table-responsive">
+                                        <table class="table table-dark table-hover align-middle mb-0">
+                                            <thead>
+                                                <tr class="text-white-50 small">
+                                                    <th class="text-center">Pos</th>
+                                                    <th>Piloto</th>
+                                                    <th class="text-center">Vitórias</th>
+                                                    <th class="text-center">Pts</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% set count_reserva = 1 %}
+                                                {% for row in standings[grid.id] if row.is_reserve %}
+                                                <tr>
+                                                    <td class="text-center fw-bold text-secondary">{{ count_reserva }}</td>
+                                                    <td>
+                                                        <div class="d-flex align-items-center">
+                                                            {% if row.foto_url %}
+                                                                <img src="{{ url_for('static', filename='uploads/' + row.foto_url) }}" class="rounded-circle me-2" width="30" height="30" style="object-fit: cover;">
+                                                            {% else %}
+                                                                <i class="fa-solid fa-circle-user text-secondary me-2 fa-lg"></i>
+                                                            {% endif %}
+                                                            <div>
+                                                                <div class="d-flex align-items-center">
+                                                                    <a href="{{ url_for('public.public_profile', pilot_id=row.piloto.id) }}" class="text-white text-decoration-none fw-bold">{{ row.piloto.nome_real }}</a>
+                                                                </div>
+                                                                <small class="text-white-50">{{ row.piloto.nickname }}</small>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td class="text-center text-warning">{{ row.vitorias }}</td>
+                                                    <td class="text-center fw-bold text-warning">{{ '%g' | format(row.pontos|float) }}</td>
+                                                </tr>
+                                                {% set count_reserva = count_reserva + 1 %}
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         
@@ -454,6 +511,19 @@
     .nav-pills .nav-link.active {
         background-color: #E60000 !important; /* Fundo vermelho */
         color: #fff !important;
+    }
+
+    /* Estilo para sub-pills dentro dos cards */
+    .nav-pills-sm .nav-link {
+        font-size: 0.75rem;
+        padding: 0.2rem 0.8rem;
+        color: #e0e0e0;
+        border: 1px solid #444;
+        margin-left: 5px;
+    }
+    .nav-pills-sm .nav-link.active {
+        background-color: #E60000 !important;
+        border-color: #E60000;
     }
 
     /* Estilo do Card de Piloto */

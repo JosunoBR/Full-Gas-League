@@ -142,6 +142,39 @@
                         </div>
                     </div>
 
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <div class="card bg-dark border border-secondary h-100">
+                                <div class="card-body">
+                                    <label class="form-label text-white-50 fw-bold mb-2 small">Reserva 3</label>
+                                    <select name="reserve_pilot_3" class="form-select bg-secondary text-white border-0">
+                                        <option value="">-- Nenhum --</option>
+                                        {% for p in pilots %}
+                                            <option value="{{ p.id }}" {% if team.reserves|length > 2 and team.reserves[2].id == p.id %}selected{% endif %}>
+                                                {{ p.nickname }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card bg-dark border border-secondary h-100">
+                                <div class="card-body">
+                                    <label class="form-label text-white-50 fw-bold mb-2 small">Reserva 4</label>
+                                    <select name="reserve_pilot_4" class="form-select bg-secondary text-white border-0">
+                                        <option value="">-- Nenhum --</option>
+                                        {% for p in pilots %}
+                                            <option value="{{ p.id }}" {% if team.reserves|length > 3 and team.reserves[3].id == p.id %}selected{% endif %}>
+                                                {{ p.nickname }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="d-grid gap-2">
                         <button type="submit" class="btn btn-success fw-bold py-2">SALVAR ALTERAÇÕES</button>
                     </div>

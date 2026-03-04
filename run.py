@@ -34,7 +34,11 @@ def load_user(user_id):
 
 @app.context_processor
 def inject_now():
-    return {'now_year': datetime.now(timezone.utc).year}
+    return {
+        'now_year': datetime.now(timezone.utc).year,
+        'instagram_url': app.config.get('INSTAGRAM_URL'),
+        'contact_email': app.config.get('CONTACT_EMAIL')
+    }
 
 # Registro das Rotas (Blueprints)
 app.register_blueprint(public_bp)
