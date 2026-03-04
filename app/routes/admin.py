@@ -153,20 +153,19 @@ def overview():
             # 1. Identifica Grids via Equipe Titular (ID com Fallback)
             teams_season = [t for t in all_season_teams if any(pilot.id == p.id for pilot in t.pilots)]
             for t in teams_season:
-                g_id = t.grid_id or (find_grid_config(t.grid, grid_configs).id if find_grid_config(t.grid, grid_configs) else None)
+                g_id = t.grid_id
                 if g_id: grids_participados_ids.add(g_id)
             
             # 2. Identifica Grids via Equipe Reserva (ID com Fallback)
             reserves_season = [t for t in all_season_teams if any(pilot.id == p.id for pilot in t.reserves)]
             for t in reserves_season:
-                g_id = t.grid_id or (find_grid_config(t.grid, grid_configs).id if find_grid_config(t.grid, grid_configs) else None)
+                g_id = t.grid_id
                 if g_id: grids_participados_ids.add(g_id)
 
-            # 3. Identifica Grids via Perfil (Caso o piloto ainda não tenha equipe na temporada)
-            p_grid_entries = [x.strip().upper() for x in p.grid.split(',')]
-            for g_cfg in grid_configs:
-                if str(g_cfg.id) in p_grid_entries or g_cfg.nome.upper() in p_grid_entries:
-                    grids_participados_ids.add(g_cfg.id)
+            # 3. Identifica Grids via resultados na temporada (ID-only)
+            for r in resultados_season:
+                if r.race.grid_id:
+                    grids_participados_ids.add(r.race.grid_id)
 
             for g_id in grids_participados_ids:
                 if g_id in dados_grids:
@@ -185,9 +184,9 @@ def overview():
                     # Determina se é reserva neste grid específico
                     is_reserve = False
                     # Se não está em nenhuma equipe titular deste grid, mas está em uma reserva, é reserva
-                    is_titular = any(t.grid_id == g_id or (not t.grid_id and find_grid_config(t.grid, grid_configs) and find_grid_config(t.grid, grid_configs).id == g_id) for t in teams_season)
+                    is_titular = any(t.grid_id == g_id for t in teams_season)
                     if not is_titular:
-                        is_reserve = any(t.grid_id == g_id or (not t.grid_id and find_grid_config(t.grid, grid_configs) and find_grid_config(t.grid, grid_configs).id == g_id) for t in reserves_season)
+                        is_reserve = any(t.grid_id == g_id for t in reserves_season)
 
                     info = {
                         'piloto': p, 
@@ -341,20 +340,16 @@ def export_classification():
         grids = set()
         teams_season = [t for t in all_season_teams if any(pilot.id == p.id for pilot in t.pilots)]
         for t in teams_season:
-            if t.grid_id: grids.add(t.grid_id)
-            else:
-                cfg = GridConfig.query.filter(func.upper(GridConfig.nome) == t.grid.upper(), GridConfig.season_id == season_id).first()
-                if cfg: grids.add(cfg.id)
+            if t.grid_id:
+                grids.add(t.grid_id)
         reserves = [t for t in all_season_teams if any(pilot.id == p.id for pilot in t.reserves)]
         for t in reserves:
-            if t.grid_id: grids.add(t.grid_id)
-            else:
-                cfg = GridConfig.query.filter(func.upper(GridConfig.nome) == t.grid.upper(), GridConfig.season_id == season_id).first()
-                if cfg: grids.add(cfg.id)
-        entries = [x.strip().upper() for x in p.grid.split(',')]
-        for g in GridConfig.query.filter_by(season_id=season_id).all():
-            if str(g.id) in entries or g.nome.upper() in entries:
-                grids.add(g.id)
+            if t.grid_id:
+                grids.add(t.grid_id)
+        # Incluir grids pelos resultados desta temporada (ID-only)
+        for r in resultados_season:
+            if r.race.grid_id:
+                grids.add(r.race.grid_id)
         if grid_id not in grids:
             continue
 
@@ -924,8 +919,8 @@ def generate_grid_text(race_id):
     
     pilotos = []
     for p in all_pilots:
-        # Inclui se tiver o grid no perfil OU se tiver equipe neste grid (para temporadas paralelas)
-        if (race.grid_config and race.grid_config.nome.upper() in [g.strip().upper() for g in p.grid.split(',')]) or any(t.grid_id == race.grid_id for t in p.teams):
+        # Inclui somente se tiver equipe neste grid (ID-only)
+        if any(t.grid_id == race.grid_id for t in p.teams):
             pilotos.append(p)
     
     ranking = []
@@ -1107,22 +1102,10 @@ def race_results(race_id):
     titulares_ids = set()
 
     for p in all_pilots:
-        # Verifica se o piloto pertence ao grid (via ID da equipe ou texto do perfil)
-        grids_profile = [g.strip().upper() for g in p.grid.split(',')]
-        r_gname = (race.grid_config.nome if race.grid_config else race.grid).upper()
-        has_team_in_grid = any(t.grid_id == race.grid_id for t in p.teams) if race.grid_id else any(t.grid.upper() == r_gname for t in p.teams)
-        
-        if r_gname in grids_profile or has_team_in_grid:
-            # Tenta encontrar a equipe exata para este grid
-            if race.grid_id:
-                team = next((t for t in p.teams if t.grid_id == race.grid_id), None)
-            else:
-                team = next((t for t in p.teams if t.grid.upper() == r_gname), None)
-            
-            # Fallback: Se não achou (ex: mudou de temporada), pega a primeira equipe disponível
-            if not team and p.teams:
-                team = p.teams[0]
-                
+        # Verifica se o piloto pertence ao grid via equipe (ID-only)
+        has_team_in_grid = any(t.grid_id == race.grid_id for t in p.teams)
+        if has_team_in_grid:
+            team = next((t for t in p.teams if t.grid_id == race.grid_id), None)
             titulares.append({'piloto': p, 'team': team})
             titulares_ids.add(p.id)
     
@@ -1575,22 +1558,12 @@ def edit_team(team_id):
     # E que não estejam em outra equipe DO MESMO GRID
     all_pilots = PilotProfile.query.join(User).order_by(PilotProfile.nickname).all()
     
-    # Filtra pilotos que já estão em OUTRA equipe deste mesmo grid
+    # Filtra pilotos elegíveis por ID do grid: não vinculados a outra equipe do mesmo grid nesta temporada
     final_pilots = []
     for p in all_pilots:
-        # Verifica se o piloto participa deste grid (Ainda usa string do perfil por enquanto)
-        p_grids = [g.strip().upper() for g in p.grid.split(',')]
-        t_grid_name = team.grid.upper()
-        
-        if t_grid_name in p_grids:
-            # Verifica se já tem equipe NESTE grid via grid_id (ou nome para legado)
-            if team.grid_id:
-                team_in_grid = next((t for t in p.teams if t.grid_id == team.grid_id), None)
-                is_reserve_here = next((t for t in p.reserve_teams if t.grid_id == team.grid_id and t.id == team.id), None)
-            else:
-                team_in_grid = next((t for t in p.teams if t.grid.upper() == t_grid_name), None)
-                is_reserve_here = next((t for t in p.reserve_teams if t.grid.upper() == t_grid_name and t.id == team.id), None)
-            
+        if team.grid_id:
+            team_in_grid = next((t for t in p.teams if t.grid_id == team.grid_id and t.season_id == team.season_id), None)
+            is_reserve_here = next((t for t in p.reserve_teams if t.grid_id == team.grid_id and t.id == team.id), None)
             if (team_in_grid is None or team_in_grid.id == team.id) or is_reserve_here:
                 final_pilots.append(p)
 
