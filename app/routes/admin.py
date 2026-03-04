@@ -343,13 +343,13 @@ def export_classification():
         for t in teams_season:
             if t.grid_id: grids.add(t.grid_id)
             else:
-                cfg = GridConfig.query.filter_by(nome=t.grid.upper(), season_id=season_id).first()
+                cfg = GridConfig.query.filter(func.upper(GridConfig.nome) == t.grid.upper(), GridConfig.season_id == season_id).first()
                 if cfg: grids.add(cfg.id)
         reserves = [t for t in all_season_teams if any(pilot.id == p.id for pilot in t.reserves)]
         for t in reserves:
             if t.grid_id: grids.add(t.grid_id)
             else:
-                cfg = GridConfig.query.filter_by(nome=t.grid.upper(), season_id=season_id).first()
+                cfg = GridConfig.query.filter(func.upper(GridConfig.nome) == t.grid.upper(), GridConfig.season_id == season_id).first()
                 if cfg: grids.add(cfg.id)
         entries = [x.strip().upper() for x in p.grid.split(',')]
         for g in GridConfig.query.filter_by(season_id=season_id).all():

@@ -104,11 +104,15 @@ def home():
                     cfg = next((c for c in grid_configs if c.nome.upper() == t.grid.upper()), None)
                     if cfg: grids_ids_participacao.add(cfg.id)
             
-            # 3. Identifica Grids via Perfil (Caso o piloto ainda não tenha equipe na temporada)
-            p_grid_entries = [x.strip().upper() for x in p.grid.split(',')]
-            for g_cfg in grid_configs:
-                if str(g_cfg.id) in p_grid_entries or g_cfg.nome.upper() in p_grid_entries:
-                    grids_ids_participacao.add(g_cfg.id)
+            # 3. Identifica Grids via resultados na temporada (garante inclusão por participação real)
+            for r in resultados:
+                if r.race.grid_id:
+                    grids_ids_participacao.add(r.race.grid_id)
+                else:
+                    # Fallback por nome do grid em registros legados
+                    cfg = next((c for c in grid_configs if c.nome.upper() == (r.race.grid or '').upper()), None)
+                    if cfg:
+                        grids_ids_participacao.add(cfg.id)
 
             for g_id in grids_ids_participacao:
                 if g_id in standings:
@@ -242,18 +246,24 @@ def home():
         all_pilots_query = PilotProfile.query.join(User).order_by(PilotProfile.nickname).all()
         for g in grid_configs:
             for p in all_pilots_query:
-                # Verifica se o piloto pertence a este grid ID ou Nome no perfil, ou se tem equipe
-                p_grid_entries = [x.strip().upper() for x in p.grid.split(',')]
+                # Verifica se o piloto pertence a este grid via equipe (titular/reserva) ou por resultados reais nesta temporada
                 team = next((t for t in all_season_teams if any(pilot.id == p.id for pilot in t.pilots) and (t.grid_id == g.id or (not t.grid_id and t.grid.upper() == g.nome.upper()))), None)
+                reserve_team = next((t for t in all_season_teams if any(pilot.id == p.id for pilot in t.reserves) and (t.grid_id == g.id or (not t.grid_id and t.grid.upper() == g.nome.upper()))), None)
 
-                if str(g.id) in p_grid_entries or g.nome.upper() in p_grid_entries or team:
+                has_results_in_grid = any(
+                    (rr.race.season_id == season_ativa.id) and (
+                        (rr.race.grid_id == g.id) or (not rr.race.grid_id and (rr.race.grid or '').upper() == g.nome.upper())
+                    )
+                    for rr in p.race_results
+                )
+
+                if (team or reserve_team or has_results_in_grid):
                     foto_final = p.foto_url
                     grid_photo = next((gp for gp in p.grid_photos if hasattr(gp, 'grid_id') and gp.grid_id == g.id), None)
                     if grid_photo:
                         foto_final = grid_photo.foto_url
-                        
-                    reserve_team = next((t for t in all_season_teams if any(pilot.id == p.id for pilot in t.reserves) and (t.grid_id == g.id or (not t.grid_id and t.grid.upper() == g.nome.upper()))), None)
 
+                    # Mantém apenas titulares no carrossel, como antes
                     if (team or not reserve_team) and not any(item['data'].id == p.id for item in pilots_by_grid[g.id]):
                         pilots_by_grid[g.id].append({'data': p, 'foto_url': foto_final, 'team': team})
 
@@ -462,7 +472,7 @@ def public_profile(pilot_id):
                                  ((t.grid_config and t.grid_config.nome == current_context['grid']) or t.grid == current_context['grid'])), None)
     
     if current_context:
-        cnh_info = perfil.get_cnh_info(current_context['season_id'], current_context['grid'])
+        cnh_info = perfil.get_cnh_info(current_context['season_id'], current_context['grid_id'])
         perfil.pontos_cnh = cnh_info['cnh']
         perfil.advertencias_acumuladas = cnh_info['advertencias']
         
@@ -614,7 +624,7 @@ def my_profile():
                                  ((t.grid_config and t.grid_config.nome == current_context['grid']) or t.grid == current_context['grid'])), None)
 
     if current_context:
-        cnh_info = perfil.get_cnh_info(current_context['season_id'], current_context['grid'])
+        cnh_info = perfil.get_cnh_info(current_context['season_id'], current_context['grid_id'])
         perfil.pontos_cnh = cnh_info['cnh']
         perfil.advertencias_acumuladas = cnh_info['advertencias']
         
@@ -715,14 +725,6 @@ def my_profile():
             grids_corridos = [(r.race.grid_config.nome if r.race.grid_config else r.race.grid) for r in resultados_na_season]
             grid_predominante = max(set(grids_corridos), key=grids_corridos.count) if grids_corridos else "N/A"
             historico_carreira.append({'season_nome': s.nome, 'grid': grid_predominante, 'pontos': pts, 'vitorias': vitorias})
-
-    ultimo_p = Protesto.query.filter_by(acusado_id=perfil.id, status='CONCLUIDO')\
-        .order_by(Protesto.data_fechamento.desc()).first()
-    quali_ban = False
-    if ultimo_p and ultimo_p.veredito_final in ['MEDIA', 'GRAVE']:
-        ultima_res = RaceResult.query.join(Race).filter(RaceResult.pilot_id == perfil.id, Race.status == 'Concluida').order_by(Race.data_corrida.desc()).first()
-        if not ultima_res or ultimo_p.data_fechamento.date() >= ultima_res.race.data_corrida:
-            quali_ban = True
 
     return render_template('pilot/profile.html', 
                            perfil=perfil,
