@@ -137,13 +137,11 @@ def home():
                         if not ultima_res or ultimo_p.data_fechamento.date() >= ultima_res.race.data_corrida:
                             quali_ban = True
 
-                    # Foto por Grid (Filtro pelo nome do contexto atual)
-                    g_cfg = next(c for c in grid_configs if c.id == g_id)
+                    # Foto por Grid (Filtro pelo ID do grid)
                     foto_final = p.foto_url
-                    for gp in p.grid_photos:
-                        if gp.grid.upper() == g_cfg.nome.upper():
-                            foto_final = gp.foto_url
-                            break
+                    grid_photo = next((gp for gp in p.grid_photos if hasattr(gp, 'grid_id') and gp.grid_id == g_id), None)
+                    if grid_photo:
+                        foto_final = grid_photo.foto_url
 
                     # Equipe (ID ou Nome)
                     team = next((t for t in teams_season if t.grid_id == g_id or 
@@ -251,11 +249,10 @@ def home():
 
                 if str(g.id) in p_grid_entries or g.nome.upper() in p_grid_entries or team:
                     foto_final = p.foto_url
-                    for gp in p.grid_photos:
-                        if gp.grid.upper() == g.nome.upper():
-                            foto_final = gp.foto_url
-                            break
-
+                    grid_photo = next((gp for gp in p.grid_photos if hasattr(gp, 'grid_id') and gp.grid_id == g.id), None)
+                    if grid_photo:
+                        foto_final = grid_photo.foto_url
+                        
                     reserve_team = next((t for t in all_season_teams if any(pilot.id == p.id for pilot in t.reserves) and (t.grid_id == g.id or (not t.grid_id and t.grid.upper() == g.nome.upper()))), None)
 
                     if (team or not reserve_team) and not any(item['data'].id == p.id for item in pilots_by_grid[g.id]):
@@ -447,10 +444,13 @@ def public_profile(pilot_id):
         current_context = next((c for c in available_contexts if c['grid'] == default_grid), available_contexts[0])
     
     quali_ban = False
+    # Lógica de Foto por Grid (baseada em ID)
     if current_context:
-        for gp in perfil.grid_photos:
-            if gp.grid == current_context['grid']:
-                perfil.foto_url = gp.foto_url
+        grid_id_contexto = current_context.get('grid_id')
+        if grid_id_contexto:
+            grid_photo = next((gp for gp in perfil.grid_photos if hasattr(gp, 'grid_id') and gp.grid_id == grid_id_contexto), None)
+            if grid_photo:
+                perfil.foto_url = grid_photo.foto_url
     
     current_team = None
     if current_context:
@@ -597,10 +597,13 @@ def my_profile():
         current_context = next((c for c in available_contexts if c['grid'] == default_grid), available_contexts[0])
     
     quali_ban = False
+    # Lógica de Foto por Grid (baseada em ID)
     if current_context:
-        for gp in perfil.grid_photos:
-            if gp.grid == current_context['grid']:
-                perfil.foto_url = gp.foto_url
+        grid_id_contexto = current_context.get('grid_id')
+        if grid_id_contexto:
+            grid_photo = next((gp for gp in perfil.grid_photos if hasattr(gp, 'grid_id') and gp.grid_id == grid_id_contexto), None)
+            if grid_photo:
+                perfil.foto_url = grid_photo.foto_url
     
     current_team = None
     if current_context:
@@ -956,25 +959,31 @@ def update_profile():
             file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], nome))
             current_user.pilot_profile.foto_url = nome
             
-    grid_photo_target = request.form.get('grid_photo_target')
-    if grid_photo_target and 'grid_photo_file' in request.files:
-        p_grids = [g.strip() for g in current_user.pilot_profile.grid.split(',')]
-        if grid_photo_target in p_grids:
-            g_file = request.files['grid_photo_file']
-            if g_file and g_file.filename != '' and allowed_file(g_file.filename):
-                old_gp = PilotGridPhoto.query.filter_by(pilot_id=current_user.pilot_profile.id, grid=grid_photo_target).first()
-                if old_gp:
-                    old_path = os.path.join(current_app.config['UPLOAD_FOLDER'], old_gp.foto_url)
-                    if os.path.exists(old_path): os.remove(old_path)
-                    db.session.delete(old_gp)
-                
-                ext = g_file.filename.rsplit('.', 1)[1].lower()
-                timestamp = int(datetime.utcnow().timestamp())
-                nome_gp = f"piloto_{current_user.pilot_profile.id}_{grid_photo_target}_{timestamp}.{ext}"
-                g_file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], nome_gp))
-                
-                new_gp = PilotGridPhoto(pilot_id=current_user.pilot_profile.id, grid=grid_photo_target, foto_url=nome_gp)
-                db.session.add(new_gp)
+    # Upload de foto específica por grid (baseado em ID)
+    grid_photo_target_id = request.form.get('grid_photo_target', type=int)
+    if grid_photo_target_id and 'grid_photo_file' in request.files:
+        g_file = request.files['grid_photo_file']
+        if g_file and g_file.filename != '' and allowed_file(g_file.filename):
+            # Busca e substitui a foto anterior para este grid_id
+            old_gp = PilotGridPhoto.query.filter_by(pilot_id=current_user.pilot_profile.id, grid_id=grid_photo_target_id).first()
+            if old_gp:
+                old_path = os.path.join(current_app.config['UPLOAD_FOLDER'], old_gp.foto_url)
+                if os.path.exists(old_path): os.remove(old_path)
+                db.session.delete(old_gp)
+            
+            ext = g_file.filename.rsplit('.', 1)[1].lower()
+            timestamp = int(datetime.utcnow().timestamp())
+
+            # Usa o nome do grid para um nome de arquivo mais descritivo
+            grid_cfg = db.session.get(GridConfig, grid_photo_target_id)
+            grid_name_for_file = grid_cfg.nome.replace(" ", "_") if grid_cfg else f"grid_{grid_photo_target_id}"
+
+            nome_gp = f"piloto_{current_user.pilot_profile.id}_{grid_name_for_file}_{timestamp}.{ext}"
+            g_file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], nome_gp))
+            
+            # Salva a nova foto com o grid_id
+            new_gp = PilotGridPhoto(pilot_id=current_user.pilot_profile.id, grid_id=grid_photo_target_id, foto_url=nome_gp)
+            db.session.add(new_gp)
 
     delete_gp_id = request.form.get('delete_grid_photo_id')
     if delete_gp_id:

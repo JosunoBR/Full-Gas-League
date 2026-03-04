@@ -658,13 +658,13 @@ def close_season(season_id):
     season.ativa = False
     
     # --- HALL OF FAME SNAPSHOT (CONGELAMENTO) ---
-    # Identifica grids usados na temporada
-    grids_season_rows = db.session.query(Race.grid).filter_by(season_id=season.id).distinct().all()
-    grids_in_season = set([r[0] for r in grids_season_rows])
+    # Busca as configurações de grid reais da temporada para garantir o uso de IDs
+    grid_configs = GridConfig.query.filter_by(season_id=season.id).all()
 
     upload_folder = current_app.config['UPLOAD_FOLDER']
 
-    for grid_name in grids_in_season:
+    for g_cfg in grid_configs:
+        grid_name = g_cfg.nome
         # 1. TOP 3 PILOTOS
         # Calcula pontuação total
         results = db.session.query(
@@ -695,7 +695,7 @@ def close_season(season_id):
                     champ_img = None # Falha na cópia, fica sem foto
 
             db.session.add(SeasonChampion(
-                season_id=season.id, grid=grid_name, category='PILOT', position=i+1,
+                season_id=season.id, grid=grid_name, grid_id=g_cfg.id, category='PILOT', position=i+1,
                 name=pilot.nickname, team_name=team.nome if team else 'Sem Equipe',
                 image_url=champ_img, team_logo_url=team.logo_url if team else None,
                 pontos=res.total_pts, vitorias=res.total_wins
@@ -727,7 +727,7 @@ def close_season(season_id):
                     champ_logo = None
 
             db.session.add(SeasonChampion(
-                season_id=season.id, grid=grid_name, category='CONSTRUCTOR', position=1,
+                season_id=season.id, grid=grid_name, grid_id=g_cfg.id, category='CONSTRUCTOR', position=1,
                 name=team.nome, image_url=champ_logo,
                 pontos=champion_team_stats.total_pts, vitorias=champion_team_stats.total_wins
             ))
@@ -1203,8 +1203,24 @@ def edit_pilot(pilot_id):
         pilot.nickname = new_nickname
         pilot.user.username = new_nickname # Sincroniza o login do usuário
         pilot.nome_real = request.form.get('nome_real')[:100] # Garante salvar Nome Real
-        grids = request.form.getlist('grids')
-        pilot.grid = ",".join(grids) if grids else 'SEM_GRID'
+        
+        # CORREÇÃO: O campo 'pilot.grid' é um campo de TEXTO que armazena NOMES de grids.
+        # O formulário envia IDs numéricos. Esta lógica converte os IDs recebidos
+        # para seus respectivos NOMES antes de salvar, evitando a criação de grids numéricos ("1", "2", etc.).
+        grid_ids_selecionados = request.form.getlist('grids')
+        grid_names_para_salvar = []
+
+        if grid_ids_selecionados:
+            # Busca todos os GridConfigs para mapear ID -> Nome de forma eficiente.
+            all_configs = GridConfig.query.all()
+            mapa_id_para_nome = {str(c.id): c.nome for c in all_configs}
+
+            for grid_valor in grid_ids_selecionados:
+                # Se o valor for um ID conhecido, usa o nome. Senão, mantém o valor (ex: 'RESERVA').
+                nome_grid = mapa_id_para_nome.get(grid_valor, grid_valor)
+                grid_names_para_salvar.append(nome_grid)
+        
+        pilot.grid = ",".join(sorted(list(set(grid_names_para_salvar)))) if grid_names_para_salvar else 'SEM_GRID'
         pilot.telefone = request.form.get('telefone')[:20] if request.form.get('telefone') else None
         
         pontos = request.form.get('pontos_cnh')
@@ -1245,13 +1261,14 @@ def edit_pilot(pilot_id):
                 pilot.foto_url = nome
         
         # --- FOTOS ESPECÍFICAS POR GRID ---
-        # Upload de nova foto específica
-        grid_photo_target = request.form.get('grid_photo_target')
-        if grid_photo_target and 'grid_photo_file' in request.files:
+        # Upload de nova foto específica (baseado em ID)
+        grid_photo_target_id = request.form.get('grid_photo_target', type=int)
+
+        if grid_photo_target_id and 'grid_photo_file' in request.files:
             g_file = request.files['grid_photo_file']
             if g_file and g_file.filename != '' and allowed_file(g_file.filename):
-                # Remove foto anterior desse grid se existir
-                old_gp = PilotGridPhoto.query.filter_by(pilot_id=pilot.id, grid=grid_photo_target).first()
+                # Busca e substitui a foto anterior para este grid_id
+                old_gp = PilotGridPhoto.query.filter_by(pilot_id=pilot.id, grid_id=grid_photo_target_id).first()
                 if old_gp:
                     old_path = os.path.join(current_app.config['UPLOAD_FOLDER'], old_gp.foto_url)
                     if os.path.exists(old_path): os.remove(old_path)
@@ -1259,10 +1276,16 @@ def edit_pilot(pilot_id):
                 
                 ext = g_file.filename.rsplit('.', 1)[1].lower()
                 timestamp = int(datetime.utcnow().timestamp())
-                nome_gp = f"piloto_{pilot.id}_{grid_photo_target}_{timestamp}.{ext}"
+
+                # Usa o nome do grid para um nome de arquivo mais descritivo
+                grid_cfg = db.session.get(GridConfig, grid_photo_target_id)
+                grid_name_for_file = grid_cfg.nome.replace(" ", "_") if grid_cfg else f"grid_{grid_photo_target_id}"
+
+                nome_gp = f"piloto_{pilot.id}_{grid_name_for_file}_{timestamp}.{ext}"
                 g_file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], nome_gp))
                 
-                new_gp = PilotGridPhoto(pilot_id=pilot.id, grid=grid_photo_target, foto_url=nome_gp)
+                # Salva a nova foto com o grid_id
+                new_gp = PilotGridPhoto(pilot_id=pilot.id, grid_id=grid_photo_target_id, foto_url=nome_gp)
                 db.session.add(new_gp)
 
         # Exclusão de foto específica

@@ -136,8 +136,13 @@ class PilotProfile(db.Model):
 class PilotGridPhoto(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     pilot_id = db.Column(db.Integer, db.ForeignKey('pilot_profile.id'), nullable=False)
-    grid = db.Column(db.String(50), nullable=False)
+    # O campo 'grid' (texto) foi descontinuado em favor de 'grid_id' para consistência.
+    # Mantido como nullable para permitir migração suave de dados existentes.
+    grid_id = db.Column(db.Integer, db.ForeignKey('grid_config.id'), nullable=False)
+    grid = db.Column(db.String(50), nullable=True) 
     foto_url = db.Column(db.String(200), nullable=False)
+
+    grid_config = db.relationship('GridConfig')
 
 class Season(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -326,5 +331,3 @@ class GridConfig(db.Model):
     exibir_lastro = db.Column(db.Boolean, default=True)
 
     season_rel = db.relationship('Season', backref=db.backref('grid_configs', cascade="all, delete-orphan"))
-
-
