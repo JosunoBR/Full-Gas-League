@@ -97,20 +97,17 @@ def home():
                 if g_cfg.id in declared_ids:
                     grids_ids_participacao.add(g_cfg.id)
 
-            # 1. Identifica Grids via Equipe Titular (ID-only)
+            # 1. Identifica Equipes Titulares (metadado; não influencia inclusão no grid)
             teams_season = [t for t in all_season_teams if any(pilot.id == p.id for pilot in t.pilots)]
             for t in teams_season:
-                if t.grid_id: grids_ids_participacao.add(t.grid_id)
+                pass
             
-            # 2. Identifica Grids via Equipe Reserva (ID-only)
+            # 2. Identifica Equipes de Reserva (metadado; não influencia inclusão no grid)
             reserves_season = [t for t in all_season_teams if any(pilot.id == p.id for pilot in t.reserves)]
             for t in reserves_season:
-                if t.grid_id: grids_ids_participacao.add(t.grid_id)
+                pass
             
-            # 3. Identifica Grids via resultados na temporada (ID-only)
-            for r in resultados:
-                if r.race.grid_id:
-                    grids_ids_participacao.add(r.race.grid_id)
+            # 3. Inclusão por resultados histórica REMOVIDA (somente IDs do perfil definem presença no grid)
 
             for g_id in grids_ids_participacao:
                 if g_id in standings:
@@ -245,12 +242,8 @@ def home():
                         if token.isdigit():
                             declared_ids.add(int(token))
 
-                has_results_in_grid = any(
-                    (rr.race.season_id == season_ativa.id) and (rr.race.grid_id == g.id)
-                    for rr in p.race_results
-                )
-
-                if (g.id in declared_ids) or has_results_in_grid:
+                
+                if (g.id in declared_ids):
                     # Equipe é apenas metadado (se existir)
                     team = next((t for t in all_season_teams if any(pilot.id == p.id for pilot in t.pilots) and t.grid_id == g.id), None)
 

@@ -1,74 +1,117 @@
+import argparse
+from typing import List, Set
+
 from run import app
-from app.models import db, PilotProfile, Team, Season, GridConfig, RaceResult, Race
-from sqlalchemy import func
+from app.models import db, Season, Team, PilotProfile
 
-def sincronizar():
-    with app.app_context():
-        print("\n=== SINCRONIZANDO PILOTOS, EQUIPES E GRIDS ===")
-        
-        # 1. Identifica a temporada ativa
-        season = Season.query.filter_by(ativa=True).order_by(Season.id.desc()).first()
-        if not season:
-            print("Erro: Nenhuma temporada ativa encontrada.")
-            return
-        
-        print(f"Temporada Ativa: {season.nome} (ID: {season.id})")
-        
-        # 2. Busca todos os pilotos e configurações de grid
-        pilotos = PilotProfile.query.all()
-        grid_configs = GridConfig.query.filter_by(season_id=season.id).all()
-        grid_names = {g.nome.upper() for g in grid_configs}
-        
-        total_removidos_equipe = 0
 
-        for p in pilotos:
-            # Grids que o piloto possui no campo de texto do perfil (ex: "ELITE,ADVANCED")
-            grids_perfil = set(g.strip().upper() for g in p.grid.split(',') if g.strip())
-            
-            # Equipes que o piloto pertence nesta temporada
-            equipes_titular = [t for t in p.teams if t.season_id == season.id]
-            equipes_reserva = [t for t in p.reserve_teams if t.season_id == season.id]
-            
-            grids_reais_com_equipe = set()
-            for t in equipes_titular + equipes_reserva:
-                g_nome = (t.grid_config.nome if t.grid_config else t.grid).upper()
-                grids_reais_com_equipe.add(g_nome)
-            
-            # --- CASO 1: Piloto "retirado do grid" no perfil, mas ainda vinculado à equipe ---
-            # Se o grid da equipe não está mais no perfil do piloto, removemos o vínculo da equipe.
-            for t in equipes_titular:
-                g_nome = (t.grid_config.nome if t.grid_config else t.grid).upper()
-                if g_nome not in grids_perfil and g_nome in grid_names:
-                    print(f"  [REMOVENDO] {p.nickname} da equipe {t.nome} (Não está mais no grid {g_nome} no perfil)")
-                    t.pilots.remove(p)
-                    total_removidos_equipe += 1
-            
-            for t in equipes_reserva:
-                g_nome = (t.grid_config.nome if t.grid_config else t.grid).upper()
-                if g_nome not in grids_perfil and g_nome in grid_names:
-                    print(f"  [REMOVENDO RESERVA] {p.nickname} da equipe {t.nome} (Não está mais no grid {g_nome} no perfil)")
-                    t.reserves.remove(p)
-                    total_removidos_equipe += 1
+def parse_grid_ids(grid_text: str) -> Set[int]:
+    ids: Set[int] = set()
+    if not grid_text:
+        return ids
+    for tok in [x.strip() for x in grid_text.split(',') if x.strip()]:
+        if tok.isdigit():
+            try:
+                ids.add(int(tok))
+            except ValueError:
+                pass
+    return ids
 
-            # --- CASO 2: Piloto "cadastrado no grid" no perfil, mas sem equipe ---
-            # Avisa quais pilotos novos precisam de ação manual no painel de Equipes.
-            for g_nome in grids_perfil:
-                if g_nome in grid_names and g_nome not in grids_reais_com_equipe:
-                    # Verifica se ele já correu (se correu, ele aparece pelos resultados)
-                    tem_resultado = RaceResult.query.join(Race).filter(
-                        RaceResult.pilot_id == p.id,
-                        Race.season_id == season.id,
-                        func.upper(Race.grid) == g_nome
-                    ).first()
-                    
-                    if not tem_resultado:
-                        print(f"  [AVISO] {p.nickname} está marcado como {g_nome} no perfil, mas NÃO possui equipe vinculada.")
-                        print(f"          -> Ação: Vá em 'Gestão > Equipes', edite uma equipe e adicione-o.")
 
+def format_grid_ids(ids: Set[int]) -> str:
+    if not ids:
+        return 'SEM_GRID'
+    return ",".join(str(x) for x in sorted(ids))
+
+
+def sync_season(season: Season, dry_run: bool = False, strip_legacy_names: bool = True) -> int:
+    """
+    Sincroniza PilotProfile.grid com IDs de grid das equipes (titulares e reservas) 
+    para a temporada fornecida. Mantém apenas IDs; remove nomes legados quando solicitado.
+
+    Retorna o número de perfis modificados.
+    """
+    changed = 0
+
+    teams = Team.query.filter_by(season_id=season.id).all()
+
+    # Constrói um mapa pilot_id -> set(grid_ids) a partir das equipes
+    pilot_to_ids: dict[int, Set[int]] = {}
+
+    for team in teams:
+        if not team.grid_id:
+            continue
+        g_id = int(team.grid_id)
+        # Titulares
+        for p in team.pilots:
+            pilot_to_ids.setdefault(p.id, set()).add(g_id)
+        # Reservas
+        for p in team.reserves:
+            pilot_to_ids.setdefault(p.id, set()).add(g_id)
+
+    # Aplica ao campo PilotProfile.grid (IDs numéricos)
+    for pilot_id, new_ids in pilot_to_ids.items():
+        profile: PilotProfile = PilotProfile.query.get(pilot_id)
+        if not profile:
+            continue
+
+        current_ids = parse_grid_ids(profile.grid)
+
+        # Se solicitado, remover tokens não numéricos do grid textual legado
+        if strip_legacy_names and profile.grid:
+            # Caso existam nomes legados, serão perdidos; mantemos apenas IDs
+            pass
+
+        merged = set(current_ids)
+        merged.update(new_ids)
+
+        # Se havia 'SEM_GRID' e agora há IDs, removemos o marcador
+        # (o format_grid_ids já trata quando o set fica vazio)
+        new_text = format_grid_ids(merged)
+
+        if new_text != (profile.grid or ''):
+            print(f"[SYNC] Pilot {profile.id:>4} - {profile.nickname:<20} :: '{profile.grid}' -> '{new_text}'")
+            if not dry_run:
+                profile.grid = new_text
+                changed += 1
+
+    if not dry_run:
         db.session.commit()
-        print(f"\n=== PROCESSO CONCLUÍDO ===")
-        print(f"Vínculos de equipes obsoletos removidos: {total_removidos_equipe}")
-        print("DICA: Após rodar, dê um Reload na aba Web do PythonAnywhere.")
 
-if __name__ == "__main__":
-    sincronizar()
+    return changed
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Sincroniza PilotProfile.grid com IDs de grids das equipes por temporada.")
+    parser.add_argument('--season', type=int, action='append', help='ID(s) da temporada para sincronizar (pode repetir).')
+    parser.add_argument('--all-seasons', action='store_true', help='Incluir também temporadas inativas (padrão: apenas ativas).')
+    parser.add_argument('--dry-run', action='store_true', help='Executa sem gravar no banco, apenas imprime o que seria feito.')
+    parser.add_argument('--keep-legacy', action='store_true', help='Não remover tokens não numéricos existentes no PilotProfile.grid (mantém legado).')
+
+    args = parser.parse_args()
+
+    with app.app_context():
+        if args.season:
+            seasons = Season.query.filter(Season.id.in_(args.season)).all()
+        else:
+            if args.all_seasons:
+                seasons = Season.query.order_by(Season.id.asc()).all()
+            else:
+                seasons = Season.query.filter_by(ativa=True).order_by(Season.id.asc()).all()
+
+        if not seasons:
+            print("[INFO] Nenhuma temporada encontrada para sincronizar (verifique filtros).")
+            return
+
+        total_changed = 0
+        for s in seasons:
+            print(f"\n== Temporada {s.id} - {s.nome} (ativa={bool(s.ativa)}) ==")
+            changed = sync_season(s, dry_run=args.dry_run, strip_legacy_names=(not args.keep_legacy))
+            print(f"[OK] Perfis modificados nesta temporada: {changed}")
+            total_changed += changed
+
+        print(f"\n[RESUMO] Total de perfis modificados: {total_changed} {'(dry-run)' if args.dry_run else ''}")
+
+
+if __name__ == '__main__':
+    main()

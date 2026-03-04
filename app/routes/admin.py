@@ -148,6 +148,12 @@ def overview():
         
         for p in pilotos:
             resultados_season = [r for r in p.race_results if r.race.season_id == season_ativa.id]
+            # Pilot-centric: IDs declarados no perfil determinam presença em grid
+            declared_ids = set()
+            if p.grid:
+                for token in [x.strip() for x in p.grid.split(',') if x.strip()]:
+                    if token.isdigit():
+                        declared_ids.add(int(token))
             grids_participados_ids = set()
             
             # 1. Identifica Grids via Equipe Titular (ID-only)
@@ -168,6 +174,9 @@ def overview():
                     grids_participados_ids.add(r.race.grid_id)
 
             for g_id in grids_participados_ids:
+                # Só considera grids que estão declarados no perfil do piloto
+                if g_id not in declared_ids:
+                    continue
                 if g_id in dados_grids:
                     # Filtra resultados comparando ID ou Nome (Fallback)
                     g_cfg_atual = dados_grids[g_id]['config']
