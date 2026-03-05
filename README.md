@@ -116,3 +116,15 @@ O sistema foi preparado para suportar um aplicativo nativo (Android/iOS) atravé
 - `app/static`: CSS, JS e Imagens (Uploads).
 - `app/models.py`: Tabelas do Banco de Dados.
 - `app/utils.py`: Funções auxiliares e Tabelas de Pontuação.
+## Servicos de Dominio
+- `app/services`: regras de dominio e consultas canonicas (team context, scoring, diagnostics).
+
+## Testes
+- `python -m unittest tests/test_home_consistency.py`
+- `python -m unittest tests/test_constructor_scoring.py`
+
+## Auditoria e Migracao de Dados
+- Painel administrativo: `/admin/data-health`
+- Script idempotente para normalizacao de aliases de equipe:
+  - Simulacao: `python scripts/normalize_team_aliases.py`
+  - Aplicar: `python scripts/normalize_team_aliases.py --apply`

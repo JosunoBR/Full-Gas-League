@@ -51,7 +51,7 @@ def sync_season(season: Season, dry_run: bool = False, strip_legacy_names: bool 
 
     # Aplica ao campo PilotProfile.grid (IDs numéricos)
     for pilot_id, new_ids in pilot_to_ids.items():
-        profile: PilotProfile = PilotProfile.query.get(pilot_id)
+        profile: PilotProfile = db.session.get(PilotProfile, pilot_id)
         if not profile:
             continue
 

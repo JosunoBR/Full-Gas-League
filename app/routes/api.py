@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify
-from app.models import News, Season, Race, PilotProfile, Team, RaceResult, Protesto, GridConfig
-from app.utils import calcular_perda, grid_matches, calcular_pontos_totais_piloto
+from app.models import News, Season, Race, PilotProfile, Team, RaceResult, GridConfig
+from app.utils import calcular_pontos_totais_piloto
+from app.services.team_context import build_team_context
 
 api_bp = Blueprint('api', __name__)
 
@@ -11,7 +12,7 @@ def get_news():
 
 @api_bp.route('/standings/<grid>', methods=['GET'])
 def get_standings(grid):
-    season = Season.query.filter_by(ativa=True).order_by(Season.id.desc()).first()
+    season = Season.query.filter_by(ativa=True).order_by(Season.id.asc()).first()
     if not season:
         return jsonify([])
     
@@ -20,17 +21,12 @@ def get_standings(grid):
     if not grid_cfg:
         return jsonify([])
 
-    pilotos = PilotProfile.query.all()
+    team_ctx = build_team_context(season.id)
+    participants = team_ctx["participants_by_grid"].get(grid_cfg.id, [])
     ranking = []
 
-    for p in pilotos:
-        # Verifica se o piloto pertence a este grid via equipe (titular/reserva) na temporada ativa
-        in_team = any(t.grid_id == grid_cfg.id and t.season_id == season.id for t in p.teams)
-        in_reserve = any(t.grid_id == grid_cfg.id and t.season_id == season.id for t in p.reserve_teams)
-
-        if not in_team and not in_reserve:
-            continue
-
+    for item in participants:
+        p = item["pilot"]
         pts_finais = calcular_pontos_totais_piloto(p.id, season.id, grid_cfg.id)
 
         ranking.append({
@@ -46,11 +42,15 @@ def get_standings(grid):
 
 @api_bp.route('/calendar/<grid>', methods=['GET'])
 def get_calendar(grid):
-    season = Season.query.filter_by(ativa=True).order_by(Season.id.desc()).first()
+    season = Season.query.filter_by(ativa=True).order_by(Season.id.asc()).first()
     if not season:
         return jsonify([])
-    
-    corridas = Race.query.filter_by(season_id=season.id, grid=grid.upper()).order_by(Race.data_corrida).all()
+
+    grid_cfg = GridConfig.query.filter_by(season_id=season.id, nome=grid.upper()).first()
+    if not grid_cfg:
+        return jsonify([])
+
+    corridas = Race.query.filter_by(season_id=season.id, grid_id=grid_cfg.id).order_by(Race.data_corrida).all()
     return jsonify([r.to_dict() for r in corridas])
 
 @api_bp.route('/race/<int:race_id>/results', methods=['GET'])

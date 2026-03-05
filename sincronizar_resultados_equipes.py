@@ -1,41 +1,50 @@
+﻿from collections import defaultdict
+
 from run import app
-from app.models import db, Team, RaceResult, Race, GridConfig
+from app.models import db, Team, Race, RaceResult
+
 
 def sincronizar():
     with app.app_context():
-        print("\n=== SINCRONIZANDO TEAM_ID NOS RESULTADOS DE CORRIDA ===")
-        
-        teams = Team.query.all()
-        total_atualizado = 0
-        
+        print("\n=== SINCRONIZANDO TEAM_ID NULO NOS RESULTADOS ===")
+
+        # (pilot_id, season_id, grid_id) -> {team_id}
+        candidates = defaultdict(set)
+        teams = Team.query.filter(Team.season_id.isnot(None), Team.grid_id.isnot(None)).all()
         for team in teams:
-            # Identifica o nome do grid desta equipe
-            t_grid = (team.grid_config.nome if team.grid_config else team.grid).upper().strip()
-            
-            # Pilotos titulares atuais
-            pilot_ids = [p.id for p in team.pilots]
-            if not pilot_ids: continue
+            for pilot in team.pilots:
+                candidates[(pilot.id, team.season_id, team.grid_id)].add(team.id)
+            for pilot in team.reserves:
+                candidates[(pilot.id, team.season_id, team.grid_id)].add(team.id)
 
-            # Busca resultados desses pilotos na mesma temporada e grid que não estão com o team_id correto
-            resultados = RaceResult.query.join(Race).outerjoin(GridConfig, Race.grid_id == GridConfig.id).filter(
-                RaceResult.pilot_id.in_(pilot_ids),
-                Race.season_id == team.season_id,
-                RaceResult.team_id != team.id
-            ).all()
+        total_updated = 0
+        total_ambiguous = 0
+        total_no_candidate = 0
 
-            for res in resultados:
-                r_grid = (res.race.grid_config.nome if res.race.grid_config else res.race.grid).upper().strip()
-                
-                if r_grid == t_grid:
-                    res.team_id = team.id
-                    total_atualizado += 1
-                    print(f"  [OK] Vinculando pontos de {res.pilot.nickname} -> {team.nome} (GP {res.race.nome_gp})")
+        null_results = RaceResult.query.join(Race).filter(RaceResult.team_id.is_(None)).all()
+        for res in null_results:
+            race = res.race
+            key = (res.pilot_id, race.season_id, race.grid_id)
+            team_ids = sorted(candidates.get(key, set()))
 
-        if total_atualizado > 0:
+            if len(team_ids) == 1:
+                res.team_id = team_ids[0]
+                total_updated += 1
+                print(f"  [OK] RR#{res.id} {res.pilot.nickname} -> team_id={team_ids[0]} ({race.nome_gp})")
+            elif len(team_ids) > 1:
+                total_ambiguous += 1
+                print(f"  [SKIP][AMBIGUO] RR#{res.id} {res.pilot.nickname} candidatos={team_ids}")
+            else:
+                total_no_candidate += 1
+
+        if total_updated:
             db.session.commit()
-            print(f"\n=== SUCESSO! {total_atualizado} resultados sincronizados. ===")
+            print(f"\n=== SUCESSO! {total_updated} resultados atualizados. ===")
         else:
-            print("\nNenhum resultado precisou de sincronização.")
+            print("\nNenhum resultado foi atualizado.")
+
+        print(f"[RESUMO] Ambiguos: {total_ambiguous} | Sem candidato: {total_no_candidate}")
+
 
 if __name__ == "__main__":
     sincronizar()

@@ -7,6 +7,8 @@ from flask_login import login_required, current_user
 from sqlalchemy import func, case
 from app.models import db, User, PilotProfile, Season, Race, RaceResult, Invite, Protesto, VotoComissario, Team, RaceRegistration, SeletivaEntry, News, GridConfig, SeasonChampion, PilotGridPhoto
 from app.utils import allowed_file, get_embed_url, PONTUACAO_20, PONTUACAO_22, ORDEM_CARROS, calcular_perda, get_grid_name, find_grid_config, gerar_evolucao_pontos, grid_matches, calcular_pontos_totais_piloto
+from app.services.diagnostics import build_data_health_report
+from app.services.domain_rules import validate_unique_membership_per_grid
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -95,6 +97,30 @@ def dashboard():
         season_ativa = all_active_seasons[0]
         
     return render_template('admin/dashboard.html', season_ativa=season_ativa, all_active_seasons=all_active_seasons)
+
+
+@admin_bp.route('/data-health')
+def data_health():
+    all_seasons = Season.query.order_by(Season.id.desc()).all()
+    selected_season_id = request.args.get('s', type=int)
+    season_ativa = None
+    if selected_season_id:
+        season_ativa = next((s for s in all_seasons if s.id == selected_season_id), None)
+    if not season_ativa:
+        season_ativa = next((s for s in all_seasons if s.ativa), None)
+    if not season_ativa and all_seasons:
+        season_ativa = all_seasons[0]
+
+    report = None
+    if season_ativa:
+        report = build_data_health_report(season_ativa.id)
+
+    return render_template(
+        'admin/data_health.html',
+        season_ativa=season_ativa,
+        all_seasons=all_seasons,
+        report=report
+    )
 
 @admin_bp.route('/overview')
 def overview():
@@ -1589,6 +1615,13 @@ def edit_team(team_id):
                 team.reserves.append(r4)
                 reservas_ids.add(r4.id)
             
+        try:
+            validate_unique_membership_per_grid(team)
+        except ValueError as e:
+            db.session.rollback()
+            flash(str(e), 'danger')
+            return redirect(url_for('admin.edit_team', team_id=team.id))
+
         db.session.commit()
         flash('Equipe atualizada!', 'success')
         return redirect(url_for('admin.list_teams'))

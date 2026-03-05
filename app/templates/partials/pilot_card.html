@@ -1,0 +1,17 @@
+<a href="{{ url_for('public.public_profile', pilot_id=item.data.id) }}" class="text-decoration-none">
+    <div class="card bg-dark border-silver pilot-card shadow" style="min-width: 200px; width: 200px; height: 320px; transition: all 0.3s ease; display: flex; flex-direction: column;">
+        <div class="card-img-top bg-secondary d-flex align-items-center justify-content-center overflow-hidden" style="height: 200px;">
+            {% if item.foto_url %}
+                <img src="{{ url_for('static', filename='uploads/' + item.foto_url) }}" class="w-100 h-100" style="object-fit: cover;" alt="{{ item.data.nickname }}">
+            {% else %}
+                <i class="fa-solid fa-user-astronaut fa-4x text-white-50"></i>
+            {% endif %}
+        </div>
+        <div class="card-body text-center p-3 d-flex flex-column justify-content-center">
+            <h5 class="card-title text-white fw-bold mb-1 text-truncate">{{ item.data.nome_real }}</h5>
+            <p class="card-text text-white-50 small mb-1 text-truncate">{{ item.data.nickname }}</p>
+            <p class="card-text text-info small mb-0 text-truncate fw-bold">{{ item.team.nome if item.team else 'Sem Equipe' }}</p>
+        </div>
+    </div>
+</a>
+
