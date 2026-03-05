@@ -35,6 +35,17 @@ def sincronizar_vinculos_faltantes():
                     func.upper(GridConfig.nome) == func.upper(reg.grid)
                 ).first()
 
+                if not grid_cfg:
+                    # BUSCA GLOBAL: Se não achou na temporada atual, procura em QUALQUER temporada
+                    # Isso corrige erros onde o season_id foi preenchido errado na migração
+                    grid_cfg = GridConfig.query.filter(
+                        func.upper(GridConfig.nome) == func.upper(reg.grid)
+                    ).first()
+                    
+                    if grid_cfg:
+                        print(f"  [!] Corrigindo Temporada: {tarefa['nome']} '{reg.grid}' movida da Temporada {reg.season_id} para {grid_cfg.season_id}")
+                        reg.season_id = grid_cfg.season_id
+
                 if grid_cfg:
                     reg.grid_id = grid_cfg.id
                     corrigidos += 1
