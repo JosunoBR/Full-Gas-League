@@ -1153,42 +1153,49 @@ def race_results(race_id):
 def list_pilots():
     # Mostra todos os pilotos, inclusive ADMs, para gestão de Grid/CNH
     pilots = PilotProfile.query.join(User).order_by(PilotProfile.nickname).all()
-    
-    configs = GridConfig.query.order_by(GridConfig.ordem).all()
-    grid_names = [c.nome for c in configs]
-    if not grid_names: grid_names = ['ELITE', 'ADVANCED', 'INITIAL']
-    
-    # Organiza pilotos por grid (um piloto pode aparecer em vários)
-    pilots_by_grid = {name: [] for name in grid_names + ['RESERVA', 'SEM_GRID']}
+
+    # Carrega grids configurados (todas as temporadas) para obter o mapeamento ID -> Nome
+    configs = GridConfig.query.order_by(GridConfig.season_id, GridConfig.ordem).all()
+    id_to_name = {str(c.id): c.nome for c in configs}
+
+    # Abas na ordem das configs + especiais no final
+    base_tabs = [c.nome for c in configs]
+    specials = ['RESERVA', 'SEM_GRID']
+    grid_tabs = []
+    # Evita duplicatas mantendo ordem de aparição das configs
+    for name in base_tabs:
+        if name not in grid_tabs:
+            grid_tabs.append(name)
+    for sp in specials:
+        if sp not in grid_tabs:
+            grid_tabs.append(sp)
+
+    # Organiza pilotos por NOME de grid (um piloto pode aparecer em vários)
+    pilots_by_grid = {name: [] for name in grid_tabs}
 
     for p in pilots:
-        p_grids = [g.strip() for g in p.grid.split(',') if g.strip()] if p.grid else []
-        if not p_grids: p_grids = ['SEM_GRID']
-        
-        for g in p_grids:
-            if g not in pilots_by_grid:
-                pilots_by_grid[g] = []
-            pilots_by_grid[g].append(p)
-
-    # Reconstrói as abas para incluir grids extras encontrados nos pilotos
-    found_grids = list(pilots_by_grid.keys())
-    
-    sorted_tabs = []
-    for g in grid_names:
-        if g in found_grids:
-            sorted_tabs.append(g)
-            found_grids.remove(g)
-            
-    specials = ['RESERVA', 'SEM_GRID']
-    others = sorted([g for g in found_grids if g not in specials])
-    
-    all_tabs = sorted_tabs + others + specials
+        tokens = [x.strip() for x in (p.grid or '').split(',') if x.strip()]
+        if not tokens:
+            pilots_by_grid.setdefault('SEM_GRID', []).append(p)
+            continue
+        for t in tokens:
+            gname = None
+            if t.isdigit() and t in id_to_name:
+                gname = id_to_name[t]
+            elif t in specials:
+                gname = t
+            # Ignora tokens legados não mapeados
+            if not gname:
+                continue
+            if gname not in pilots_by_grid:
+                pilots_by_grid[gname] = []
+            pilots_by_grid[gname].append(p)
 
     return render_template('admin/pilots.html', 
-                           pilots_by_grid=pilots_by_grid, 
+                           pilots_by_grid=pilots_by_grid,
                            total_count=len(pilots),
                            all_pilots=pilots,
-                           grid_tabs=all_tabs)
+                           grid_tabs=grid_tabs)
 
 @admin_bp.route('/pilots/edit/<int:pilot_id>', methods=['GET', 'POST'])
 def edit_pilot(pilot_id):
