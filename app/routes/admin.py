@@ -1522,36 +1522,72 @@ def edit_team(team_id):
         # Limpa pilotos atuais
         team.pilots.clear()
         team.reserves.clear()
+
+        same_grid_teams = Team.query.filter(
+            Team.season_id == team.season_id,
+            Team.grid_id == team.grid_id,
+            Team.id != team.id
+        ).all()
+
+        def unlink_from_other_teams(pilot_obj):
+            """Garante unicidade do piloto por grid/temporada (titular ou reserva)."""
+            if not pilot_obj:
+                return
+            for other in same_grid_teams:
+                if any(pp.id == pilot_obj.id for pp in other.pilots):
+                    other.pilots.remove(pilot_obj)
+                if any(pp.id == pilot_obj.id for pp in other.reserves):
+                    other.reserves.remove(pilot_obj)
             
         pilot1_id = request.form.get('pilot1')
         pilot2_id = request.form.get('pilot2')
+        titulares_ids = set()
         
         if pilot1_id:
             p1 = PilotProfile.query.get(pilot1_id)
-            if p1: team.pilots.append(p1)
+            if p1 and p1.id not in titulares_ids:
+                unlink_from_other_teams(p1)
+                team.pilots.append(p1)
+                titulares_ids.add(p1.id)
         if pilot2_id:
             p2 = PilotProfile.query.get(pilot2_id)
-            if p2: team.pilots.append(p2)
+            if p2 and p2.id not in titulares_ids:
+                unlink_from_other_teams(p2)
+                team.pilots.append(p2)
+                titulares_ids.add(p2.id)
             
         reserve1_id = request.form.get('reserve_pilot_1')
+        reservas_ids = set()
         if reserve1_id:
             r1 = PilotProfile.query.get(reserve1_id)
-            if r1: team.reserves.append(r1)
+            if r1 and r1.id not in titulares_ids and r1.id not in reservas_ids:
+                unlink_from_other_teams(r1)
+                team.reserves.append(r1)
+                reservas_ids.add(r1.id)
             
         reserve2_id = request.form.get('reserve_pilot_2')
         if reserve2_id:
             r2 = PilotProfile.query.get(reserve2_id)
-            if r2: team.reserves.append(r2)
+            if r2 and r2.id not in titulares_ids and r2.id not in reservas_ids:
+                unlink_from_other_teams(r2)
+                team.reserves.append(r2)
+                reservas_ids.add(r2.id)
             
         reserve3_id = request.form.get('reserve_pilot_3')
         if reserve3_id:
             r3 = PilotProfile.query.get(reserve3_id)
-            if r3: team.reserves.append(r3)
+            if r3 and r3.id not in titulares_ids and r3.id not in reservas_ids:
+                unlink_from_other_teams(r3)
+                team.reserves.append(r3)
+                reservas_ids.add(r3.id)
             
         reserve4_id = request.form.get('reserve_pilot_4')
         if reserve4_id:
             r4 = PilotProfile.query.get(reserve4_id)
-            if r4: team.reserves.append(r4)
+            if r4 and r4.id not in titulares_ids and r4.id not in reservas_ids:
+                unlink_from_other_teams(r4)
+                team.reserves.append(r4)
+                reservas_ids.add(r4.id)
             
         db.session.commit()
         flash('Equipe atualizada!', 'success')

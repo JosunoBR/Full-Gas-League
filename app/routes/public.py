@@ -6,7 +6,7 @@ from werkzeug.security import check_password_hash
 from sqlalchemy import func, case
 from sqlalchemy.orm import joinedload
 from app.models import db, Season, Race, PilotProfile, Protesto, RaceResult, VotoComissario, Team, RaceRegistration, User, Invite, News, GridConfig, SeasonChampion, PilotGridPhoto
-from app.utils import allowed_file, get_embed_url, ORDEM_CARROS, calcular_perda, get_grid_name, find_grid_config, gerar_evolucao_pontos, grid_matches, calcular_pontos_totais_piloto
+from app.utils import allowed_file, get_embed_url, ORDEM_CARROS, get_grid_name, find_grid_config, gerar_evolucao_pontos, grid_matches, calcular_pontos_totais_piloto
 
 public_bp = Blueprint('public', __name__)
 
@@ -75,30 +75,51 @@ def home():
             joinedload(PilotProfile.teams),
             joinedload(PilotProfile.grid_photos)
         ).all()
-        all_season_teams = Team.query.filter_by(season_id=season_ativa.id).all()
+        all_season_teams_raw = Team.query.filter_by(season_id=season_ativa.id, ativa=True).all()
         
-        # Pré-carrega todas as punições concluídas da temporada para performance
-        punicoes_temporada = Protesto.query.join(Race).filter(
-            Race.season_id == season_ativa.id,
-            Protesto.status == 'CONCLUIDO'
-        ).all()
+        # Canonicaliza equipes duplicadas por (grid_id, nome), mantendo a mais recente.
+        canonical_teams_by_key = {}
+        team_alias_ids_by_key = {}
+        for t in all_season_teams_raw:
+            if not t.grid_id:
+                continue
+            key = (t.grid_id, (t.nome or '').strip().upper())
+            team_alias_ids_by_key.setdefault(key, []).append(t.id)
+            current = canonical_teams_by_key.get(key)
+            if not current or t.id > current.id:
+                canonical_teams_by_key[key] = t
+        all_season_teams = list(canonical_teams_by_key.values())
 
+        # Mapeia a equipe "dona" do piloto por grid (titular e reserva), priorizando vínculo mais recente.
+        titular_team_by_pilot_grid = {}
+        reserve_team_by_pilot_grid = {}
+        for t in all_season_teams_raw:
+            if not t.grid_id:
+                continue
+            key_team = (t.grid_id, (t.nome or '').strip().upper())
+            canonical_team = canonical_teams_by_key.get(key_team, t)
+            for pilot in t.pilots:
+                key = (pilot.id, t.grid_id)
+                current = titular_team_by_pilot_grid.get(key)
+                if not current or t.id > current.id:
+                    titular_team_by_pilot_grid[key] = canonical_team
+            for pilot in t.reserves:
+                key = (pilot.id, t.grid_id)
+                current = reserve_team_by_pilot_grid.get(key)
+                if not current or t.id > current.id:
+                    reserve_team_by_pilot_grid[key] = canonical_team
+        
         for p in pilotos:
             resultados = [r for r in p.race_results if r.race.season_id == season_ativa.id]
             grids_ids_participacao = set()
             
-            # Filtro Mestre: Só considera grids que estão marcados no perfil do piloto
-            p_grid_ids = [int(x.strip()) for x in p.grid.split(',') if x.strip().isdigit()]
-
-            # 1. Identifica Grids via Equipe Titular (ID-only)
-            teams_season = [t for t in all_season_teams if any(pilot.id == p.id for pilot in t.pilots)]
-            for t in teams_season:
-                if t.grid_id and t.grid_id in p_grid_ids: grids_ids_participacao.add(t.grid_id)
-            
-            # 2. Identifica Grids via Equipe Reserva (ID-only)
-            reserves_season = [t for t in all_season_teams if any(pilot.id == p.id for pilot in t.reserves)]
-            for t in reserves_season:
-                if t.grid_id and t.grid_id in p_grid_ids: grids_ids_participacao.add(t.grid_id)
+            # Grids do piloto via vínculo canônico de equipe (sem depender de texto em p.grid).
+            for pilot_id, grid_id in titular_team_by_pilot_grid:
+                if pilot_id == p.id:
+                    grids_ids_participacao.add(grid_id)
+            for pilot_id, grid_id in reserve_team_by_pilot_grid:
+                if pilot_id == p.id:
+                    grids_ids_participacao.add(grid_id)
             
             for g_id in grids_ids_participacao:
                 if g_id in standings:
@@ -133,12 +154,12 @@ def home():
                     if grid_photo:
                         foto_final = grid_photo.foto_url
 
-                    # Equipe (ID-only)
-                    team = next((t for t in teams_season if t.grid_id == g_id), None)
+                    # Equipe canônica no grid
+                    team = titular_team_by_pilot_grid.get((p.id, g_id))
                     is_reserve = False
 
                     if not team:
-                        reserve_team = next((t for t in all_season_teams if any(pilot.id == p.id for pilot in t.reserves) and t.grid_id == g_id), None)
+                        reserve_team = reserve_team_by_pilot_grid.get((p.id, g_id))
                         if reserve_team:
                             team = reserve_team
                             is_reserve = True
@@ -176,39 +197,22 @@ def home():
 
         team_stats = { s.team_id: {'pontos': float(s.total_pontos or 0), 'vitorias': int(s.total_vitorias or 0)} for s in stats_query }
 
-        legacy_results_query = db.session.query(
-            RaceResult.pilot_id,
-            Race.grid_id,
-            func.sum(RaceResult.pontos_ganhos).label('total_pontos'),
-            func.sum(case(( (RaceResult.posicao == 1) & (RaceResult.dsq == False), 1 ), else_=0)).label('total_vitorias')
-        ).join(Race).filter(
-            Race.season_id == season_ativa.id,
-            RaceResult.team_id.is_(None)
-        ).group_by(RaceResult.pilot_id, Race.grid_id).all()
-
-        legacy_stats = { (s.pilot_id, s.grid_id): {'pontos': float(s.total_pontos or 0), 'vitorias': int(s.total_vitorias or 0)} for s in legacy_results_query }
-
         for t in all_season_teams:
             # Identifica o ID do grid da equipe para a tabela de construtores
             t_grid_id = t.grid_id
-            # Fallback por nome removido para garantir consistência
 
             if t_grid_id and t_grid_id in constructors:
-                stats = team_stats.get(t.id, {'pontos': 0.0, 'vitorias': 0})
-                for p in t.pilots:
-                    key = (p.id, t.grid_id)
-                    if key in legacy_stats:
-                        l_stats = legacy_stats[key]
-                        stats['pontos'] += l_stats['pontos']
-                        stats['vitorias'] += l_stats['vitorias']
+                key_team = (t.grid_id, (t.nome or '').strip().upper())
+                alias_ids = team_alias_ids_by_key.get(key_team, [t.id])
 
-                # Penalidades administrativas dos pilotos da equipe
-                pen_adm = sum(float(p.penalidade_campeonato or 0) for p in t.pilots)
-                # Penalidades de tribunal dos pilotos da equipe neste grid
-                pen_tribunal = sum(sum(calcular_perda(pr.veredito_final) for pr in punicoes_temporada if pr.acusado_id == p.id and pr.grid_id == t.grid_id) for p in t.pilots)
-                
-                pontos_finais = stats['pontos'] - pen_adm - pen_tribunal
-                constructors[t_grid_id].append({'equipe': t, 'pontos': pontos_finais, 'vitorias': stats['vitorias']})
+                pontos_total = 0.0
+                vitorias_total = 0
+                for team_id_alias in alias_ids:
+                    alias_stats = team_stats.get(team_id_alias, {'pontos': 0.0, 'vitorias': 0})
+                    pontos_total += float(alias_stats['pontos'] or 0.0)
+                    vitorias_total += int(alias_stats['vitorias'] or 0)
+
+                constructors[t_grid_id].append({'equipe': t, 'pontos': pontos_total, 'vitorias': vitorias_total})
 
         for g_id in constructors: constructors[g_id].sort(key=lambda x: (x['pontos'], x['vitorias']), reverse=True)
 
@@ -228,22 +232,18 @@ def home():
         all_pilots_query = PilotProfile.query.join(User).order_by(PilotProfile.nickname).all()
         for g in grid_configs:
             for p in all_pilots_query:
-                # Filtro Mestre para o Carrossel
-                p_grid_ids = [int(x.strip()) for x in p.grid.split(',') if x.strip().isdigit()]
-                if g.id not in p_grid_ids:
-                    continue
-
-                # Verifica se o piloto pertence a este grid via equipe (titular/reserva) ou por resultados reais nesta temporada (ID-only)
-                team = next((t for t in all_season_teams if any(pilot.id == p.id for pilot in t.pilots) and t.grid_id == g.id), None)
-                reserve_team = next((t for t in all_season_teams if any(pilot.id == p.id for pilot in t.reserves) and t.grid_id == g.id), None)
-                if team or reserve_team:
+                # Carrossel baseado em vínculo canônico de equipe no grid (titular/reserva).
+                team = titular_team_by_pilot_grid.get((p.id, g.id))
+                reserve_team = reserve_team_by_pilot_grid.get((p.id, g.id))
+                team_ref = team or reserve_team
+                if team_ref:
                     foto_final = p.foto_url
                     grid_photo = next((gp for gp in p.grid_photos if hasattr(gp, 'grid_id') and gp.grid_id == g.id), None)
                     if grid_photo:
                         foto_final = grid_photo.foto_url
                         
                     if not any(item['data'].id == p.id for item in pilots_by_grid[g.id]):
-                        pilots_by_grid[g.id].append({'data': p, 'foto_url': foto_final, 'team': team})
+                        pilots_by_grid[g.id].append({'data': p, 'foto_url': foto_final, 'team': team_ref})
 
     # Converte dados para formato JSON-seguro
     grid_configs_json = [{'id': g.id, 'nome': g.nome, 'vagas': g.vagas, 'exibir_lastro': g.exibir_lastro} for g in grid_configs]
