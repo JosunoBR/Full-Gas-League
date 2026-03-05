@@ -86,16 +86,19 @@ def home():
         for p in pilotos:
             resultados = [r for r in p.race_results if r.race.season_id == season_ativa.id]
             grids_ids_participacao = set()
+            
+            # Filtro Mestre: Só considera grids que estão marcados no perfil do piloto
+            p_grid_ids = [int(x.strip()) for x in p.grid.split(',') if x.strip().isdigit()]
 
             # 1. Identifica Grids via Equipe Titular (ID-only)
             teams_season = [t for t in all_season_teams if any(pilot.id == p.id for pilot in t.pilots)]
             for t in teams_season:
-                if t.grid_id: grids_ids_participacao.add(t.grid_id)
+                if t.grid_id and t.grid_id in p_grid_ids: grids_ids_participacao.add(t.grid_id)
             
             # 2. Identifica Grids via Equipe Reserva (ID-only)
             reserves_season = [t for t in all_season_teams if any(pilot.id == p.id for pilot in t.reserves)]
             for t in reserves_season:
-                if t.grid_id: grids_ids_participacao.add(t.grid_id)
+                if t.grid_id and t.grid_id in p_grid_ids: grids_ids_participacao.add(t.grid_id)
             
             for g_id in grids_ids_participacao:
                 if g_id in standings:
@@ -175,14 +178,15 @@ def home():
 
         legacy_results_query = db.session.query(
             RaceResult.pilot_id,
+            Race.grid_id,
             func.sum(RaceResult.pontos_ganhos).label('total_pontos'),
             func.sum(case(( (RaceResult.posicao == 1) & (RaceResult.dsq == False), 1 ), else_=0)).label('total_vitorias')
         ).join(Race).filter(
             Race.season_id == season_ativa.id,
             RaceResult.team_id.is_(None)
-        ).group_by(RaceResult.pilot_id).all()
+        ).group_by(RaceResult.pilot_id, Race.grid_id).all()
 
-        legacy_stats_by_pilot = { s.pilot_id: {'pontos': float(s.total_pontos or 0), 'vitorias': int(s.total_vitorias or 0)} for s in legacy_results_query }
+        legacy_stats = { (s.pilot_id, s.grid_id): {'pontos': float(s.total_pontos or 0), 'vitorias': int(s.total_vitorias or 0)} for s in legacy_results_query }
 
         for t in all_season_teams:
             # Identifica o ID do grid da equipe para a tabela de construtores
@@ -192,8 +196,9 @@ def home():
             if t_grid_id and t_grid_id in constructors:
                 stats = team_stats.get(t.id, {'pontos': 0.0, 'vitorias': 0})
                 for p in t.pilots:
-                    if p.id in legacy_stats_by_pilot:
-                        l_stats = legacy_stats_by_pilot[p.id]
+                    key = (p.id, t.grid_id)
+                    if key in legacy_stats:
+                        l_stats = legacy_stats[key]
                         stats['pontos'] += l_stats['pontos']
                         stats['vitorias'] += l_stats['vitorias']
 
@@ -223,10 +228,14 @@ def home():
         all_pilots_query = PilotProfile.query.join(User).order_by(PilotProfile.nickname).all()
         for g in grid_configs:
             for p in all_pilots_query:
+                # Filtro Mestre para o Carrossel
+                p_grid_ids = [int(x.strip()) for x in p.grid.split(',') if x.strip().isdigit()]
+                if g.id not in p_grid_ids:
+                    continue
+
                 # Verifica se o piloto pertence a este grid via equipe (titular/reserva) ou por resultados reais nesta temporada (ID-only)
                 team = next((t for t in all_season_teams if any(pilot.id == p.id for pilot in t.pilots) and t.grid_id == g.id), None)
                 reserve_team = next((t for t in all_season_teams if any(pilot.id == p.id for pilot in t.reserves) and t.grid_id == g.id), None)
-
                 if team or reserve_team:
                     foto_final = p.foto_url
                     grid_photo = next((gp for gp in p.grid_photos if hasattr(gp, 'grid_id') and gp.grid_id == g.id), None)

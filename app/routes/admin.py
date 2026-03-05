@@ -326,21 +326,25 @@ def export_classification():
     all_season_teams = Team.query.filter_by(season_id=season_id).all()
     for p in pilotos:
         resultados_season = [r for r in p.race_results if r.race.season_id == season_id]
+        p_grid_ids = [int(x.strip()) for x in p.grid.split(',') if x.strip().isdigit()]
+        
         grids = set()
         teams_season = [t for t in all_season_teams if any(pilot.id == p.id for pilot in t.pilots)]
         for t in teams_season:
-            if t.grid_id:
+            if t.grid_id and t.grid_id in p_grid_ids:
                 grids.add(t.grid_id)
             else:
                 cfg = GridConfig.query.filter(func.upper(GridConfig.nome) == t.grid.upper(), GridConfig.season_id == season_id).first()
-                if cfg: grids.add(cfg.id)
+                if cfg and cfg.id in p_grid_ids: grids.add(cfg.id)
+
         reserves = [t for t in all_season_teams if any(pilot.id == p.id for pilot in t.reserves)]
         for t in reserves:
-            if t.grid_id:
+            if t.grid_id and t.grid_id in p_grid_ids:
                 grids.add(t.grid_id)
             else:
                 cfg = GridConfig.query.filter(func.upper(GridConfig.nome) == t.grid.upper(), GridConfig.season_id == season_id).first()
-                if cfg: grids.add(cfg.id)
+                if cfg and cfg.id in p_grid_ids: grids.add(cfg.id)
+
         if grid_id not in grids:
             continue
 
