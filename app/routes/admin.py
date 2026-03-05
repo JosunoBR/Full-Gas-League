@@ -131,12 +131,6 @@ def overview():
             Race.season_id == season_ativa.id
         ).all()
         
-        def calcular_perda(veredito):
-            if veredito == 'LEVE': return 3
-            if veredito == 'MEDIA': return 5
-            if veredito == 'GRAVE': return 10
-            return 0
-
         punicoes_by_pilot = {}
         for prot in punicoes_temporada:
             if prot.acusado_id not in punicoes_by_pilot:
@@ -148,12 +142,6 @@ def overview():
         
         for p in pilotos:
             resultados_season = [r for r in p.race_results if r.race.season_id == season_ativa.id]
-            # Pilot-centric: IDs declarados no perfil determinam presença em grid
-            declared_ids = set()
-            if p.grid:
-                for token in [x.strip() for x in p.grid.split(',') if x.strip()]:
-                    if token.isdigit():
-                        declared_ids.add(int(token))
             grids_participados_ids = set()
             
             # 1. Identifica Grids via Equipe Titular (ID-only)
@@ -168,15 +156,7 @@ def overview():
                 g_id = t.grid_id
                 if g_id: grids_participados_ids.add(g_id)
 
-            # 3. Identifica Grids via resultados na temporada (ID-only)
-            for r in resultados_season:
-                if r.race.grid_id:
-                    grids_participados_ids.add(r.race.grid_id)
-
             for g_id in grids_participados_ids:
-                # Só considera grids que estão declarados no perfil do piloto
-                if g_id not in declared_ids:
-                    continue
                 if g_id in dados_grids:
                     # Filtra resultados comparando ID ou Nome (Fallback)
                     g_cfg_atual = dados_grids[g_id]['config']
@@ -351,14 +331,16 @@ def export_classification():
         for t in teams_season:
             if t.grid_id:
                 grids.add(t.grid_id)
+            else:
+                cfg = GridConfig.query.filter(func.upper(GridConfig.nome) == t.grid.upper(), GridConfig.season_id == season_id).first()
+                if cfg: grids.add(cfg.id)
         reserves = [t for t in all_season_teams if any(pilot.id == p.id for pilot in t.reserves)]
         for t in reserves:
             if t.grid_id:
                 grids.add(t.grid_id)
-        # Incluir grids pelos resultados desta temporada (ID-only)
-        for r in resultados_season:
-            if r.race.grid_id:
-                grids.add(r.race.grid_id)
+            else:
+                cfg = GridConfig.query.filter(func.upper(GridConfig.nome) == t.grid.upper(), GridConfig.season_id == season_id).first()
+                if cfg: grids.add(cfg.id)
         if grid_id not in grids:
             continue
 
@@ -1191,11 +1173,20 @@ def list_pilots():
                 pilots_by_grid[gname] = []
             pilots_by_grid[gname].append(p)
 
+    def get_grid_names_helper(grid_str):
+        if not grid_str or grid_str == 'SEM_GRID':
+            return 'SEM_GRID'
+        names = []
+        for tid in [x.strip() for x in grid_str.split(',') if x.strip()]:
+            names.append(id_to_name.get(tid, tid))
+        return ", ".join(names)
+
     return render_template('admin/pilots.html', 
                            pilots_by_grid=pilots_by_grid,
                            total_count=len(pilots),
                            all_pilots=pilots,
-                           grid_tabs=grid_tabs)
+                           grid_tabs=grid_tabs,
+                           get_grid_names=get_grid_names_helper)
 
 @admin_bp.route('/pilots/edit/<int:pilot_id>', methods=['GET', 'POST'])
 def edit_pilot(pilot_id):

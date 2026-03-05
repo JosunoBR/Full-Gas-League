@@ -24,14 +24,11 @@ def get_standings(grid):
     ranking = []
 
     for p in pilotos:
-        # Filtra resultados apenas deste grid e temporada
-        res_no_grid = [r for r in p.race_results if r.race.season_id == season.id and grid_matches(r.race, grid_cfg)]
-        
         # Verifica se o piloto pertence a este grid via equipe (titular/reserva) na temporada ativa
         in_team = any(t.grid_id == grid_cfg.id and t.season_id == season.id for t in p.teams)
         in_reserve = any(t.grid_id == grid_cfg.id and t.season_id == season.id for t in p.reserve_teams)
 
-        if not res_no_grid and not in_team and not in_reserve:
+        if not in_team and not in_reserve:
             continue
 
         pts_finais = calcular_pontos_totais_piloto(p.id, season.id, grid_cfg.id)

@@ -42,8 +42,8 @@
                             <tr>
                                 <td class="ps-4 fw-bold text-white">{{ p.nickname }}</td>
                                 <td>
-                                    {% for g in p.grid.split(',') %}
-                                        <span class="badge bg-secondary">{{ g }}</span>
+                                    {% for g in get_grid_names(p.grid).split(',') %}
+                                        <span class="badge bg-secondary">{{ g.strip() }}</span>
                                     {% endfor %}
                                 </td>
                                 <td>

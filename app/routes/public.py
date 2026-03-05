@@ -87,28 +87,16 @@ def home():
             resultados = [r for r in p.race_results if r.race.season_id == season_ativa.id]
             grids_ids_participacao = set()
 
-            # 0. Identifica Grids declarados no PERFIL (IDs numéricos, pilot-centric)
-            declared_ids = set()
-            if p.grid:
-                for token in [x.strip() for x in p.grid.split(',') if x.strip()]:
-                    if token.isdigit():
-                        declared_ids.add(int(token))
-            for g_cfg in grid_configs:
-                if g_cfg.id in declared_ids:
-                    grids_ids_participacao.add(g_cfg.id)
-
-            # 1. Identifica Equipes Titulares (metadado; não influencia inclusão no grid)
+            # 1. Identifica Grids via Equipe Titular (ID-only)
             teams_season = [t for t in all_season_teams if any(pilot.id == p.id for pilot in t.pilots)]
             for t in teams_season:
-                pass
+                if t.grid_id: grids_ids_participacao.add(t.grid_id)
             
-            # 2. Identifica Equipes de Reserva (metadado; não influencia inclusão no grid)
+            # 2. Identifica Grids via Equipe Reserva (ID-only)
             reserves_season = [t for t in all_season_teams if any(pilot.id == p.id for pilot in t.reserves)]
             for t in reserves_season:
-                pass
+                if t.grid_id: grids_ids_participacao.add(t.grid_id)
             
-            # 3. Inclusão por resultados histórica REMOVIDA (somente IDs do perfil definem presença no grid)
-
             for g_id in grids_ids_participacao:
                 if g_id in standings:
                     # Filtra resultados comparando ID
@@ -235,23 +223,16 @@ def home():
         all_pilots_query = PilotProfile.query.join(User).order_by(PilotProfile.nickname).all()
         for g in grid_configs:
             for p in all_pilots_query:
-                # Critério pilot-centric: declarado no perfil por ID ou tem RESULTADOS neste grid/temporada
-                declared_ids = set()
-                if p.grid:
-                    for token in [x.strip() for x in p.grid.split(',') if x.strip()]:
-                        if token.isdigit():
-                            declared_ids.add(int(token))
+                # Verifica se o piloto pertence a este grid via equipe (titular/reserva) ou por resultados reais nesta temporada (ID-only)
+                team = next((t for t in all_season_teams if any(pilot.id == p.id for pilot in t.pilots) and t.grid_id == g.id), None)
+                reserve_team = next((t for t in all_season_teams if any(pilot.id == p.id for pilot in t.reserves) and t.grid_id == g.id), None)
 
-                
-                if (g.id in declared_ids):
-                    # Equipe é apenas metadado (se existir)
-                    team = next((t for t in all_season_teams if any(pilot.id == p.id for pilot in t.pilots) and t.grid_id == g.id), None)
-
+                if team or reserve_team:
                     foto_final = p.foto_url
                     grid_photo = next((gp for gp in p.grid_photos if hasattr(gp, 'grid_id') and gp.grid_id == g.id), None)
                     if grid_photo:
                         foto_final = grid_photo.foto_url
-
+                        
                     if not any(item['data'].id == p.id for item in pilots_by_grid[g.id]):
                         pilots_by_grid[g.id].append({'data': p, 'foto_url': foto_final, 'team': team})
 
@@ -1013,6 +994,12 @@ def open_protest():
     # 1. Determina os grids do usuário (IDs e Nomes para compatibilidade)
     user_grid_ids = set()
     user_grid_names = set()
+    
+    for g in user_profile.grid.split(','):
+        g = g.strip()
+        if g.isdigit(): user_grid_ids.add(int(g))
+        else: user_grid_names.add(g.upper())
+
     for t in user_profile.teams:
         if t.grid_id: user_grid_ids.add(t.grid_id)
         if t.grid: user_grid_names.add(t.grid.upper())
