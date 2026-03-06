@@ -323,36 +323,77 @@ def public_profile(pilot_id):
     p_grids = [g.strip() for g in perfil.grid.split(',')] if perfil.grid else []
 
     for s in active_seasons:
-        # Busca grids onde o piloto tem resultados (Via ID)
+        configs = GridConfig.query.filter_by(season_id=s.id).all()
+        cfg_by_id = {c.id: c for c in configs}
+        valid_names = {c.nome for c in configs}
+        contexts_seen = set()
+
+        # 1) Grids por vínculo de equipe (titular/reserva) - fonte principal.
+        team_links = [t for t in perfil.teams if t.season_id == s.id] + [t for t in perfil.reserve_teams if t.season_id == s.id]
+        for t in team_links:
+            g_id = t.grid_id
+            g_name = t.grid_config.nome if t.grid_config else t.grid
+            if g_id in cfg_by_id:
+                g_name = cfg_by_id[g_id].nome
+            if not g_name:
+                continue
+            key = (s.id, g_name)
+            if key in contexts_seen:
+                continue
+            contexts_seen.add(key)
+            available_contexts.append({
+                'season_id': s.id,
+                'season_nome': s.nome,
+                'grid': g_name,
+                'grid_id': g_id
+            })
+
+        # 2) Grids por resultados (fallback/histórico).
         races_res = db.session.query(Race).join(RaceResult).filter(
             RaceResult.pilot_id == perfil.id,
             Race.season_id == s.id
         ).distinct().all()
-        grids = []
         for r in races_res:
-            gname = r.grid_config.nome if r.grid_config else r.grid
-            if gname not in grids: grids.append(gname)
-        
-        # Filtra grids válidos para esta temporada via GridConfig
-        configs = GridConfig.query.filter_by(season_id=s.id).all()
-        if configs:
-            valid_season_grids = set(c.nome for c in configs)
-        else:
-            # Fallback para corridas se não houver config
-            season_races = Race.query.filter_by(season_id=s.id).all()
-            valid_season_grids = set(r.grid_config.nome if r.grid_config else r.grid for r in season_races if r.grid or r.grid_config)
-
-        for pg in p_grids:
-            if pg not in grids and pg in valid_season_grids:
-                grids.append(pg)
-        
-        for g in grids:
-            cfg = next((c for c in configs if c.nome == g), None)
+            g_name = r.grid_config.nome if r.grid_config else r.grid
+            key = (s.id, g_name)
+            if not g_name or key in contexts_seen:
+                continue
+            contexts_seen.add(key)
             available_contexts.append({
-                'season_id': s.id, 
-                'season_nome': s.nome, 
-                'grid': g,
-                'grid_id': cfg.id if cfg else None
+                'season_id': s.id,
+                'season_nome': s.nome,
+                'grid': g_name,
+                'grid_id': r.grid_id
+            })
+
+        # 3) Grids do perfil (aceita ID ou nome).
+        for pg in p_grids:
+            cfg = None
+            g_name = None
+            g_id = None
+
+            if pg.isdigit():
+                g_id = int(pg)
+                cfg = cfg_by_id.get(g_id)
+                if cfg:
+                    g_name = cfg.nome
+            else:
+                if pg in valid_names:
+                    g_name = pg
+                    cfg = next((c for c in configs if c.nome == pg), None)
+                    g_id = cfg.id if cfg else None
+
+            if not g_name:
+                continue
+            key = (s.id, g_name)
+            if key in contexts_seen:
+                continue
+            contexts_seen.add(key)
+            available_contexts.append({
+                'season_id': s.id,
+                'season_nome': s.nome,
+                'grid': g_name,
+                'grid_id': g_id
             })
 
     sel_season_id = request.args.get('s', type=int)
