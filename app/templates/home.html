@@ -103,7 +103,7 @@
             <div class="card bg-dark border-silver shadow h-100">
                 <div class="card-header border-secondary text-center bg-dark">
                     <span class="badge {% if grid.nome == 'ELITE' %}bg-warning text-dark{% elif grid.nome == 'ADVANCED' %}bg-info text-dark{% else %}bg-danger{% endif %} mb-2">{{ grid.nome }}</span>
-                    <h5 class="text-white fw-bold mb-0"><i class="fa-solid fa-trophy text-warning me-2"></i> GP {{ race.nome_gp }}</h5>
+                    <h5 class="text-white fw-bold mb-0"><i class="fa-solid fa-trophy text-warning me-2"></i> {{ race.nome_gp }}</h5>
                     <small class="text-white-50">{{ race.pista }}</small>
                 </div>
                 <div class="card-body">
@@ -445,7 +445,7 @@
                     <div class="modal-dialog modal-lg modal-dialog-centered">
                         <div class="modal-content bg-dark border-silver text-white">
                             <div class="modal-header border-secondary">
-                                <h5 class="modal-title fw-bold"><i class="fa-solid fa-flag-checkered text-danger me-2"></i> Resultado: GP {{ race.nome_gp }}</h5>
+                                <h5 class="modal-title fw-bold"><i class="fa-solid fa-flag-checkered text-danger me-2"></i> Resultado: {{ race.nome_gp }}</h5>
                                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                             </div>
                             <div class="modal-body p-0">
