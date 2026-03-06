@@ -171,7 +171,7 @@
                 <div class="row">
                     <!-- Pilotos -->
                     <div class="col-lg-8 mb-4">
-                        <div class="card bg-dark border-silver shadow">
+                        <div class="card bg-dark border-silver shadow f1-home-card">
                             <div class="card-header bg-dark border-secondary d-flex justify-content-between align-items-center">
                                 <h5 class="text-white mb-0 fw-bold">Pilotos</h5>
                                 <ul class="nav nav-pills nav-pills-sm" id="pills-tab-{{ grid.id }}" role="tablist">
@@ -187,24 +187,28 @@
                                 <!-- Aba Titulares -->
                                 <div class="tab-pane fade show active" id="pills-titulares-{{ grid.id }}" role="tabpanel">
                                     <div class="table-responsive">
-                                        <table class="table table-dark table-hover align-middle mb-0">
+                                        <table class="table table-dark align-middle mb-0 f1-classification-table">
                                             <thead>
-                                                <tr class="text-white-50 small">
-                                                    <th class="text-center">Pos</th>
+                                                <tr>
+                                                    <th class="text-center f1-col-pos">Pos</th>
                                                     <th>Piloto</th>
-                                                    <th>Carro (Lastro)</th>
-                                                    <th class="text-center">Vitórias</th>
+                                                    <th class="text-center f1-col-lastro">Lastro</th>
+                                                    <th class="f1-col-team">Equipe</th>
+                                                    <th class="text-center f1-col-gap">Gap Lider</th>
                                                     <th class="text-center">Pts</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
+                                                {% set leader_pts = (standings[grid.id][0].pontos|float) if standings[grid.id] else 0 %}
                                                 {% set ns_titular = namespace(count=1) %}
                                                 {% for row in standings[grid.id] if not row.is_reserve %}
                                                 {% if ns_titular.count <= grid.vagas %}
+                                                {% set row_points = row.pontos|float %}
+                                                {% set diff = leader_pts - row_points %}
                                                 <tr>
-                                                    <td class="text-center fw-bold text-secondary">{{ ns_titular.count }}</td>
+                                                    <td class="text-center fw-bold text-secondary f1-pos">{{ ns_titular.count }}</td>
                                                     <td>
-                                                        <div class="d-flex align-items-center">
+                                                        <div class="d-flex align-items-center f1-driver">
                                                             {% if row.foto_url %}
                                                                 <img src="{{ url_for('static', filename='uploads/' + row.foto_url) }}" class="rounded-circle me-2" width="30" height="30" style="object-fit: cover;">
                                                             {% else %}
@@ -214,18 +218,25 @@
                                                                 <div class="d-flex align-items-center">
                                                                     <a href="{{ url_for('public.public_profile', pilot_id=row.piloto.id) }}" class="text-white text-decoration-none fw-bold">{{ row.piloto.nome_real }}</a>
                                                                     {% if row.quali_ban %}
-                                                                        <span class="badge bg-danger ms-2" title="Quali Ban: Proibido de participar da classificação na próxima etapa" style="font-size: 0.65rem;">
+                                                                        <span class="badge bg-danger ms-2" title="Quali Ban: Proibido de participar da classificacao na proxima etapa" style="font-size: 0.65rem;">
                                                                             <i class="fa-solid fa-ban me-1"></i>QUALI BAN
                                                                         </span>
                                                                     {% endif %}
                                                                 </div>
-                                                                <small class="text-white-50">{{ row.piloto.nickname }}</small>
+                                                                <small class="text-white-50 f1-driver-sub">{{ row.piloto.nickname }}</small>
                                                             </div>
                                                         </div>
                                                     </td>
-                                                    <td class="small text-white-50">{{ row.carro }}</td>
-                                                    <td class="text-center text-warning">{{ row.vitorias }}</td>
-                                                    <td class="text-center fw-bold text-warning">{{ '%g' | format(row.pontos|float) }}</td>
+                                                    <td class="text-center small text-white-50 f1-col-lastro">{{ row.carro }}</td>
+                                                    <td class="small text-white-50 f1-col-team">{{ row.team_name or 'Sem Equipe' }}</td>
+                                                    <td class="text-center f1-col-gap f1-gap">
+                                                        {% if ns_titular.count == 1 %}
+                                                            Leader
+                                                        {% else %}
+                                                            +{{ '%.1f'|format(diff) }}
+                                                        {% endif %}
+                                                    </td>
+                                                    <td class="text-center fw-bold text-warning f1-points">{{ '%g' | format(row_points) }}</td>
                                                 </tr>
                                                 {% set ns_titular.count = ns_titular.count + 1 %}
                                                 {% endif %}
@@ -237,12 +248,12 @@
                                 <!-- Aba Reservas -->
                                 <div class="tab-pane fade" id="pills-reservas-{{ grid.id }}" role="tabpanel">
                                     <div class="table-responsive">
-                                        <table class="table table-dark table-hover align-middle mb-0">
+                                        <table class="table table-dark align-middle mb-0 f1-classification-table">
                                             <thead>
-                                                <tr class="text-white-50 small">
+                                                <tr>
                                                     <th class="text-center">Pos</th>
                                                     <th>Piloto</th>
-                                                    <th class="text-center">Vitórias</th>
+                                                    <th class="f1-col-team">Equipe</th>
                                                     <th class="text-center">Pts</th>
                                                 </tr>
                                             </thead>
@@ -252,7 +263,7 @@
                                                 <tr>
                                                     <td class="text-center fw-bold text-secondary">{{ ns_reserva.count }}</td>
                                                     <td>
-                                                        <div class="d-flex align-items-center">
+                                                        <div class="d-flex align-items-center f1-driver">
                                                             {% if row.foto_url %}
                                                                 <img src="{{ url_for('static', filename='uploads/' + row.foto_url) }}" class="rounded-circle me-2" width="30" height="30" style="object-fit: cover;">
                                                             {% else %}
@@ -262,11 +273,11 @@
                                                                 <div class="d-flex align-items-center">
                                                                     <a href="{{ url_for('public.public_profile', pilot_id=row.piloto.id) }}" class="text-white text-decoration-none fw-bold">{{ row.piloto.nome_real }}</a>
                                                                 </div>
-                                                                <small class="text-white-50">{{ row.piloto.nickname }}</small>
+                                                                <small class="text-white-50 f1-driver-sub">{{ row.piloto.nickname }}</small>
                                                             </div>
                                                         </div>
                                                     </td>
-                                                    <td class="text-center text-warning">{{ row.vitorias }}</td>
+                                                    <td class="small text-white-50 f1-col-team">{{ row.team_name or 'Sem Equipe' }}</td>
                                                     <td class="text-center fw-bold text-warning">{{ '%g' | format(row.pontos|float) }}</td>
                                                 </tr>
                                                 {% set ns_reserva.count = ns_reserva.count + 1 %}
@@ -281,34 +292,32 @@
                     </div>
                     <!-- Construtores -->
                     <div class="col-lg-4">
-                        <div class="card bg-dark border-silver shadow">
+                        <div class="card bg-dark border-silver shadow f1-home-card">
                             <div class="card-header bg-dark border-secondary"><h5 class="text-white mb-0 fw-bold">Construtores</h5></div>
-                            <div class="table-responsive">
-                                <table class="table table-dark table-hover align-middle mb-0">
-                                    <thead>
-                                        <tr class="text-white-50 small">
-                                            <th class="text-center">Pos</th>
-                                            <th>Equipe</th>
-                                            <th class="text-center">Pts</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for row in constructors[grid.id] %}
-                                        <tr>
-                                            <td class="text-center fw-bold text-secondary">{{ loop.index }}</td>
-                                            <td>
-                                                <div class="d-flex align-items-center">
-                                                    {% if row.equipe.logo_url %}
-                                                        <img src="{{ url_for('static', filename='uploads/' + row.equipe.logo_url) }}" class="me-2 rounded-circle" width="25" height="25">
-                                                    {% endif %}
-                                                    <a href="{{ url_for('public.team_profile', team_id=row.equipe.id) }}" class="text-white text-decoration-none small fw-bold">{{ row.equipe.nome }}</a>
-                                                </div>
-                                            </td>
-                                            <td class="text-center fw-bold text-info">{{ '%g' | format(row.pontos|float) }}</td>
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
+                            <div class="f1-constructors-list">
+                                <div class="f1-constructors-head">
+                                    <span>Pos</span>
+                                    <span>Equipe</span>
+                                    <span class="text-end">Pts</span>
+                                </div>
+                                {% for row in constructors[grid.id] %}
+                                <div class="f1-constructors-row">
+                                    <span class="fw-bold text-secondary">{{ loop.index }}</span>
+                                    <span class="d-flex align-items-center gap-2">
+                                        {% if row.equipe.logo_url %}
+                                            <img src="{{ url_for('static', filename='uploads/' + row.equipe.logo_url) }}" class="rounded-circle" width="22" height="22" style="object-fit: cover;">
+                                        {% endif %}
+                                        <a href="{{ url_for('public.team_profile', team_id=row.equipe.id) }}" class="text-white text-decoration-none small fw-bold">{{ row.equipe.nome }}</a>
+                                    </span>
+                                    <span class="text-end fw-bold text-info">{{ '%g' | format(row.pontos|float) }}</span>
+                                </div>
+                                {% else %}
+                                <div class="f1-constructors-row">
+                                    <span>-</span>
+                                    <span class="text-white-50">Sem equipes</span>
+                                    <span class="text-end">0</span>
+                                </div>
+                                {% endfor %}
                             </div>
                         </div>
                     </div>
@@ -317,8 +326,8 @@
                 <!-- Gráfico de Evolução de Pontos (largura total) -->
                 <div class="row mt-4">
                     <div class="col-12">
-                        <div class="card bg-dark border-silver shadow">
-                            <div class="card-header bg-dark border-secondary d-flex justify-content-between align-items-center gap-2">
+                        <div class="card bg-dark border-silver shadow f1-chart-card">
+                            <div class="card-header bg-dark border-secondary d-flex justify-content-between align-items-center gap-2 f1-chart-header">
                                 <h5 class="text-white mb-0 fw-bold">Evolução de Pontos</h5>
                                 <div class="d-flex gap-2">
                                     <!-- Dropdown Filtro Pilotos -->
@@ -341,7 +350,7 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="card-body p-3">
+                            <div class="card-body p-3 f1-chart-body">
                                 <canvas id="chart-evolucao-{{ grid.id }}" height="400" style="width:100%;"></canvas>
                             </div>
                         </div>
@@ -581,6 +590,139 @@
         font-size: 0.85rem;
         border-bottom: 1px solid #444;
         padding-bottom: 0.25rem;
+    }
+
+    /* Visual F1-like para classificação e construtores */
+    .f1-home-card {
+        background:
+            radial-gradient(circle at 15% 20%, rgba(230, 0, 0, 0.12) 0%, rgba(230, 0, 0, 0) 35%),
+            linear-gradient(135deg, #0a0f1d 0%, #111829 45%, #0b1120 100%);
+    }
+
+    .f1-classification-table {
+        border-collapse: collapse;
+        --bs-table-bg: transparent;
+        --bs-table-color: #f5f7fa;
+        --bs-table-hover-bg: rgba(255, 255, 255, 0.05);
+        --bs-table-striped-bg: transparent;
+    }
+
+    .f1-classification-table thead tr {
+        background: #d8dbe1;
+        border-top: 3px solid #e10600;
+    }
+
+    .f1-classification-table thead th {
+        font-family: 'Orbitron', 'Segoe UI', sans-serif;
+        color: #181d28 !important;
+        font-size: 0.76rem;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        font-weight: 800;
+    }
+
+    .f1-classification-table tbody tr {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .f1-classification-table > :not(caption) > * > * {
+        background-color: transparent !important;
+        box-shadow: none !important;
+    }
+
+    .f1-classification-table tbody tr:hover {
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    .f1-pos {
+        font-family: 'Orbitron', 'Segoe UI', sans-serif;
+        font-size: 1.1rem;
+        color: #d2d7df !important;
+    }
+
+    .f1-driver .rounded-circle {
+        border: 1px solid rgba(255, 255, 255, 0.35);
+    }
+
+    .f1-driver-sub {
+        font-family: 'Orbitron', 'Segoe UI', sans-serif;
+        letter-spacing: 0.03em;
+        font-size: 0.72rem;
+    }
+
+    .f1-col-lastro {
+        white-space: nowrap;
+        color: #d5dbe6;
+        font-size: 0.82rem;
+    }
+
+    .f1-gap {
+        font-family: 'Orbitron', 'Segoe UI', sans-serif;
+        color: #dfe3ea;
+        font-weight: 700;
+    }
+
+    .f1-points {
+        font-family: 'Orbitron', 'Segoe UI', sans-serif;
+        font-size: 1rem;
+        letter-spacing: 0.04em;
+    }
+
+    .f1-constructors-list {
+        padding: 0;
+    }
+
+    .f1-constructors-head,
+    .f1-constructors-row {
+        display: grid;
+        grid-template-columns: 46px 1fr 70px;
+        gap: 8px;
+        align-items: center;
+        padding: 10px 12px;
+    }
+
+    .f1-constructors-head {
+        font-family: 'Orbitron', 'Segoe UI', sans-serif;
+        background: #d8dbe1;
+        border-top: 3px solid #e10600;
+        color: #181d28;
+        font-size: 0.74rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+    }
+
+    .f1-constructors-row {
+        font-family: 'Orbitron', 'Segoe UI', sans-serif;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        color: #f5f7fa;
+    }
+
+    .f1-constructors-row:hover {
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    @media (max-width: 992px) {
+        .f1-col-team,
+        .f1-col-gap {
+            display: none;
+        }
+    }
+
+    /* Visual premium do gráfico */
+    .f1-chart-card {
+        background:
+            radial-gradient(circle at 10% 15%, rgba(225, 6, 0, 0.18) 0%, rgba(225, 6, 0, 0) 30%),
+            linear-gradient(135deg, #0a0f1d 0%, #111829 45%, #0b1120 100%);
+    }
+
+    .f1-chart-header {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.14) !important;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.01) 100%) !important;
+    }
+
+    .f1-chart-body {
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
     }
 </style>
 
@@ -873,6 +1015,36 @@ document.addEventListener('DOMContentLoaded', function() {
         const rgb = hslToRgb(baseHsl.h, baseHsl.s, light);
         return `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`;
     }
+
+    function toRgba(rgb, alpha) {
+        const m = (rgb || '').match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/i);
+        if (!m) return `rgba(255,255,255,${alpha})`;
+        return `rgba(${m[1]}, ${m[2]}, ${m[3]}, ${alpha})`;
+    }
+
+    function buildLineGradient(chart, color) {
+        const { ctx, chartArea } = chart;
+        if (!chartArea) return toRgba(color, 0.16);
+        const g = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+        g.addColorStop(0, toRgba(color, 0.42));
+        g.addColorStop(1, toRgba(color, 0.04));
+        return g;
+    }
+
+    const chartAreaBackdropPlugin = {
+        id: 'chartAreaBackdrop',
+        beforeDraw(chart) {
+            const { ctx, chartArea } = chart;
+            if (!chartArea) return;
+            ctx.save();
+            const bg = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+            bg.addColorStop(0, 'rgba(255,255,255,0.07)');
+            bg.addColorStop(1, 'rgba(255,255,255,0.01)');
+            ctx.fillStyle = bg;
+            ctx.fillRect(chartArea.left, chartArea.top, chartArea.right - chartArea.left, chartArea.bottom - chartArea.top);
+            ctx.restore();
+        }
+    };
     
     // Função para renderizar o gráfico com filtro aplicado
     function renderChartForGrid(grid) {
@@ -957,16 +1129,18 @@ document.addEventListener('DOMContentLoaded', function() {
                     label: piloto.nome_real || piloto.nickname,
                     data: data,
                     borderColor: color,
-                    backgroundColor: color + '30',  // Adiciona transparência
-                    borderWidth: 2.5,
+                    backgroundColor: (context) => buildLineGradient(context.chart, color),
+                    borderWidth: 3,
                     fill: false,
                     // tension controls curve of the line: 0 => straight segments, >0 (e.g. 0.4) for smooth/“parabolic” curves
-                    tension: 0.4,
-                    pointRadius: 4,
+                    tension: 0.35,
+                    pointRadius: 3,
                     pointHoverRadius: 6,
+                    pointHitRadius: 14,
                     pointBackgroundColor: color,
-                    pointBorderColor: '#fff',
-                    pointBorderWidth: 1
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 1.5,
+                    cubicInterpolationMode: 'monotone'
                 };
             });
         
@@ -977,31 +1151,40 @@ document.addEventListener('DOMContentLoaded', function() {
                 labels: gpsOrdenados,
                 datasets: datasets
             },
+            plugins: [chartAreaBackdropPlugin],
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
                 plugins: {
                     legend: {
                         display: true,
-                        position: 'right',
+                        position: 'bottom',
                         labels: {
-                            color: '#e0e0e0',
-                            font: { size: 11 },
-                            padding: 10,
-                            boxWidth: 12,
-                            boxHeight: 12
+                            color: '#f2f4f8',
+                            font: { size: 11, weight: '600' },
+                            padding: 14,
+                            boxWidth: 10,
+                            boxHeight: 10,
+                            usePointStyle: true,
+                            pointStyle: 'circle'
                         },
-                        maxHeight: 200
+                        maxHeight: 90
                     },
                     tooltip: {
-                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                        titleColor: '#fff',
-                        bodyColor: '#e0e0e0',
-                        borderColor: '#C0C0C0',
+                        backgroundColor: 'rgba(5, 8, 16, 0.94)',
+                        titleColor: '#ffffff',
+                        bodyColor: '#f2f4f8',
+                        borderColor: 'rgba(225, 6, 0, 0.65)',
                         borderWidth: 1,
-                        padding: 10,
-                        titleFont: { size: 12, weight: 'bold' },
-                        bodyFont: { size: 11 },
+                        padding: 14,
+                        titleFont: { size: 12, weight: '700' },
+                        bodyFont: { size: 11, weight: '600' },
+                        cornerRadius: 8,
+                        displayColors: true,
                         callbacks: {
                             afterLabel: function(context) {
                                 return `Pontos: ${context.parsed.y}`;
@@ -1011,15 +1194,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 scales: {
                     x: {
-                        grid: { color: '#333333' },
-                        ticks: { color: '#888888', font: { size: 10 } },
-                        title: { display: true, text: 'Etapas', color: '#e0e0e0' }
+                        grid: {
+                            color: 'rgba(255,255,255,0.10)',
+                            drawBorder: false,
+                            borderDash: [4, 4]
+                        },
+                        ticks: { color: '#bfc7d5', font: { size: 10, weight: '600' } },
+                        title: { display: true, text: 'Etapas', color: '#e0e0e0', font: { weight: '700' } }
                     },
                     y: {
                         beginAtZero: true,
-                        grid: { color: '#333333' },
-                        ticks: { color: '#888888', font: { size: 10 } },
-                        title: { display: true, text: 'Pontos Acumulados', color: '#e0e0e0' }
+                        grid: {
+                            color: 'rgba(255,255,255,0.10)',
+                            drawBorder: false,
+                            borderDash: [4, 4]
+                        },
+                        ticks: { color: '#bfc7d5', font: { size: 10, weight: '600' } },
+                        title: { display: true, text: 'Pontos Acumulados', color: '#e0e0e0', font: { weight: '700' } }
                     }
                 }
             }
