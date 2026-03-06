@@ -253,7 +253,7 @@
     {% if defesas_pendentes %}
     <div class="col-12">
         <div class="card border-danger shadow">
-            <div class="card-header bg-danger text-white fw-bold">
+            <div class="card-header bg-danger text-white fw-bold title-orbitron">
                 <i class="fa-solid fa-triangle-exclamation me-2"></i> VOCÊ FOI DENUNCIADO - APRESENTE DEFESA
             </div>
             <div class="card-body bg-dark">
@@ -279,7 +279,7 @@
 
     <div class="col-md-6">
         <div class="card shadow border-secondary h-100">
-            <div class="card-header bg-dark border-secondary text-white fw-bold">
+            <div class="card-header bg-dark border-secondary text-white fw-bold title-orbitron">
                 <i class="fa-solid fa-gavel me-2"></i> Meus Protestos Enviados
             </div>
             <div class="card-body bg-dark p-0">
@@ -335,7 +335,7 @@
 
     <div class="col-md-6">
         <div class="card shadow border-secondary h-100">
-            <div class="card-header bg-dark border-secondary text-white fw-bold d-flex justify-content-between align-items-center">
+            <div class="card-header bg-dark border-secondary text-white fw-bold d-flex justify-content-between align-items-center title-orbitron">
                 <span><i class="fa-solid fa-file-contract me-2"></i> Histórico de Punições</span>
                 <span class="text-white">Total: <span class="text-danger">{{ total_punicoes }}</span></span>
             </div>
@@ -371,7 +371,7 @@
 {% if historico_carreira %}
 <div class="row mb-5">
     <div class="col-12">
-        <h5 class="text-white-50 mb-3 ps-2 border-start border-danger border-4">Histórico de Carreira</h5>
+        <h5 class="text-white-50 mb-3 ps-2 border-start border-danger border-4 title-orbitron">Histórico de Carreira</h5>
         <div class="table-responsive">
             <table class="table table-dark table-sm border border-secondary">
                 <thead>
@@ -493,6 +493,10 @@
 </div>
 
 <style>
+    .title-orbitron {
+        font-family: 'Orbitron', 'Segoe UI', sans-serif !important;
+        letter-spacing: 0.02em;
+    }
     .js-image-zoom {
         cursor: zoom-in;
         transition: transform 0.15s ease;
