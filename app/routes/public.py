@@ -612,12 +612,19 @@ def my_profile():
     
     current_team = None
     if current_context:
-        current_team = next((t for t in perfil.teams if t.season_id == current_context['season_id'] and 
-                             ((t.grid_config and t.grid_config.nome == current_context['grid']) or t.grid == current_context['grid'])), None)
-        
-        if not current_team:
-            current_team = next((t for t in perfil.reserve_teams if t.season_id == current_context['season_id'] and 
+        ctx_grid_id = current_context.get('grid_id')
+        if ctx_grid_id:
+            current_team = next((t for t in perfil.teams if t.season_id == current_context['season_id'] and t.grid_id == ctx_grid_id), None)
+        else:
+            current_team = next((t for t in perfil.teams if t.season_id == current_context['season_id'] and 
                                  ((t.grid_config and t.grid_config.nome == current_context['grid']) or t.grid == current_context['grid'])), None)
+
+        if not current_team:
+            if ctx_grid_id:
+                current_team = next((t for t in perfil.reserve_teams if t.season_id == current_context['season_id'] and t.grid_id == ctx_grid_id), None)
+            else:
+                current_team = next((t for t in perfil.reserve_teams if t.season_id == current_context['season_id'] and 
+                                     ((t.grid_config and t.grid_config.nome == current_context['grid']) or t.grid == current_context['grid'])), None)
 
     if current_context:
         cnh_info = perfil.get_cnh_info(current_context['season_id'], current_context['grid_id'])
@@ -648,20 +655,31 @@ def my_profile():
     
     hoje = datetime.utcnow().date()
     if current_context:
-        pode_ver_checkin = (current_context['grid'] in p_grids) or ('RESERVA' in p_grids) or \
-                           (current_team is not None)
+        p_grid_ids = set(int(g) for g in p_grids if g.isdigit())
+        p_grid_names = set(g.upper() for g in p_grids if not g.isdigit())
+        ctx_grid_id = current_context.get('grid_id')
+        ctx_grid_name = (current_context.get('grid') or '').upper()
+        pode_ver_checkin = (
+            (ctx_grid_id in p_grid_ids if ctx_grid_id else False) or
+            (ctx_grid_name in p_grid_names) or
+            ('RESERVA' in p_grid_names) or
+            (current_team is not None)
+        )
 
         if pode_ver_checkin:
             proxima = None
-            futuras = Race.query.filter(
+            futuras_q = Race.query.filter(
                 Race.season_id == current_context['season_id'],
                 Race.status != 'Concluida',
                 Race.data_corrida >= hoje
-            ).order_by(Race.data_corrida).all()
-            
+            )
+            if ctx_grid_id:
+                futuras_q = futuras_q.filter(Race.grid_id == ctx_grid_id)
+            futuras = futuras_q.order_by(Race.data_corrida).all()
+
             for r in futuras:
-                r_gname = r.grid_config.nome if r.grid_config else r.grid
-                if r_gname == current_context['grid']:
+                r_gname = (r.grid_config.nome if r.grid_config else r.grid or '').upper()
+                if (ctx_grid_id and r.grid_id == ctx_grid_id) or (not ctx_grid_id and r_gname == ctx_grid_name):
                     proxima = r
                     break
 
@@ -683,7 +701,10 @@ def my_profile():
             meus_pontos_camp = calcular_pontos_totais_piloto(perfil.id, s_id, grid_id_calc)
         
         all_races_season = Race.query.filter_by(season_id=s_id).order_by(Race.data_corrida).all()
-        corridas = [r for r in all_races_season if (r.grid_config and r.grid_config.nome == g_name) or r.grid == g_name]
+        if grid_id_calc:
+            corridas = [r for r in all_races_season if r.grid_id == grid_id_calc]
+        else:
+            corridas = [r for r in all_races_season if (r.grid_config and r.grid_config.nome == g_name) or r.grid == g_name]
         
         for race in corridas:
             resultado = next((r for r in race.results if r.pilot_id == perfil.id), None)
