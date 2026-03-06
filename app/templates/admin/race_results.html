@@ -53,6 +53,7 @@
                                         <strong class="text-white d-block">{{ piloto.nickname }}</strong>
                                         <small class="text-white-50">{{ team.nome if team else 'Sem Equipe' }}</small>
                                         <input type="hidden" name="titular_id" value="{{ piloto.id }}">
+                                        <input type="hidden" name="titular_team_{{ piloto.id }}" value="{{ team.id if team else '' }}">
                                     </div>
                                 </div>
                             </td>

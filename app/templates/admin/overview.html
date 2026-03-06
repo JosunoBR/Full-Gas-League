@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
 {% block content %}
 <style>
@@ -52,9 +52,59 @@
         background-color: #E60000 !important;
         border-color: #E60000;
     }
+    /* visual da Home aplicado ao Overview */
+    .f1-home-card {
+        background:
+            radial-gradient(circle at 15% 20%, rgba(230, 0, 0, 0.12) 0%, rgba(230, 0, 0, 0) 35%),
+            linear-gradient(135deg, #0a0f1d 0%, #111829 45%, #0b1120 100%);
+    }
+    .f1-overview-stat small,
+    .f1-overview-stat h3,
+    .f1-overview-stat h5 {
+        font-family: 'Orbitron', 'Segoe UI', sans-serif;
+        letter-spacing: 0.03em;
+    }
+    .f1-classification-table {
+        border-collapse: collapse;
+        --bs-table-bg: transparent;
+        --bs-table-color: #f5f7fa;
+        --bs-table-hover-bg: rgba(255, 255, 255, 0.05);
+        --bs-table-striped-bg: transparent;
+    }
+    .f1-classification-table thead tr {
+        background: #d8dbe1;
+        border-top: 3px solid #e10600;
+    }
+    .f1-classification-table thead th {
+        font-family: 'Orbitron', 'Segoe UI', sans-serif;
+        color: #181d28 !important;
+        font-size: 0.76rem;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        font-weight: 800;
+    }
+    .f1-classification-table tbody tr {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .f1-classification-table > :not(caption) > * > * {
+        background-color: transparent !important;
+        box-shadow: none !important;
+    }
+    .f1-classification-table tbody tr:hover {
+        background: rgba(255, 255, 255, 0.05);
+    }
+    .f1-chart-card {
+        background:
+            radial-gradient(circle at 10% 15%, rgba(225, 6, 0, 0.18) 0%, rgba(225, 6, 0, 0) 30%),
+            linear-gradient(135deg, #0a0f1d 0%, #111829 45%, #0b1120 100%);
+    }
+    .f1-chart-header {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.14) !important;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.01) 100%) !important;
+    }
 </style>
     <div class="mb-3">
-        <h2 class="text-white mb-0"><i class="fa-solid fa-chart-line text-warning"></i> Visão Geral</h2>
+        <h2 class="text-white mb-0"><i class="fa-solid fa-chart-line text-warning"></i> Visao Geral</h2>
         <small class="text-white-50">
             {% if season %} Temporada: {{ season.nome }} {% else %} Nenhuma temporada ativa {% endif %}
         </small>
@@ -103,26 +153,26 @@
         <!-- row 1: general statistics -->
         <div class="row mb-4 g-3">
             <div class="col-md-3">
-                <div class="card bg-dark border-secondary text-center p-3 h-100 shadow-sm">
+                <div class="card border-silver text-center p-3 h-100 shadow-sm f1-home-card f1-overview-stat">
                     <small class="text-white-50 text-uppercase fw-bold" style="font-size: 0.7rem; letter-spacing: 1px;">Pilotos Ativos</small>
                     <h3 class="text-white mb-0 mt-1 fw-bold">{{ dados[grid.id]['stats']['total_pilotos'] }}</h3>
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="card bg-dark border-secondary text-center p-3 h-100 shadow-sm">
-                    <small class="text-white-50 text-uppercase fw-bold" style="font-size: 0.7rem; letter-spacing: 1px;">Líder do Grid</small>
+                <div class="card border-silver text-center p-3 h-100 shadow-sm f1-home-card f1-overview-stat">
+                    <small class="text-white-50 text-uppercase fw-bold" style="font-size: 0.7rem; letter-spacing: 1px;">Lider do Grid</small>
                     <h3 class="text-warning mb-0 mt-1 fw-bold text-truncate px-2">{{ dados[grid.id]['stats']['lider'] }}</h3>
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="card bg-dark border-secondary text-center p-3 h-100 shadow-sm">
-                    <small class="text-white-50 text-uppercase fw-bold" style="font-size: 0.7rem; letter-spacing: 1px;">Etapas Concluídas</small>
+                <div class="card border-silver text-center p-3 h-100 shadow-sm f1-home-card f1-overview-stat">
+                    <small class="text-white-50 text-uppercase fw-bold" style="font-size: 0.7rem; letter-spacing: 1px;">Etapas Concluidas</small>
                     <h3 class="text-info mb-0 mt-1 fw-bold">{{ dados[grid.id]['stats']['corridas_concluidas'] }}</h3>
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="card bg-dark border-secondary text-center p-3 h-100 shadow-sm">
-                    <small class="text-white-50 text-uppercase fw-bold" style="font-size: 0.7rem; letter-spacing: 1px;">Pontos médios/etapa</small>
+                <div class="card border-silver text-center p-3 h-100 shadow-sm f1-home-card f1-overview-stat">
+                    <small class="text-white-50 text-uppercase fw-bold" style="font-size: 0.7rem; letter-spacing: 1px;">Pontos medios/etapa</small>
                     <h3 class="text-info mb-0 mt-1 fw-bold">{{ '%.1f'|format(dados[grid.id]['avg_points_per_race']) }}</h3>
                 </div>
             </div>
@@ -130,8 +180,8 @@
         <!-- row 2: operational / upcoming stats -->
         <div class="row mb-4 g-3">
             <div class="col-md-3">
-                <div class="card bg-dark border-secondary text-center p-3 h-100 shadow-sm">
-                    <small class="text-white-50 text-uppercase fw-bold" style="font-size: 0.7rem; letter-spacing: 1px;">Próxima Etapa</small>
+                <div class="card border-silver text-center p-3 h-100 shadow-sm f1-home-card f1-overview-stat">
+                    <small class="text-white-50 text-uppercase fw-bold" style="font-size: 0.7rem; letter-spacing: 1px;">Proxima Etapa</small>
                     {% if dados[grid.id]['next_race'] %}
                     <h5 class="text-white mb-0 mt-1 fw-bold">{{ dados[grid.id]['next_race'].nome_gp }}</h5>
                     <small class="text-white-50 d-block">{{ dados[grid.id]['next_race'].data_corrida.strftime('%d/%m/%Y') }}</small>
@@ -141,8 +191,8 @@
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="card bg-dark border-secondary text-center p-3 h-100 shadow-sm">
-                    <small class="text-white-50 text-uppercase fw-bold" style="font-size: 0.7rem; letter-spacing: 1px;">Check-in Próxima Etapa</small>
+                <div class="card border-silver text-center p-3 h-100 shadow-sm f1-home-card f1-overview-stat">
+                    <small class="text-white-50 text-uppercase fw-bold" style="font-size: 0.7rem; letter-spacing: 1px;">Check-in Proxima Etapa</small>
                     {% if dados[grid.id]['next_race'] %}
                         <h5 class="text-white mb-0 mt-1 fw-bold">{{ dados[grid.id]['checkin']['confirmed'] }} confirmados</h5>
                         <small class="text-white-50 d-block">{{ dados[grid.id]['checkin']['absent'] }} ausentes</small>
@@ -155,14 +205,14 @@
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="card bg-dark border-secondary text-center p-3 h-100 shadow-sm">
+                <div class="card border-silver text-center p-3 h-100 shadow-sm f1-home-card f1-overview-stat">
                     <small class="text-white-50 text-uppercase fw-bold" style="font-size: 0.7rem; letter-spacing: 1px;">Protestos Pendentes</small>
                     <h3 class="text-danger mb-0 mt-1 fw-bold">{{ dados[grid.id]['pending_protests'] }}</h3>
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="card bg-dark border-secondary text-center p-3 h-100 shadow-sm">
-                    <small class="text-white-50 text-uppercase fw-bold" style="font-size: 0.7rem; letter-spacing: 1px;">Sem pontos últimas 3</small>
+                <div class="card border-silver text-center p-3 h-100 shadow-sm f1-home-card f1-overview-stat">
+                    <small class="text-white-50 text-uppercase fw-bold" style="font-size: 0.7rem; letter-spacing: 1px;">Sem pontos ultimas 3</small>
                     <h3 class="text-warning mb-0 mt-1 fw-bold">{{ dados[grid.id]['no_score_last3']|length }}</h3>
                 </div>
             </div>
@@ -189,7 +239,7 @@
             <div class="col-lg-7">
                 <div class="card shadow border-secondary mb-4">
                     <div class="card-header bg-dark border-secondary d-flex justify-content-between align-items-center">
-                        <h6 class="mb-0 text-white"><i class="fa-solid fa-trophy text-warning"></i> Tabela de Classificação</h6>
+                        <h6 class="mb-0 text-white"><i class="fa-solid fa-trophy text-warning"></i> Tabela de Classificacao</h6>
                         <ul class="nav nav-pills nav-pills-sm" id="pills-overview-tab-{{ grid.id }}" role="tablist">
                             <li class="nav-item" role="presentation">
                                 <button class="nav-link active py-0 px-2 fw-bold" id="pills-titulares-ov-tab-{{ grid.id }}" data-bs-toggle="pill" data-bs-target="#pills-titulares-ov-{{ grid.id }}" type="button" role="tab">Titulares</button>
@@ -203,13 +253,13 @@
                         <!-- Aba Titulares -->
                         <div class="tab-pane fade show active" id="pills-titulares-ov-{{ grid.id }}" role="tabpanel">
                             <div class="table-responsive">
-                                <table class="table table-dark table-hover table-sm mb-0 align-middle">
+                                <table class="table table-dark table-hover table-sm mb-0 align-middle f1-classification-table">
                                     <thead>
                                         <tr class="text-white-50 small">
                                             <th class="ps-3 text-center">Pos</th>
                                             <th>Piloto</th>
-                                            <th class="text-center">Vitórias</th>
-                                            <th class="text-center">Pódios</th>
+                                            <th class="text-center">Vitorias</th>
+                                            <th class="text-center">Podios</th>
                                             <th class="text-center pe-3 text-white">Pontos</th>
                                         </tr>
                                     </thead>
@@ -218,7 +268,7 @@
                                         {% for row in dados[grid.id]['classificacao'] if not row.is_reserve %}
                                         {% if ns_titular_ov.count <= grid.vagas %}
                                         <tr>
-                                            <td class="text-center fw-bold ps-3 text-secondary">{{ ns_titular_ov.count }}º</td>
+                                            <td class="text-center fw-bold ps-3 text-secondary">{{ ns_titular_ov.count }}o</td>
                                             <td class="fw-bold">{{ row.piloto.nickname }}</td>
                                             <td class="text-center text-white small">{{ row.vitorias }}</td>
                                             <td class="text-center text-white small">{{ row.podios }}</td>
@@ -236,13 +286,13 @@
                         <!-- Aba Reservas -->
                         <div class="tab-pane fade" id="pills-reservas-ov-{{ grid.id }}" role="tabpanel">
                             <div class="table-responsive">
-                                <table class="table table-dark table-hover table-sm mb-0 align-middle">
+                                <table class="table table-dark table-hover table-sm mb-0 align-middle f1-classification-table">
                                     <thead>
                                         <tr class="text-white-50 small">
                                             <th class="ps-3 text-center">Pos</th>
                                             <th>Piloto</th>
-                                            <th class="text-center">Vitórias</th>
-                                            <th class="text-center">Pódios</th>
+                                            <th class="text-center">Vitorias</th>
+                                            <th class="text-center">Podios</th>
                                             <th class="text-center pe-3 text-white">Pontos</th>
                                         </tr>
                                     </thead>
@@ -250,7 +300,7 @@
                                         {% set ns_reserva_ov = namespace(count=1) %}
                                         {% for row in dados[grid.id]['classificacao'] if row.is_reserve %}
                                         <tr>
-                                            <td class="text-center fw-bold ps-3 text-secondary">{{ ns_reserva_ov.count }}º</td>
+                                            <td class="text-center fw-bold ps-3 text-secondary">{{ ns_reserva_ov.count }}o</td>
                                             <td class="fw-bold">{{ row.piloto.nickname }}</td>
                                             <td class="text-center text-white small">{{ row.vitorias }}</td>
                                             <td class="text-center text-white small">{{ row.podios }}</td>
@@ -274,7 +324,7 @@
                         <h6 class="mb-0 text-white"><i class="fa-solid fa-triangle-exclamation text-danger"></i> Risco Disciplinar (CNH)</h6>
                     </div>
                     <div class="table-responsive">
-                        <table class="table table-dark table-hover table-sm mb-0 align-middle">
+                        <table class="table table-dark table-hover table-sm mb-0 align-middle f1-classification-table">
                             <thead>
                                 <tr class="text-white-50 small">
                                     <th class="ps-3">Piloto</th>
@@ -288,15 +338,15 @@
                                     <td class="ps-3">
                                         {% if row.punicoes %}
                                             <a href="#" data-bs-toggle="modal" data-bs-target="#modalPunicao{{ row.piloto.id }}_{{ grid.id }}" class="text-white text-decoration-none">
-                                                {{ row.piloto.nickname }} <i class="fa-solid fa-gavel text-danger ms-1" style="font-size: 0.8em;" title="Ver histórico de punições"></i>
+                                                {{ row.piloto.nickname }} <i class="fa-solid fa-gavel text-danger ms-1" style="font-size: 0.8em;" title="Ver historico de punicoes"></i>
                                             </a>
 
-                                            <!-- Modal de Punições -->
+                                            <!-- Modal de Punicoes -->
                                             <div class="modal fade" id="modalPunicao{{ row.piloto.id }}_{{ grid.id }}" tabindex="-1" aria-hidden="true">
                                                 <div class="modal-dialog modal-dialog-centered">
                                                     <div class="modal-content bg-dark border-secondary text-white">
                                                         <div class="modal-header border-secondary">
-                                                            <h5 class="modal-title"><i class="fa-solid fa-triangle-exclamation text-danger me-2"></i>Punições - {{ row.piloto.nickname }}</h5>
+                                                            <h5 class="modal-title"><i class="fa-solid fa-triangle-exclamation text-danger me-2"></i>Punicoes - {{ row.piloto.nickname }}</h5>
                                                             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                                                         </div>
                                                         <div class="modal-body p-0" style="max-height: 60vh; overflow-y: auto;">
@@ -305,7 +355,7 @@
                                                                     <tr>
                                                                         <th class="ps-3">GP</th>
                                                                         <th>Veredito</th>
-                                                                        <th class="text-end pe-3">Ação</th>
+                                                                        <th class="text-end pe-3">Acao</th>
                                                                     </tr>
                                                                 </thead>
                                                                 <tbody>
@@ -326,7 +376,7 @@
                                             {{ row.piloto.nickname }}
                                         {% endif %}
 
-                                        {# Verifica se o piloto pertence a este grid atualmente. Se não, marca como Reserva/Externo #}
+                                        {# Verifica se o piloto pertence a este grid atualmente. Se nao, marca como Reserva/Externo #}
                                         {% if row.is_reserve %}
                                             <span class="badge bg-secondary border border-dark text-white ms-1" style="font-size: 0.65em; vertical-align: middle;" title="Piloto Reserva ou de outro Grid">R</span>
                                         {% endif %}
@@ -350,7 +400,7 @@
                 </div>
                 
                 <div class="alert alert-dark mt-3 small text-muted border-secondary">
-                    <i class="fa-solid fa-info-circle"></i> <strong>Dica:</strong> A tabela de risco mostra no topo os pilotos com menos pontos na CNH (mais próximos do banimento).
+                    <i class="fa-solid fa-info-circle"></i> <strong>Dica:</strong> A tabela de risco mostra no topo os pilotos com menos pontos na CNH (mais proximos do banimento).
                 </div>
             </div>
         </div>
@@ -363,7 +413,7 @@
                         <h6 class="mb-0 text-white"><i class="fa-solid fa-flag-checkered text-info"></i> Construtores</h6>
                     </div>
                     <div class="table-responsive">
-                        <table class="table table-dark table-hover table-sm mb-0 align-middle">
+                        <table class="table table-dark table-hover table-sm mb-0 align-middle f1-classification-table">
                             <thead>
                                 <tr class="text-white-50 small">
                                     <th class="text-center">Pos</th>
@@ -388,16 +438,16 @@
             </div>
             <div class="col-lg-5">
                 <div class="card shadow border-secondary mb-4">
-                    <div class="card-header bg-dark border-secondary">
-                        <h6 class="mb-0 text-white"><i class="fa-solid fa-chart-line text-warning"></i> Evolução Pontos</h6>
+                    <div class="card-header bg-dark border-secondary f1-chart-header">
+                        <h6 class="mb-0 text-white"><i class="fa-solid fa-chart-line text-warning"></i> Evolucao Pontos</h6>
                     </div>
-                    <div class="card-body p-3">
+                    <div class="card-body p-3 f1-chart-card">
                         <canvas id="overview-evol-{{ grid.id }}" height="400" style="width:100%;"></canvas>
                     </div>
                 </div>
                 {% if dados[grid.id]['no_score_last3'] %}
                 <div class="alert alert-warning">
-                    <strong>Sem pontos nas últimas 3 etapas:</strong>
+                    <strong>Sem pontos nas ultimas 3 etapas:</strong>
                     {% for p in dados[grid.id]['no_score_last3'] %}{{ p.nickname }}{% if not loop.last %}, {% endif %}{% endfor %}
                 </div>
                 {% endif %}
@@ -517,3 +567,4 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 
 {% endblock %}
+

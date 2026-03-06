@@ -1,0 +1,10 @@
+RELATORIO DE ERROS DE PILOTOS/EQUIPES
+===================================
+
+Total de itens: 43
+Por tipo:
+  - RACE_RESULT_SEM_EQUIPE: 43
+
+Por grid_id:
+  - Grid 1: 8
+  - Grid 3: 35

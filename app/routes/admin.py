@@ -1003,16 +1003,26 @@ def race_results(race_id):
 
         # 1. PROCESSAR TITULARES
         titulares_ids = request.form.getlist('titular_id')
+        titulares_sem_equipe = []
         for pid in titulares_ids:
+            pid_int = int(pid)
             try:
                 posicao = int(request.form.get(f'pos_{pid}') or 0)
             except ValueError:
                 posicao = 0
 
             status_presenca = request.form.get(f'status_{pid}') # OK, FJ, FNJ
-            piloto = PilotProfile.query.get(pid)
+            piloto = PilotProfile.query.get(pid_int)
             
-            equipe_id = team_snapshot.get(int(pid))
+            equipe_id = team_snapshot.get(pid_int)
+
+            # Prioriza equipe enviada pelo formulario (fonte da tela GET)
+            form_team_raw = (request.form.get(f'titular_team_{pid_int}') or '').strip()
+            if equipe_id is None and form_team_raw.isdigit():
+                form_team_id = int(form_team_raw)
+                team_from_form = Team.query.get(form_team_id)
+                if team_from_form and team_from_form.grid_id == race.grid_id:
+                    equipe_id = team_from_form.id
             if equipe_id is None:
                 # Busca a equipe atual do piloto para o grid desta corrida
                 r_gname = (race.grid_config.nome if race.grid_config else race.grid).upper()
@@ -1021,12 +1031,12 @@ def race_results(race_id):
                 else:
                     team = next((t for t in piloto.teams if t.grid.upper() == r_gname), None)
                 
-                # Fallback: Se não achou e o piloto tem equipes, usa a primeira (Assume migração de grid)
-                if not team and piloto.teams:
-                    team = piloto.teams[0]
-                    
                 equipe_id = team.id if team else None
-            
+
+            if equipe_id is None:
+                titulares_sem_equipe.append(piloto.nickname if piloto else f'ID {pid_int}')
+                continue
+
             if status_presenca == 'OK':
                 posicao = int(request.form.get(f'pos_{pid}') or 0)
                 dnf = request.form.get(f'dnf_{pid}') == 'on'
@@ -1046,7 +1056,7 @@ def race_results(race_id):
                 
                 
                 db.session.add(RaceResult(
-                    race_id=race.id, pilot_id=pid, team_id=equipe_id,
+                    race_id=race.id, pilot_id=pid_int, team_id=equipe_id,
                     posicao=posicao, pontos_ganhos=pontos,
                     dnf=dnf, dsq=dsq, volta_rapida=vr, piloto_do_dia=dotd,
                     piloto_torcida=fan,
@@ -1057,9 +1067,17 @@ def race_results(race_id):
                 if status_presenca == 'FNJ':
                     pass # A punição de 2 pontos na CNH agora é calculada dinamicamente pelo 'get_cnh_info'
                 db.session.add(RaceResult(
-                    race_id=race.id, pilot_id=pid, team_id=equipe_id,
+                    race_id=race.id, pilot_id=pid_int, team_id=equipe_id,
                     posicao=0, pontos_ganhos=0, ausencia=status_presenca
                 ))
+
+        if titulares_sem_equipe:
+            db.session.rollback()
+            flash(
+                'Nao foi possivel salvar: titulares sem equipe no grid desta corrida: ' + ', '.join(titulares_sem_equipe),
+                'danger'
+            )
+            return redirect(url_for('admin.race_results', race_id=race.id))
 
         # 2. PROCESSAR RESERVAS
         reserva_pids = request.form.getlist('reserva_pilot')
@@ -1068,6 +1086,7 @@ def race_results(race_id):
         
         for i, r_pid in enumerate(reserva_pids):
             if r_pid and r_pid.strip() != "":
+                r_pid_int = int(r_pid)
                 # Tratamento seguro para ID da equipe (evita erro com string vazia)
                 r_team_val = reserva_teams[i] if i < len(reserva_teams) else None
                 
@@ -1077,6 +1096,11 @@ def race_results(race_id):
                     return redirect(url_for('admin.race_results', race_id=race.id))
 
                 r_team_id = int(r_team_val)
+                r_team_obj = Team.query.get(r_team_id)
+                if not r_team_obj or r_team_obj.grid_id != race.grid_id:
+                    flash(f'Erro: equipe invalida para o grid desta corrida (Linha {i+1}).', 'danger')
+                    db.session.rollback()
+                    return redirect(url_for('admin.race_results', race_id=race.id))
                 
                 try:
                     r_pos_val = reserva_pos[i] if i < len(reserva_pos) else 0
@@ -1100,7 +1124,7 @@ def race_results(race_id):
                     if r_fan: r_pontos += 1.0
                 
                 db.session.add(RaceResult(
-                    race_id=race.id, pilot_id=r_pid, team_id=r_team_id,
+                    race_id=race.id, pilot_id=r_pid_int, team_id=r_team_id,
                     posicao=r_pos, pontos_ganhos=r_pontos,
                     dnf=r_dnf, dsq=r_dsq, volta_rapida=r_vr, piloto_do_dia=r_dotd,
                     piloto_torcida=r_fan,

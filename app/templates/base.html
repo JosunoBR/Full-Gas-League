@@ -9,8 +9,22 @@
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Orbitron:wght@500;600;700;800&family=Segoe+UI:wght@400;600&display=swap" rel="stylesheet">
     
     <style>
+        :root {
+            --bg-carbon-dark: #0b0d11;
+            --bg-carbon-mid: #131722;
+            --surface-glass: rgba(22, 27, 38, 0.68);
+            --surface-border: rgba(255, 255, 255, 0.12);
+        }
+
         body {
-            background-color: #121212;
+            background-color: var(--bg-carbon-dark);
+            background-image:
+                radial-gradient(circle at 50% 30%, rgba(255, 255, 255, 0.05), rgba(0, 0, 0, 0.45) 45%, rgba(0, 0, 0, 0.7) 100%),
+                repeating-linear-gradient(120deg, rgba(255, 255, 255, 0.05) 0 10px, rgba(0, 0, 0, 0.08) 10px 20px),
+                repeating-linear-gradient(60deg, rgba(255, 255, 255, 0.03) 0 10px, rgba(0, 0, 0, 0.1) 10px 20px),
+                linear-gradient(160deg, var(--bg-carbon-mid) 0%, var(--bg-carbon-dark) 100%);
+            background-attachment: fixed;
+            background-size: cover;
             color: #e0e0e0;
             font-family: 'Segoe UI', sans-serif;
             /* leave space for fixed navbar */
@@ -18,6 +32,30 @@
             min-height: 100vh;
             display: flex;
             flex-direction: column;
+            position: relative;
+            overflow-x: hidden;
+        }
+        body::before,
+        body::after {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+        }
+        body::before {
+            z-index: 0;
+            background:
+                radial-gradient(circle at 12% 18%, rgba(225, 6, 0, 0.12), transparent 35%),
+                radial-gradient(circle at 85% 82%, rgba(255, 255, 255, 0.06), transparent 38%);
+            animation: ambientShift 18s ease-in-out infinite alternate;
+        }
+        body::after {
+            z-index: 0;
+            background: linear-gradient(0deg, rgba(0, 0, 0, 0.48), rgba(0, 0, 0, 0.28));
+        }
+        body > * {
+            position: relative;
+            z-index: 1;
         }
         h1, h2, h3, h4, h5, h6,
         .navbar-brand,
@@ -28,7 +66,8 @@
             letter-spacing: 0.02em;
         }
         .navbar {
-            background-color: #000 !important;
+            background-color: rgba(0, 0, 0, 0.78) !important;
+            backdrop-filter: blur(6px);
             border-bottom: 2px solid #C0C0C0; /* Prata */
             /* always keep navigation at top of viewport */
             position: fixed;
@@ -59,11 +98,24 @@
         }
         /* Carbon Fiber Texture Effect for Cards */
         .bg-dark {
-            background-color: #1E1E1E !important;
+            background-color: rgba(22, 27, 38, 0.84) !important;
+        }
+        .card,
+        .modal-content,
+        .alert {
+            background: var(--surface-glass);
+            border-color: var(--surface-border) !important;
+            backdrop-filter: blur(3px);
+            box-shadow: 0 10px 26px rgba(0, 0, 0, 0.36);
+            transform: translateZ(0);
+        }
+        .card:hover {
+            box-shadow: 0 16px 34px rgba(0, 0, 0, 0.44);
         }
         footer {
             margin-top: auto;
-            background-color: #000;
+            background-color: rgba(0, 0, 0, 0.78);
+            backdrop-filter: blur(6px);
             border-top: 1px solid #333;
         }
         .border-silver {
@@ -77,6 +129,44 @@
         }
         .navbar-brand:hover img {
             transform: scale(1.15);
+        }
+
+        @keyframes surfaceFloat {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(-3px); }
+            100% { transform: translateY(0); }
+        }
+        @keyframes ambientShift {
+            0% { transform: translate3d(0, 0, 0); opacity: 0.9; }
+            100% { transform: translate3d(8px, -6px, 0); opacity: 1; }
+        }
+
+        @media (min-width: 992px) {
+            .container .card {
+                animation: surfaceFloat 8s ease-in-out infinite;
+            }
+            .container .card:nth-of-type(even) {
+                animation-delay: 1.2s;
+            }
+            .container .card:nth-of-type(3n) {
+                animation-delay: 2.1s;
+            }
+        }
+
+        @media (max-width: 991.98px) {
+            body::before {
+                animation: none;
+            }
+            .container .card {
+                animation: none;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            body::before,
+            .container .card {
+                animation: none !important;
+            }
         }
     </style>
 </head>

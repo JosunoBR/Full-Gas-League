@@ -22,7 +22,7 @@
     <div class="alert alert-warning">Nenhuma temporada encontrada.</div>
     {% else %}
     <div class="row g-3 mb-4">
-        <div class="col-md-3">
+        <div class="col-md-2">
             <div class="card bg-dark border-secondary h-100">
                 <div class="card-body">
                     <small class="text-white-50">Resultados sem team_id</small>
@@ -30,7 +30,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-2">
             <div class="card bg-dark border-secondary h-100">
                 <div class="card-body">
                     <small class="text-white-50">Duplicidade de nome de equipe</small>
@@ -38,7 +38,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-2">
             <div class="card bg-dark border-secondary h-100">
                 <div class="card-body">
                     <small class="text-white-50">Pilotos duplicados como titular</small>
@@ -46,13 +46,73 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-2">
             <div class="card bg-dark border-secondary h-100">
                 <div class="card-body">
                     <small class="text-white-50">Pilotos duplicados como reserva</small>
                     <div class="h3 text-danger mb-0">{{ report.duplicate_reserve_links|length }}</div>
                 </div>
             </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-dark border-secondary h-100">
+                <div class="card-body">
+                    <small class="text-white-50">Corridas abertas no mesmo dia/grid</small>
+                    <div class="h3 text-warning mb-0">{{ report.duplicate_open_races_same_day|length }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-dark border-secondary h-100">
+                <div class="card-body">
+                    <small class="text-white-50">Conflito de evento no mesmo dia/grid</small>
+                    <div class="h3 text-danger mb-0">{{ report.duplicate_open_races_conflicting_event|length }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card bg-dark border-secondary mb-3">
+        <div class="card-header text-white">Resultados sem team_id por grid</div>
+        <div class="table-responsive">
+            <table class="table table-dark table-sm mb-0">
+                <thead><tr><th>Grid</th><th>Qtd</th></tr></thead>
+                <tbody>
+                    {% for row in report.orphan_results_by_grid %}
+                    <tr>
+                        <td>{{ report.grids_map.get(row.grid_id, row.grid_id) }}</td>
+                        <td>{{ row.qtd }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="2" class="text-white-50">Sem órfãos por grid.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card bg-dark border-secondary mb-3">
+        <div class="card-header text-white">Conflito: múltiplos eventos no mesmo dia e grid (corridas abertas)</div>
+        <div class="table-responsive">
+            <table class="table table-dark table-sm mb-0">
+                <thead><tr><th>Grid</th><th>Data</th><th>Qtd</th><th>Corridas</th></tr></thead>
+                <tbody>
+                    {% for row in report.duplicate_open_races_conflicting_event %}
+                    <tr>
+                        <td>{{ report.grids_map.get(row.grid_id, row.grid_id) }}</td>
+                        <td>{{ row.data_corrida.strftime('%d/%m/%Y') if row.data_corrida else '-' }}</td>
+                        <td>{{ row.qtd }}</td>
+                        <td class="small">
+                            {% for race in row.races %}
+                                #{{ race.id }} - {{ race.nome_gp }} ({{ race.tipo_etapa }}){% if not loop.last %}<br>{% endif %}
+                            {% endfor %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="4" class="text-white-50">Sem conflitos de evento.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 
@@ -118,4 +178,3 @@
     {% endif %}
 </div>
 {% endblock %}
-

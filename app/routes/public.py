@@ -37,6 +37,55 @@ def converter_standings_para_json(standings):
             })
     return resultado
 
+
+def _parse_profile_grids(profile_grid_value):
+    tokens = [g.strip() for g in (profile_grid_value or "").split(",") if g.strip()]
+    ids = {int(g) for g in tokens if g.isdigit()}
+    names = {g.upper() for g in tokens if not g.isdigit()}
+    return ids, names
+
+
+def _pilot_has_membership_for_race(pilot, race):
+    if not pilot or not race:
+        return False
+
+    # Fonte principal: vinculos de equipe (titular/reserva) por temporada + grid.
+    has_team_link = any(
+        t.season_id == race.season_id and t.grid_id == race.grid_id
+        for t in pilot.teams
+    ) or any(
+        t.season_id == race.season_id and t.grid_id == race.grid_id
+        for t in pilot.reserve_teams
+    )
+    if has_team_link:
+        return True
+
+    # Fallback legado: campo textual de grids no perfil.
+    grid_ids, grid_names = _parse_profile_grids(pilot.grid)
+    if race.grid_id and race.grid_id in grid_ids:
+        return True
+    race_grid_name = (race.grid_config.nome if race.grid_config else race.grid or "").upper()
+    if race_grid_name and race_grid_name in grid_names:
+        return True
+    if "RESERVA" in grid_names:
+        return True
+
+    return False
+
+
+def _can_interact_with_checkin(pilot, race, today):
+    if not pilot or not race:
+        return False
+    if race.status == "Concluida":
+        return False
+    if not race.data_corrida:
+        return False
+    if race.data_corrida < today:
+        return False
+    if (race.data_corrida - today).days > 2:
+        return False
+    return _pilot_has_membership_for_race(pilot, race)
+
 # --- ROTAS PRINCIPAIS (HOME E LOGIN) ---
 
 @public_bp.route('/')
@@ -655,39 +704,28 @@ def my_profile():
     
     hoje = datetime.utcnow().date()
     if current_context:
-        p_grid_ids = set(int(g) for g in p_grids if g.isdigit())
-        p_grid_names = set(g.upper() for g in p_grids if not g.isdigit())
         ctx_grid_id = current_context.get('grid_id')
         ctx_grid_name = (current_context.get('grid') or '').upper()
-        pode_ver_checkin = (
-            (ctx_grid_id in p_grid_ids if ctx_grid_id else False) or
-            (ctx_grid_name in p_grid_names) or
-            ('RESERVA' in p_grid_names) or
-            (current_team is not None)
+        futuras_q = Race.query.filter(
+            Race.season_id == current_context['season_id'],
+            Race.status != 'Concluida',
+            Race.data_corrida >= hoje
         )
+        if ctx_grid_id:
+            futuras_q = futuras_q.filter(Race.grid_id == ctx_grid_id)
+        futuras = futuras_q.order_by(Race.data_corrida, Race.id).all()
 
-        if pode_ver_checkin:
-            proxima = None
-            futuras_q = Race.query.filter(
-                Race.season_id == current_context['season_id'],
-                Race.status != 'Concluida',
-                Race.data_corrida >= hoje
-            )
-            if ctx_grid_id:
-                futuras_q = futuras_q.filter(Race.grid_id == ctx_grid_id)
-            futuras = futuras_q.order_by(Race.data_corrida).all()
-
-            for r in futuras:
-                r_gname = (r.grid_config.nome if r.grid_config else r.grid or '').upper()
-                if (ctx_grid_id and r.grid_id == ctx_grid_id) or (not ctx_grid_id and r_gname == ctx_grid_name):
-                    proxima = r
-                    break
-
-            if proxima and proxima.data_corrida and (proxima.data_corrida - hoje).days <= 2:
-                reg = RaceRegistration.query.filter_by(race_id=proxima.id, pilot_id=perfil.id).first()
+        for r in futuras:
+            r_gname = (r.grid_config.nome if r.grid_config else r.grid or '').upper()
+            same_context_grid = (ctx_grid_id and r.grid_id == ctx_grid_id) or (not ctx_grid_id and r_gname == ctx_grid_name)
+            if not same_context_grid:
+                continue
+            if _can_interact_with_checkin(perfil, r, hoje):
+                reg = RaceRegistration.query.filter_by(race_id=r.id, pilot_id=perfil.id).first()
                 if not reg or reg.status not in ['CONFIRMADO', 'JUSTIFICADO']:
-                    checkin_race = proxima
+                    checkin_race = r
                     registro_atual = reg
+                    break
 
     meus_pontos_camp = 0
     desempenho_temporada = []
@@ -766,30 +804,66 @@ def my_profile():
 @login_required
 def checkin_confirm(race_id):
     if not current_user.pilot_profile: return redirect(url_for('public.home'))
+    race = Race.query.get_or_404(race_id)
     
     if current_user.pilot_profile.esta_banido():
         flash('Você está com a CNH Suspensa/Banida e não pode correr.', 'danger')
         return redirect(url_for('public.my_profile'))
         
-    registro = RaceRegistration.query.filter_by(race_id=race_id, pilot_id=current_user.pilot_profile.id).first()
-    if not registro:
-        registro = RaceRegistration(race_id=race_id, pilot_id=current_user.pilot_profile.id)
-        db.session.add(registro)
-    
-    registro.status = 'CONFIRMADO'
-    registro.justificativa = None
-    registro.data_resposta = datetime.utcnow()
+    today = datetime.utcnow().date()
+    if not _can_interact_with_checkin(current_user.pilot_profile, race, today):
+        flash('Check-in indisponivel para esta corrida no seu contexto atual.', 'warning')
+        return redirect(url_for('public.my_profile'))
+
+    # Busca corridas candidatas no mesmo dia/grid/temporada.
+    same_day_candidates = Race.query.filter(
+        Race.season_id == race.season_id,
+        Race.grid_id == race.grid_id,
+        Race.data_corrida == race.data_corrida,
+        Race.status != 'Concluida',
+    ).all()
+
+    # Sincroniza apenas corridas do mesmo evento (mesmo GP ou mesma pista),
+    # evitando confirmar GPs diferentes que por acaso estejam na mesma data.
+    same_day_races = [
+        r for r in same_day_candidates
+        if (r.nome_gp == race.nome_gp) or (r.pista == race.pista)
+    ]
+    if not same_day_races:
+        same_day_races = [race]
+
+    for r in same_day_races:
+        registro = RaceRegistration.query.filter_by(
+            race_id=r.id, pilot_id=current_user.pilot_profile.id
+        ).first()
+        if not registro:
+            registro = RaceRegistration(race_id=r.id, pilot_id=current_user.pilot_profile.id)
+            db.session.add(registro)
+
+        registro.status = 'CONFIRMADO'
+        registro.justificativa = None
+        registro.data_resposta = datetime.utcnow()
+
     db.session.commit()
-    flash('Presença confirmada! Boa corrida!', 'success')
+    if len(same_day_races) > 1:
+        flash('Presença confirmada para todas as corridas do mesmo dia neste grid.', 'success')
+    else:
+        flash('Presença confirmada! Boa corrida!', 'success')
     return redirect(url_for('public.my_profile'))
 
 @public_bp.route('/checkin/absent/<int:race_id>', methods=['POST'])
 @login_required
 def checkin_absent(race_id):
     if not current_user.pilot_profile: return redirect(url_for('public.home'))
+    race = Race.query.get_or_404(race_id)
     motivo = request.form.get('justificativa')
     if not motivo:
         flash('É obrigatório informar o motivo da ausência.', 'warning')
+        return redirect(url_for('public.my_profile'))
+
+    today = datetime.utcnow().date()
+    if not _can_interact_with_checkin(current_user.pilot_profile, race, today):
+        flash('Check-in indisponivel para esta corrida no seu contexto atual.', 'warning')
         return redirect(url_for('public.my_profile'))
 
     registro = RaceRegistration.query.filter_by(race_id=race_id, pilot_id=current_user.pilot_profile.id).first()

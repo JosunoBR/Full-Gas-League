@@ -168,13 +168,60 @@
         <div class="tab-content">
             {% for grid in grid_configs %}
             <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="content-{{ grid.id }}">
+                <div class="row g-3 mb-3">
+                    <div class="col-lg-6">
+                        <div class="card bg-dark border-silver shadow f1-home-card">
+                            <div class="card-header bg-dark border-secondary d-flex justify-content-between align-items-center">
+                                <h6 class="text-white mb-0 fw-bold">Top 3 Pilotos</h6>
+                                <span class="badge bg-secondary">{{ grid.nome }}</span>
+                            </div>
+                            <div class="card-body p-2">
+                                {% set ns_top = namespace(count=1) %}
+                                {% for row in standings[grid.id] if not row.is_reserve %}
+                                    {% if ns_top.count <= 3 and ns_top.count <= grid.vagas %}
+                                    <div class="d-flex justify-content-between align-items-center px-2 py-1 border-bottom border-secondary-subtle">
+                                        <span class="text-white"><strong class="me-2">{{ ns_top.count }}.</strong>{{ row.piloto.nickname }}</span>
+                                        <span class="text-warning fw-bold">{{ '%g' | format(row.pontos|float) }}</span>
+                                    </div>
+                                    {% set ns_top.count = ns_top.count + 1 %}
+                                    {% endif %}
+                                {% else %}
+                                    <div class="px-2 py-2 text-white-50 small">Sem dados de pilotos.</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="card bg-dark border-silver shadow f1-home-card">
+                            <div class="card-header bg-dark border-secondary d-flex justify-content-between align-items-center">
+                                <h6 class="text-white mb-0 fw-bold">Top 3 Equipes</h6>
+                                <span class="badge bg-secondary">{{ grid.nome }}</span>
+                            </div>
+                            <div class="card-body p-2">
+                                {% for row in constructors[grid.id][:3] %}
+                                <div class="d-flex justify-content-between align-items-center px-2 py-1 border-bottom border-secondary-subtle">
+                                    <span class="text-white"><strong class="me-2">{{ loop.index }}.</strong>{{ row.equipe.nome }}</span>
+                                    <span class="text-info fw-bold">{{ '%g' | format(row.pontos|float) }}</span>
+                                </div>
+                                {% else %}
+                                    <div class="px-2 py-2 text-white-50 small">Sem dados de construtores.</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <div class="row">
                     <!-- Pilotos -->
-                    <div class="col-lg-8 mb-4">
+                    <div class="col-12 mb-4" id="pilots-col-{{ grid.id }}">
                         <div class="card bg-dark border-silver shadow f1-home-card">
                             <div class="card-header bg-dark border-secondary d-flex justify-content-between align-items-center">
                                 <h5 class="text-white mb-0 fw-bold">Pilotos</h5>
-                                <ul class="nav nav-pills nav-pills-sm" id="pills-tab-{{ grid.id }}" role="tablist">
+                                <div class="d-flex align-items-center gap-2">
+                                <div class="btn-group btn-group-sm" role="group" aria-label="Visão da classificação">
+                                    <button type="button" class="btn btn-danger fw-bold px-2 py-1 view-toggle-btn" id="view-pilotos-btn-{{ grid.id }}" data-grid="{{ grid.id }}" data-view="pilotos">Pilotos</button>
+                                    <button type="button" class="btn btn-outline-secondary fw-bold px-2 py-1 view-toggle-btn" id="view-construtores-btn-{{ grid.id }}" data-grid="{{ grid.id }}" data-view="construtores">Construtores</button>
+                                </div>
+                                <ul class="nav nav-pills nav-pills-sm" id="pills-tab-{{ grid.id }}" role="tablist" data-grid="{{ grid.id }}">
                                     <li class="nav-item" role="presentation">
                                         <button class="nav-link active py-1 px-3 fw-bold" id="pills-titulares-tab-{{ grid.id }}" data-bs-toggle="pill" data-bs-target="#pills-titulares-{{ grid.id }}" type="button" role="tab">Titulares</button>
                                     </li>
@@ -182,8 +229,9 @@
                                         <button class="nav-link py-1 px-3 fw-bold" id="pills-reservas-tab-{{ grid.id }}" data-bs-toggle="pill" data-bs-target="#pills-reservas-{{ grid.id }}" type="button" role="tab">Reservas</button>
                                     </li>
                                 </ul>
+                                </div>
                             </div>
-                            <div class="tab-content" id="pills-tabContent-{{ grid.id }}">
+                            <div class="tab-content view-pane" id="pills-tabContent-{{ grid.id }}">
                                 <!-- Aba Titulares -->
                                 <div class="tab-pane fade show active" id="pills-titulares-{{ grid.id }}" role="tabpanel">
                                     <div class="table-responsive">
@@ -200,12 +248,15 @@
                                             </thead>
                                             <tbody>
                                                 {% set leader_pts = (standings[grid.id][0].pontos|float) if standings[grid.id] else 0 %}
-                                                {% set ns_titular = namespace(count=1) %}
+                                                {% set ns_titular = namespace(count=1, has_more=false) %}
                                                 {% for row in standings[grid.id] if not row.is_reserve %}
                                                 {% if ns_titular.count <= grid.vagas %}
                                                 {% set row_points = row.pontos|float %}
                                                 {% set diff = leader_pts - row_points %}
-                                                <tr>
+                                                {% if ns_titular.count > 10 %}
+                                                    {% set ns_titular.has_more = true %}
+                                                {% endif %}
+                                                <tr class="{% if ns_titular.count > 10 %}extra-pilot-row extra-pilot-row-{{ grid.id }} d-none{% endif %}">
                                                     <td class="text-center fw-bold text-secondary f1-pos">{{ ns_titular.count }}</td>
                                                     <td>
                                                         <div class="d-flex align-items-center f1-driver">
@@ -243,6 +294,14 @@
                                                 {% endfor %}
                                             </tbody>
                                         </table>
+                                        {% if ns_titular.has_more %}
+                                        {% set hidden_count = (ns_titular.count - 1) - 10 %}
+                                        <div class="text-center py-2 border-top border-secondary-subtle">
+                                            <button type="button" class="btn btn-sm btn-outline-light toggle-pilots-btn" data-grid="{{ grid.id }}" data-expanded="0" data-hidden-count="{{ hidden_count }}">
+                                                Ver completo ({{ hidden_count }})
+                                            </button>
+                                        </div>
+                                        {% endif %}
                                     </div>
                                 </div>
                                 <!-- Aba Reservas -->
@@ -291,7 +350,7 @@
                         
                     </div>
                     <!-- Construtores -->
-                    <div class="col-lg-4">
+                    <div class="col-12 mb-4 d-none view-pane" id="constructors-col-{{ grid.id }}">
                         <div class="card bg-dark border-silver shadow f1-home-card">
                             <div class="card-header bg-dark border-secondary"><h5 class="text-white mb-0 fw-bold">Construtores</h5></div>
                             <div class="f1-constructors-list">
@@ -330,6 +389,15 @@
                             <div class="card-header bg-dark border-secondary d-flex justify-content-between align-items-center gap-2 f1-chart-header">
                                 <h5 class="text-white mb-0 fw-bold">Evolução de Pontos</h5>
                                 <div class="d-flex gap-2">
+                                    <div class="btn-group btn-group-sm" role="group" aria-label="Modo do gráfico">
+                                        <button class="btn btn-danger chart-mode-btn" type="button" id="mode-acumulado-{{ grid.id }}" data-grid="{{ grid.id }}" data-mode="acumulado">Acumulado</button>
+                                        <button class="btn btn-outline-secondary chart-mode-btn" type="button" id="mode-etapa-{{ grid.id }}" data-grid="{{ grid.id }}" data-mode="etapa">Por Etapa</button>
+                                    </div>
+                                    <div class="btn-group btn-group-sm" role="group" aria-label="Presets de filtro">
+                                        <button class="btn btn-outline-secondary chart-preset-btn" type="button" data-grid="{{ grid.id }}" data-preset="all">Todos</button>
+                                        <button class="btn btn-outline-secondary chart-preset-btn" type="button" data-grid="{{ grid.id }}" data-preset="top5">Top 5</button>
+                                        <button class="btn btn-outline-secondary chart-preset-btn" type="button" data-grid="{{ grid.id }}" data-preset="myteam">Minha equipe</button>
+                                    </div>
                                     <!-- Dropdown Filtro Pilotos -->
                                     <div class="dropdown">
                                         <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="filterPilotBtn-{{ grid.id }}" data-bs-toggle="dropdown" aria-expanded="false">
@@ -709,6 +777,14 @@
         background: rgba(255, 255, 255, 0.05);
     }
 
+    .view-pane {
+        transition: opacity 0.18s ease;
+    }
+
+    .view-pane.is-fading {
+        opacity: 0.22;
+    }
+
     @media (max-width: 992px) {
         .f1-col-team,
         .f1-col-gap {
@@ -730,6 +806,12 @@
 
     .f1-chart-body {
         border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .chart-mode-btn,
+    .chart-preset-btn {
+        font-family: 'Orbitron', 'Segoe UI', sans-serif;
+        letter-spacing: 0.02em;
     }
 </style>
 
@@ -764,6 +846,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // --- GRÁFICOS DE EVOLUÇÃO DE PONTOS ---
     const gridConfigs = {{ grid_configs|tojson }};
     const standings = {{ standings|tojson }};
+    const currentPilotId = {% if current_user.is_authenticated and current_user.pilot_profile %}{{ current_user.pilot_profile.id }}{% else %}null{% endif %};
     
     // Estado de filtro: armazena quais pilotos estão visíveis por grid
     const filterState = {};
@@ -799,6 +882,7 @@ document.addEventListener('DOMContentLoaded', function() {
             Object.keys(equipas).forEach(teamName => {
                 filterState[gridId].teams[teamName] = true;
             });
+            filterState[gridId].mode = localStorage.getItem(`home_chart_mode_${gridId}`) || 'acumulado';
         }
         
         // Renderiza checkboxes agrupados por equipe
@@ -857,14 +941,15 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         
         // Event listeners individuais
-        document.querySelectorAll(`input[data-grid="${gridId}"][type="checkbox"]`).forEach(checkbox => {
+        document.querySelectorAll(`input[data-grid="${gridId}"][data-pilot][type="checkbox"]`).forEach(checkbox => {
             checkbox.addEventListener('change', (e) => {
                 const pilotoId = parseInt(e.target.dataset.pilot);
                 filterState[gridId][pilotoId] = e.target.checked;
                 
                 // Atualiza estado do "Selecionar Tudo"
-                const allChecked = Object.values(filterState[gridId]).every(v => v);
-                const someChecked = Object.values(filterState[gridId]).some(v => v);
+                const pilotIds = gridStandings.map(row => row.piloto.id);
+                const allChecked = pilotIds.every(id => !!filterState[gridId][id]);
+                const someChecked = pilotIds.some(id => !!filterState[gridId][id]);
                 selectAllCheckbox.checked = allChecked;
                 selectAllCheckbox.indeterminate = someChecked && !allChecked;
                 
@@ -970,6 +1055,67 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!grid) return;
         
         renderChartForGrid(grid);
+    }
+
+    function setChartMode(gridId, mode, persist = true) {
+        if (!filterState[gridId]) filterState[gridId] = {};
+        filterState[gridId].mode = mode;
+        const btnAcc = document.getElementById(`mode-acumulado-${gridId}`);
+        const btnStage = document.getElementById(`mode-etapa-${gridId}`);
+        if (btnAcc && btnStage) {
+            const isAcc = mode === 'acumulado';
+            btnAcc.classList.toggle('btn-danger', isAcc);
+            btnAcc.classList.toggle('btn-outline-secondary', !isAcc);
+            btnStage.classList.toggle('btn-danger', !isAcc);
+            btnStage.classList.toggle('btn-outline-secondary', isAcc);
+        }
+        if (persist) localStorage.setItem(`home_chart_mode_${gridId}`, mode);
+        updateChart(gridId);
+    }
+
+    function applyChartPreset(gridId, preset) {
+        const gridStandings = standings[gridId] || [];
+        if (!filterState[gridId]) return;
+
+        if (preset === 'all') {
+            gridStandings.forEach(row => { filterState[gridId][row.piloto.id] = true; });
+            if (filterState[gridId].teams) {
+                Object.keys(filterState[gridId].teams).forEach(team => filterState[gridId].teams[team] = true);
+            }
+        } else if (preset === 'top5') {
+            const top = [...gridStandings]
+                .filter(row => row.evolucao && row.evolucao.length > 0)
+                .sort((a, b) => (b.pontos || 0) - (a.pontos || 0))
+                .slice(0, 5)
+                .map(row => row.piloto.id);
+            gridStandings.forEach(row => { filterState[gridId][row.piloto.id] = top.includes(row.piloto.id); });
+        } else if (preset === 'myteam') {
+            let myTeam = null;
+            if (currentPilotId) {
+                const me = gridStandings.find(row => row.piloto.id === currentPilotId);
+                if (me) myTeam = me.team_name || 'Sem Equipe';
+            }
+            if (!myTeam && filterState[gridId].teams) {
+                myTeam = Object.keys(filterState[gridId].teams)[0] || null;
+            }
+            if (myTeam) {
+                gridStandings.forEach(row => {
+                    filterState[gridId][row.piloto.id] = (row.team_name || 'Sem Equipe') === myTeam;
+                });
+                if (filterState[gridId].teams) {
+                    Object.keys(filterState[gridId].teams).forEach(team => {
+                        filterState[gridId].teams[team] = (team === myTeam);
+                    });
+                }
+            }
+        }
+
+        const grid = gridConfigs.find(g => g.id === gridId);
+        if (grid) {
+            renderFilterDropdown(grid);
+            renderTeamFilterDropdown(grid);
+            updateChart(gridId);
+        }
     }
     
     // Função para renderizar o gráfico (refatorada)
@@ -1115,6 +1261,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         
         // Cria datasets (aplicando filtro de pilotos e equipes)
+        const mode = filterState[gridId].mode || 'acumulado';
         const datasets = gridStandings
             .filter(row => {
                 const pilotoValido = row.evolucao && row.evolucao.length > 0 && filterState[gridId][row.piloto.id];
@@ -1129,7 +1276,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 const data = gpsOrdenados.map(gp => {
                     const ev = evolucao.find(e => e.gp === gp);
-                    return ev ? ev.pontos_acumulados : null;
+                    if (!ev) return null;
+                    return mode === 'etapa' ? ev.pontos_corrida : ev.pontos_acumulados;
                 });
                 
                 return {
@@ -1217,7 +1365,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             borderDash: [4, 4]
                         },
                         ticks: { color: '#bfc7d5', font: { size: 10, weight: '600' } },
-                        title: { display: true, text: 'Pontos Acumulados', color: '#e0e0e0', font: { weight: '700' } }
+                        title: { display: true, text: mode === 'etapa' ? 'Pontos por Etapa' : 'Pontos Acumulados', color: '#e0e0e0', font: { weight: '700' } }
                     }
                 }
             }
@@ -1232,6 +1380,107 @@ document.addEventListener('DOMContentLoaded', function() {
         renderFilterDropdown(grid);
         renderTeamFilterDropdown(grid);
         renderChartForGrid(grid);
+    });
+
+    function setClassificationView(gridId, view, persist = true) {
+        const pilotsContent = document.getElementById(`pills-tabContent-${gridId}`);
+        const constructorsCol = document.getElementById(`constructors-col-${gridId}`);
+        const btnPilots = document.getElementById(`view-pilotos-btn-${gridId}`);
+        const btnConstructors = document.getElementById(`view-construtores-btn-${gridId}`);
+        const subTabs = document.getElementById(`pills-tab-${gridId}`);
+        if (!pilotsContent || !constructorsCol || !btnPilots || !btnConstructors) return;
+
+        const isConstructors = view === 'construtores';
+        pilotsContent.classList.add('is-fading');
+        constructorsCol.classList.add('is-fading');
+
+        pilotsContent.classList.toggle('d-none', isConstructors);
+        constructorsCol.classList.toggle('d-none', !isConstructors);
+        if (subTabs) subTabs.classList.toggle('d-none', isConstructors);
+
+        btnPilots.classList.toggle('btn-danger', !isConstructors);
+        btnPilots.classList.toggle('btn-outline-secondary', isConstructors);
+        btnConstructors.classList.toggle('btn-danger', isConstructors);
+        btnConstructors.classList.toggle('btn-outline-secondary', !isConstructors);
+
+        setTimeout(() => {
+            pilotsContent.classList.remove('is-fading');
+            constructorsCol.classList.remove('is-fading');
+        }, 160);
+
+        if (persist) localStorage.setItem(`home_view_${gridId}`, view);
+    }
+
+    function setPilotsExpanded(gridId, expanded, persist = true) {
+        const rows = document.querySelectorAll(`.extra-pilot-row-${gridId}`);
+        const btn = document.querySelector(`.toggle-pilots-btn[data-grid="${gridId}"]`);
+        if (!rows.length || !btn) return;
+        rows.forEach(r => r.classList.toggle('d-none', !expanded));
+        btn.dataset.expanded = expanded ? '1' : '0';
+        const hiddenCount = parseInt(btn.dataset.hiddenCount || '0', 10);
+        btn.textContent = expanded ? 'Mostrar menos' : `Ver completo (${hiddenCount})`;
+        if (persist) localStorage.setItem(`home_pilots_expanded_${gridId}`, expanded ? '1' : '0');
+    }
+
+    document.querySelectorAll('button[id^="tab-"]').forEach(btn => {
+        btn.addEventListener('shown.bs.tab', () => {
+            localStorage.setItem('home_grid_tab', btn.id);
+        });
+    });
+    const savedGridTab = localStorage.getItem('home_grid_tab');
+    if (savedGridTab) {
+        const savedBtn = document.getElementById(savedGridTab);
+        if (savedBtn) bootstrap.Tab.getOrCreateInstance(savedBtn).show();
+    }
+
+    gridConfigs.forEach(grid => {
+        const gridId = grid.id;
+
+        document.getElementById(`view-pilotos-btn-${gridId}`)?.addEventListener('click', () => {
+            setClassificationView(gridId, 'pilotos');
+        });
+        document.getElementById(`view-construtores-btn-${gridId}`)?.addEventListener('click', () => {
+            setClassificationView(gridId, 'construtores');
+        });
+        const savedView = localStorage.getItem(`home_view_${gridId}`) || 'pilotos';
+        setClassificationView(gridId, savedView, false);
+
+        document.getElementById(`mode-acumulado-${gridId}`)?.addEventListener('click', () => {
+            setChartMode(gridId, 'acumulado');
+        });
+        document.getElementById(`mode-etapa-${gridId}`)?.addEventListener('click', () => {
+            setChartMode(gridId, 'etapa');
+        });
+        const savedChartMode = localStorage.getItem(`home_chart_mode_${gridId}`) || 'acumulado';
+        setChartMode(gridId, savedChartMode, false);
+
+        document.querySelectorAll(`.chart-preset-btn[data-grid="${gridId}"]`).forEach(btn => {
+            btn.addEventListener('click', () => {
+                applyChartPreset(gridId, btn.dataset.preset);
+            });
+        });
+
+        const subTabs = document.querySelectorAll(`#pills-tab-${gridId} button[data-bs-toggle="pill"]`);
+        subTabs.forEach(st => {
+            st.addEventListener('shown.bs.tab', () => {
+                localStorage.setItem(`home_subtab_${gridId}`, st.id);
+            });
+        });
+        const savedSubTab = localStorage.getItem(`home_subtab_${gridId}`);
+        if (savedSubTab) {
+            const savedSubBtn = document.getElementById(savedSubTab);
+            if (savedSubBtn) bootstrap.Tab.getOrCreateInstance(savedSubBtn).show();
+        }
+
+        const expandBtn = document.querySelector(`.toggle-pilots-btn[data-grid="${gridId}"]`);
+        if (expandBtn) {
+            expandBtn.addEventListener('click', () => {
+                const expanded = expandBtn.dataset.expanded === '1';
+                setPilotsExpanded(gridId, !expanded);
+            });
+            const savedExpanded = localStorage.getItem(`home_pilots_expanded_${gridId}`) === '1';
+            setPilotsExpanded(gridId, savedExpanded, false);
+        }
     });
     
     // Debug: verifica se elementos existem
