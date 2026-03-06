@@ -8,10 +8,12 @@
             {% endif %}
         </div>
         <div class="card-body text-center p-3 d-flex flex-column justify-content-center">
+            <span class="badge {% if grid.nome == 'ELITE' %}grid-chip-elite{% elif grid.nome == 'ADVANCED' %}grid-chip-advanced{% else %}grid-chip-initial{% endif %} mb-2 align-self-center">
+                {{ grid.nome }}
+            </span>
             <h5 class="card-title text-white fw-bold mb-1 text-truncate">{{ item.data.nome_real }}</h5>
             <p class="card-text text-white-50 small mb-1 text-truncate">{{ item.data.nickname }}</p>
             <p class="card-text text-info small mb-0 text-truncate fw-bold">{{ item.team.nome if item.team else 'Sem Equipe' }}</p>
         </div>
     </div>
 </a>
-
