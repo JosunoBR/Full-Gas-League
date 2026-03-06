@@ -5,7 +5,12 @@
     <div class="col-12 text-center">
         <div class="mx-auto mb-3" style="width: 200px; height: 200px; border-radius: 50%; overflow: hidden; border: 4px solid #E60000; box-shadow: 0 0 20px rgba(230, 0, 0, 0.3);">
             {% if team.logo_url %}
-                <img src="{{ url_for('static', filename='uploads/' + team.logo_url) }}" style="width: 100%; height: 100%; object-fit: cover;">
+                <img src="{{ url_for('static', filename='uploads/' + team.logo_url) }}"
+                     class="js-image-zoom"
+                     style="width: 100%; height: 100%; object-fit: cover;"
+                     data-fullsrc="{{ url_for('static', filename='uploads/' + team.logo_url) }}"
+                     data-caption="{{ team.nome }}"
+                     alt="Logo de {{ team.nome }}">
             {% else %}
                 <div class="d-flex align-items-center justify-content-center h-100 bg-secondary">
                     <i class="fa-solid fa-users fa-4x text-dark"></i>
@@ -43,7 +48,12 @@
                 <a href="{{ url_for('public.public_profile', pilot_id=stat.piloto.id) }}" class="text-decoration-none">
                     <div class="mx-auto mb-3" style="width: 100px; height: 100px; border-radius: 50%; overflow: hidden; border: 2px solid #E60000;">
                         {% if stat.piloto.foto_url %}
-                            <img src="{{ url_for('static', filename='uploads/' + stat.piloto.foto_url) }}" style="width: 100%; height: 100%; object-fit: cover;">
+                            <img src="{{ url_for('static', filename='uploads/' + stat.piloto.foto_url) }}"
+                                 class="js-image-zoom"
+                                 style="width: 100%; height: 100%; object-fit: cover;"
+                                 data-fullsrc="{{ url_for('static', filename='uploads/' + stat.piloto.foto_url) }}"
+                                 data-caption="{{ stat.piloto.nickname }}"
+                                 alt="Foto de {{ stat.piloto.nickname }}">
                         {% else %}
                             <div class="d-flex align-items-center justify-content-center h-100 bg-secondary">
                                 <i class="fa-solid fa-user fa-2x"></i>
@@ -74,7 +84,12 @@
                 <a href="{{ url_for('public.public_profile', pilot_id=res.id) }}" class="text-decoration-none d-flex align-items-center justify-content-center">
                     <div class="me-3" style="width: 60px; height: 60px; border-radius: 50%; overflow: hidden; border: 2px solid #6c757d;">
                         {% if res.foto_url %}
-                            <img src="{{ url_for('static', filename='uploads/' + res.foto_url) }}" style="width: 100%; height: 100%; object-fit: cover;">
+                            <img src="{{ url_for('static', filename='uploads/' + res.foto_url) }}"
+                                 class="js-image-zoom"
+                                 style="width: 100%; height: 100%; object-fit: cover;"
+                                 data-fullsrc="{{ url_for('static', filename='uploads/' + res.foto_url) }}"
+                                 data-caption="{{ res.nickname }}"
+                                 alt="Foto de {{ res.nickname }}">
                         {% else %}
                             <div class="d-flex align-items-center justify-content-center h-100 bg-secondary">
                                 <i class="fa-solid fa-user"></i>
@@ -92,4 +107,56 @@
     {% endfor %}
 </div>
 {% endif %}
+
+<div class="modal fade" id="imageZoomModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content bg-dark border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-white" id="imageZoomCaption">Visualização da imagem</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body text-center">
+                <img id="imageZoomTarget" src="" alt="Imagem ampliada" class="img-fluid rounded" style="max-height: 80vh; object-fit: contain;">
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .js-image-zoom {
+        cursor: zoom-in;
+        transition: transform 0.15s ease;
+    }
+    .js-image-zoom:hover {
+        transform: scale(1.03);
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const modalEl = document.getElementById('imageZoomModal');
+    const modalImg = document.getElementById('imageZoomTarget');
+    const modalCaption = document.getElementById('imageZoomCaption');
+    if (!modalEl || !modalImg || typeof bootstrap === 'undefined') return;
+
+    const modal = new bootstrap.Modal(modalEl);
+
+    document.addEventListener('click', function (event) {
+        const trigger = event.target.closest('.js-image-zoom');
+        if (!trigger) return;
+
+        if (trigger.closest('a')) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+
+        modalImg.src = trigger.dataset.fullsrc || trigger.getAttribute('src') || '';
+        modalImg.alt = trigger.alt || 'Imagem ampliada';
+        if (modalCaption) {
+            modalCaption.textContent = trigger.dataset.caption || 'Visualização da imagem';
+        }
+        modal.show();
+    });
+});
+</script>
 {% endblock %}
