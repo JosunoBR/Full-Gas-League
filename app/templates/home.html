@@ -240,7 +240,9 @@
                                                 <tr>
                                                     <th class="text-center f1-col-pos">Pos</th>
                                                     <th>Piloto</th>
+                                                    {% if grid.exibir_lastro %}
                                                     <th class="text-center f1-col-lastro">Lastro</th>
+                                                    {% endif %}
                                                     <th class="f1-col-team">Equipe</th>
                                                     <th class="text-center f1-col-gap">Gap Lider</th>
                                                     <th class="text-center">Pts</th>
@@ -278,7 +280,9 @@
                                                             </div>
                                                         </div>
                                                     </td>
+                                                    {% if grid.exibir_lastro %}
                                                     <td class="text-center small text-white-50 f1-col-lastro">{{ row.carro }}</td>
+                                                    {% endif %}
                                                     <td class="small text-white-50 f1-col-team">{{ row.team_name or 'Sem Equipe' }}</td>
                                                     <td class="text-center f1-col-gap f1-gap">
                                                         {% if ns_titular.count == 1 %}
