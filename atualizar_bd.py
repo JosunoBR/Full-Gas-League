@@ -38,8 +38,9 @@ def atualizar_banco():
             try:
                 conn.execute(text("SELECT status_presenca FROM race_result LIMIT 1"))
             except:
-                print("- Adicionando coluna 'status_presenca' em race_result...")
-                conn.execute(text("ALTER TABLE race_result ADD COLUMN status_presenca TEXT"))
+                print("- Adicionando coluna 'status_presenca' em race_result (Default 'OK')...")
+                # No SQLite, adicionar a coluna com um valor padrão garante que registros antigos não fiquem nulos
+                conn.execute(text("ALTER TABLE race_result ADD COLUMN status_presenca TEXT DEFAULT 'OK'"))
                 print("- Preenchendo status_presenca legado (OK/FJ/FNJ)...")
                 conn.execute(text("""
                     UPDATE race_result
@@ -47,17 +48,15 @@ def atualizar_banco():
                         WHEN ausencia IS NULL THEN 'OK'
                         ELSE ausencia
                     END
-                    WHERE status_presenca IS NULL
                 """))
-            # Garante backfill mesmo se a coluna ja existir
-            conn.execute(text("""
-                UPDATE race_result
-                SET status_presenca = CASE
-                    WHEN ausencia IS NULL THEN 'OK'
-                    ELSE ausencia
-                END
-                WHERE status_presenca IS NULL
-            """))
+
+            # Verifica e adiciona colunas de grid_id que podem estar faltando em várias tabelas
+            for tabela in ['team', 'race', 'protesto', 'season_champion', 'pilot_grid_photo']:
+                try:
+                    conn.execute(text(f"SELECT grid_id FROM {tabela} LIMIT 1"))
+                except:
+                    print(f"- Adicionando coluna 'grid_id' em {tabela}...")
+                    conn.execute(text(f"ALTER TABLE {tabela} ADD COLUMN grid_id INTEGER"))
 
             # Verifica e adiciona season_id em team
             try:
@@ -83,25 +82,12 @@ def atualizar_banco():
                 migrated_count = 0
                 for row in result:
                     # Insere na nova tabela de associação (ignorando duplicatas)
-                    conn.execute(text("INSERT OR IGNORE INTO pilot_teams (pilot_id, team_id) VALUES (:pid, :tid)"), {"pid": row[0], "tid": row[1]})
+                    conn.execute(text("INSERT OR IGNORE INTO pilot_teams (pilot_id, team_id) VALUES (:pid, :tid)"), 
+                                 {"pid": row[0], "tid": row[1]})
                     migrated_count += 1
-                if migrated_count > 0:
-                    print(f"- Migrados {migrated_count} registros de equipe para o novo formato multi-grid.")
+                print(f"  > {migrated_count} vínculos de equipe migrados com sucesso.")
             except Exception as e:
-                print(f"- Nota sobre migração de equipes: {e}")
-
-            # 3. CORREÇÃO CRÍTICA DO ERRO DE MIGRAÇÃO
-            # Remove a tabela alembic_version para resetar o histórico de migração quebrado
-            print("- Resetando histórico de migração (tabela alembic_version)...")
-            try:
-                conn.execute(text("DROP TABLE alembic_version"))
-                print("  > Tabela de versão antiga removida com sucesso.")
-            except Exception as e:
-                print(f"  > Tabela alembic_version não precisou ser removida ou não existia.")
-
-        print("-" * 30)
-        print("SUCESSO! O banco de dados foi corrigido.")
-        print("Agora você pode rodar os comandos de migração sem erros.")
+                print(f"  > Erro ao migrar vínculos de equipe: {e}")
 
 if __name__ == "__main__":
     atualizar_banco()

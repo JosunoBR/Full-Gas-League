@@ -1097,17 +1097,12 @@ def open_protest():
             p_grid_names = set()
             for g in p.grid.split(','):
                 g = g.strip()
-                if g.isdigit(): p_grid_ids.add(int(g))
-                else: p_grid_names.add(g.upper())
-            
-            for t in p.teams:
-                if t.grid_id: p_grid_ids.add(t.grid_id)
-                if t.grid: p_grid_names.add(t.grid.upper())
-
-            # Se houver interseção de IDs ou Nomes, permite o protesto
-            if not user_grid_ids.isdisjoint(p_grid_ids) or not user_grid_names.isdisjoint(p_grid_names):
+                if g.isdigit():
+                    p_grid_ids.add(int(g))
+                else:
+                    p_grid_names.add(g.upper())
+                
+            if (p_grid_ids & user_grid_ids) or (p_grid_names & user_grid_names):
                 pilots.append(p)
         
-        pilots.sort(key=lambda x: x.nickname)
-
-    return render_template('pilot/protest.html', races=races, pilots=pilots)
+    return render_template('pilot/open_protest.html', races=races, pilots=pilots)

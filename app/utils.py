@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿﻿# -*- coding: utf-8 -*-
 import os
 from urllib.parse import urlparse, parse_qs
 
@@ -341,5 +341,7 @@ def get_quali_ban_status(pilot_id, grid_id):
         Race.status == 'Concluida', RaceResult.status_presenca == 'OK'
     ).order_by(Race.data_corrida.desc()).first()
     
-    return not ultima_res or ultimo_p.data_fechamento.date() >= ultima_res.race.data_corrida
-
+    if not ultima_res or ultimo_p.data_fechamento.date() >= ultima_res.race.data_corrida:
+        return True
+        
+    return False
