@@ -38,9 +38,8 @@ def atualizar_banco():
             try:
                 conn.execute(text("SELECT status_presenca FROM race_result LIMIT 1"))
             except:
-                print("- Adicionando coluna 'status_presenca' em race_result (Default 'OK')...")
-                # No SQLite, adicionar a coluna com um valor padrão garante que registros antigos não fiquem nulos
-                conn.execute(text("ALTER TABLE race_result ADD COLUMN status_presenca TEXT DEFAULT 'OK'"))
+                print("- Adicionando coluna 'status_presenca' em race_result...")
+                conn.execute(text("ALTER TABLE race_result ADD COLUMN status_presenca TEXT"))
                 print("- Preenchendo status_presenca legado (OK/FJ/FNJ)...")
                 conn.execute(text("""
                     UPDATE race_result
@@ -48,15 +47,17 @@ def atualizar_banco():
                         WHEN ausencia IS NULL THEN 'OK'
                         ELSE ausencia
                     END
+                    WHERE status_presenca IS NULL
                 """))
-
-            # Verifica e adiciona colunas de grid_id que podem estar faltando em várias tabelas
-            for tabela in ['team', 'race', 'protesto', 'season_champion', 'pilot_grid_photo']:
-                try:
-                    conn.execute(text(f"SELECT grid_id FROM {tabela} LIMIT 1"))
-                except:
-                    print(f"- Adicionando coluna 'grid_id' em {tabela}...")
-                    conn.execute(text(f"ALTER TABLE {tabela} ADD COLUMN grid_id INTEGER"))
+            # Garante backfill mesmo se a coluna ja existir
+            conn.execute(text("""
+                UPDATE race_result
+                SET status_presenca = CASE
+                    WHEN ausencia IS NULL THEN 'OK'
+                    ELSE ausencia
+                END
+                WHERE status_presenca IS NULL
+            """))
 
             # Verifica e adiciona season_id em team
             try:
@@ -88,6 +89,8 @@ def atualizar_banco():
                 print(f"  > {migrated_count} vínculos de equipe migrados com sucesso.")
             except Exception as e:
                 print(f"  > Erro ao migrar vínculos de equipe: {e}")
+
+        print("\n✅ ATUALIZAÇÃO CONCLUÍDA COM SUCESSO!")
 
 if __name__ == "__main__":
     atualizar_banco()
