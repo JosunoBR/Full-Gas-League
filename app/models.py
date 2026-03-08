@@ -1,4 +1,4 @@
-from sqlalchemy import event
+from sqlalchemy import event, select
 from datetime import datetime
 from flask_login import UserMixin
 from flask_sqlalchemy import SQLAlchemy
@@ -331,3 +331,25 @@ class GridConfig(db.Model):
     exibir_lastro = db.Column(db.Boolean, default=True)
 
     season_rel = db.relationship('Season', backref=db.backref('grid_configs', cascade="all, delete-orphan"))
+
+
+def _ensure_protest_grid_id(mapper, connection, target):
+    """Guarantee protesto.grid_id follows the linked race grid."""
+    if getattr(target, "grid_id", None):
+        return
+    etapa_id = getattr(target, "etapa_id", None)
+    if not etapa_id:
+        raise ValueError("Protesto sem etapa_id nao pode ser salvo.")
+
+    race_grid_id = connection.execute(
+        select(Race.grid_id).where(Race.id == etapa_id)
+    ).scalar_one_or_none()
+
+    if race_grid_id is None:
+        raise ValueError("Nao foi possivel determinar grid_id do protesto pela corrida vinculada.")
+
+    target.grid_id = int(race_grid_id)
+
+
+event.listen(Protesto, "before_insert", _ensure_protest_grid_id)
+event.listen(Protesto, "before_update", _ensure_protest_grid_id)

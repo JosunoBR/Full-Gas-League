@@ -1027,11 +1027,22 @@ def update_profile():
 def open_protest():
     if not current_user.pilot_profile: return redirect(url_for('public.home'))
     if request.method == 'POST':
-        etapa_id = request.form.get('race_id')
+        etapa_id = request.form.get('race_id', type=int)
+        if not etapa_id:
+            flash('Selecione uma corrida valida para abrir o protesto.', 'warning')
+            return redirect(url_for('public.open_protest'))
+
         race = db.session.get(Race, etapa_id)
+        if not race:
+            flash('Corrida nao encontrada.', 'danger')
+            return redirect(url_for('public.open_protest'))
+        if not race.grid_id:
+            flash('Corrida sem grid vinculado. Contate a administracao.', 'danger')
+            return redirect(url_for('public.open_protest'))
+
         novo = Protesto(
             etapa_id=etapa_id,
-            grid_id=race.grid_id if race else None,
+            grid_id=race.grid_id,
             acusador_id=current_user.pilot_profile.id,
             acusado_id=request.form.get('acusado_id'),
             video_link=request.form.get('video'),
