@@ -37,7 +37,7 @@
                         
                         {# Se já existe resultado, o status de presença vem do resultado gravado #}
                         {% set presenca_final = status_inicial %}
-                        {% if resultado %}{% set presenca_final = resultado.ausencia if resultado.ausencia else 'OK' %}{% endif %}
+                        {% if resultado %}{% set presenca_final = resultado.status_presenca %}{% endif %}
 
                         <tr>
                             <td class="ps-4">

@@ -1,17 +1,17 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 import os
 from urllib.parse import urlparse, parse_qs
 
-# Importações de models (lazy import para evitar circular imports)
-# São importadas dentro das funções que as usam
+# ImportaÃ§Ãµes de models (lazy import para evitar circular imports)
+# SÃ£o importadas dentro das funÃ§Ãµes que as usam
 
-# Tabela 1: Grid Padrão (Até 20 Pilotos)
+# Tabela 1: Grid PadrÃ£o (AtÃ© 20 Pilotos)
 PONTUACAO_20 = {
     1: 35, 2: 30, 3: 27, 4: 24, 5: 22, 6: 20, 7: 18, 8: 16, 9: 14, 10: 12,
     11: 10, 12: 9, 13: 8, 14: 7, 15: 6, 16: 5, 17: 4, 18: 3, 19: 2, 20: 1
 }
 
-# Tabela 2: Grid Cheio (Até 22 Pilotos) - Suavizada do P10 ao P22
+# Tabela 2: Grid Cheio (AtÃ© 22 Pilotos) - Suavizada do P10 ao P22
 PONTUACAO_22 = {
     1: 35, 2: 30, 3: 27, 4: 24, 5: 22, 6: 20, 7: 18, 8: 16, 9: 14, 10: 13,
     11: 12, 12: 11, 13: 10, 14: 9, 15: 8, 16: 7, 17: 6, 18: 5, 19: 4, 20: 3,
@@ -47,8 +47,8 @@ def get_embed_url(link):
         return link.replace("/view", "/preview")
 
     # Suporte para YouTube Clips
-    # O YouTube bloqueia embeds gerados apenas com o ID do clip (exige o ID do vídeo original).
-    # Retornamos None para que o sistema exiba o botão de "Link Direto" em vez de um player com erro.
+    # O YouTube bloqueia embeds gerados apenas com o ID do clip (exige o ID do vÃ­deo original).
+    # Retornamos None para que o sistema exiba o botÃ£o de "Link Direto" em vez de um player com erro.
     if "youtube.com/clip/" in link:
         return None
             
@@ -60,7 +60,7 @@ def get_embed_url(link):
         except:
             pass
 
-    # Suporte para URLs de Embed já prontas (caso o usuário cole a URL do src do iframe conforme o tutorial)
+    # Suporte para URLs de Embed jÃ¡ prontas (caso o usuÃ¡rio cole a URL do src do iframe conforme o tutorial)
     if "youtube.com/embed/" in link:
         return link
 
@@ -77,8 +77,8 @@ def get_embed_url(link):
         if video_id:
             return f"https://www.youtube.com/embed/{video_id}"
         else:
-            # Se for link do YouTube mas não conseguimos extrair o ID (ex: canal, playlist, ou link inválido)
-            # Retornamos None para evitar que o iframe tente carregar a página inteira do YT (que será bloqueada)
+            # Se for link do YouTube mas nÃ£o conseguimos extrair o ID (ex: canal, playlist, ou link invÃ¡lido)
+            # Retornamos None para evitar que o iframe tente carregar a pÃ¡gina inteira do YT (que serÃ¡ bloqueada)
             return None
             
     # Suporte para Twitch
@@ -99,22 +99,22 @@ def get_embed_url(link):
         if "/clip/" in link:
             return None
         
-        # Formato: twitch.tv/username (Stream ao vivo - não é embedável em contexto fixa)
+        # Formato: twitch.tv/username (Stream ao vivo - nÃ£o Ã© embedÃ¡vel em contexto fixa)
         return None
 
     # Retorna o link original para tentar carregar em iframe (ex: links diretos .mp4 ou outros sites)
     return link
 
 
-# --- HELPERS DE PONTUAÇÃO E CÁLCULOS ---
+# --- HELPERS DE PONTUAÃ‡ÃƒO E CÃLCULOS ---
 
 def calcular_perda(veredito):
     """
-    Calcula pontos perdidos por punição (veredito do tribunal).
-    Fonte única de verdade para cálculo de penalidades.
+    Calcula pontos perdidos por puniÃ§Ã£o (veredito do tribunal).
+    Fonte Ãºnica de verdade para cÃ¡lculo de penalidades.
     
     Args:
-        veredito: String com tipo de punição ('LEVE', 'MEDIA', 'GRAVE')
+        veredito: String com tipo de puniÃ§Ã£o ('LEVE', 'MEDIA', 'GRAVE')
     
     Returns:
         int: Pontos a serem descontados (0, 3, 5 ou 10)
@@ -130,9 +130,9 @@ def calcular_perda(veredito):
 
 def calcular_pontos_totais_piloto(piloto_id, season_id, grid_id):
     """
-    Calcula os pontos totais de um piloto em uma temporada/grid específico.
-    Desconta punições do tribunal E penalidade manual.
-    Fonte única de verdade para cálculo de pontos.
+    Calcula os pontos totais de um piloto em uma temporada/grid especÃ­fico.
+    Desconta puniÃ§Ãµes do tribunal E penalidade manual.
+    Fonte Ãºnica de verdade para cÃ¡lculo de pontos.
     """
     from app.models import PilotProfile, RaceResult, Race, Protesto
     
@@ -150,7 +150,7 @@ def calcular_pontos_totais_piloto(piloto_id, season_id, grid_id):
     # Soma pontos das corridas
     pontos_corridas = float(sum(r.pontos_ganhos or 0 for r in resultados))
     
-    # Soma punições do tribunal para este grid específico nesta temporada
+    # Soma puniÃ§Ãµes do tribunal para este grid especÃ­fico nesta temporada
     punicoes_tribunal = Protesto.query.join(Race).filter(
         Protesto.acusado_id == piloto_id,
         Protesto.grid_id == grid_id,
@@ -162,20 +162,20 @@ def calcular_pontos_totais_piloto(piloto_id, season_id, grid_id):
     # Penalidade manual do campeonato
     penalidade_manual = float(piloto.penalidade_campeonato or 0)
     
-    # Cálculo final
+    # CÃ¡lculo final
     pontos_totais = pontos_corridas - total_punicoes_tribunal - penalidade_manual
     
     return round(pontos_totais, 1)
 
 
-# --- GRID HELPERS (Normalização e Matching) ---
+# --- GRID HELPERS (NormalizaÃ§Ã£o e Matching) ---
 
 def get_grid_name(obj):
     """
     Retorna o nome do grid de um objeto, normalizando grid_config.
     
-    Padrão: Se o objeto tem grid_config_id filled e um atributo grid_config,
-    usa grid_config.nome. Caso contrário, usa o campo grid (string).
+    PadrÃ£o: Se o objeto tem grid_config_id filled e um atributo grid_config,
+    usa grid_config.nome. Caso contrÃ¡rio, usa o campo grid (string).
     
     Args:
         obj: Objeto com atributos grid_config ou grid (Race, Team, etc)
@@ -192,11 +192,11 @@ def get_grid_name(obj):
 
 def grid_matches(obj, grid_ref):
     """
-    Verifica se um objeto (Race, Team, etc) pertence a um grid específico.
+    Verifica se um objeto (Race, Team, etc) pertence a um grid especÃ­fico.
     
     Suporta dois modos:
-    - Se grid_ref é int: compara estritamente com grid_id
-    - Se grid_ref é GridConfig: compara nome normalizado
+    - Se grid_ref Ã© int: compara estritamente com grid_id
+    - Se grid_ref Ã© GridConfig: compara nome normalizado
     
     Args:
         obj: Objeto com atributos grid_id/grid/grid_config (Race, Team, etc)
@@ -208,13 +208,13 @@ def grid_matches(obj, grid_ref):
     obj_grid_name = get_grid_name(obj)
     
     if isinstance(grid_ref, int):
-        # grid_ref é um ID
+        # grid_ref Ã© um ID
         if hasattr(obj, 'grid_id') and obj.grid_id == grid_ref:
             return True
         # Fallback: busca por nome (requer contexto de GridConfig)
         return False
     else:
-        # grid_ref é um GridConfig ou similar com atributo nome
+        # grid_ref Ã© um GridConfig ou similar com atributo nome
         grid_ref_name = (grid_ref.nome if hasattr(grid_ref, 'nome') else str(grid_ref)).strip().upper()
         return obj_grid_name == grid_ref_name
 
@@ -241,11 +241,11 @@ def find_grid_config(nome_grid, grid_configs_list):
     return None
 
 
-# --- EVOLUÇÃO DE PONTOS E ESTATÍSTICAS ---
+# --- EVOLUÃ‡ÃƒO DE PONTOS E ESTATÃSTICAS ---
 
 def gerar_evolucao_pontos(piloto_id, grid_id, season_id):
     """
-    Gera dados de evolução acumulativa de pontos para um piloto em um grid específico.
+    Gera dados de evoluÃ§Ã£o acumulativa de pontos para um piloto em um grid especÃ­fico.
     
     Args:
         piloto_id: int - ID do piloto
@@ -259,7 +259,7 @@ def gerar_evolucao_pontos(piloto_id, grid_id, season_id):
     # Import late para evitar circular imports
     from app.models import db, Race, RaceResult, Protesto
     
-    # 1. Busca apenas os dados necessários das corridas concluídas
+    # 1. Busca apenas os dados necessÃ¡rios das corridas concluÃ­das
     corridas = db.session.query(Race.id, Race.nome_gp, Race.data_corrida)\
         .filter(Race.season_id == season_id, Race.grid_id == grid_id, Race.status == 'Concluida')\
         .order_by(Race.data_corrida).all()
@@ -275,7 +275,7 @@ def gerar_evolucao_pontos(piloto_id, grid_id, season_id):
     
     results_dict = {r.race_id: r.pontos_ganhos for r in resultados}
     
-    # 3. Busca punições do tribunal para este grid
+    # 3. Busca puniÃ§Ãµes do tribunal para este grid
     punicoes = db.session.query(Protesto.etapa_id, Protesto.veredito_final)\
         .join(Race, Protesto.etapa_id == Race.id)\
         .filter(Protesto.acusado_id == piloto_id, Protesto.status == 'CONCLUIDO', 
@@ -301,10 +301,10 @@ def gerar_evolucao_pontos(piloto_id, grid_id, season_id):
     
     return evolucao
 
-# --- QUERY HELPERS (Consolida��o de Queries Comuns) ---
+# --- QUERY HELPERS (Consolidaï¿½ï¿½o de Queries Comuns) ---
 
 def get_pilot_results_for_grid(pilot_id, grid_id, season_id):
-    """Busca todos os resultados de corrida de um piloto em um grid/temporada espec�fico."""
+    """Busca todos os resultados de corrida de um piloto em um grid/temporada especï¿½fico."""
     from app.models import RaceResult, Race
     
     return RaceResult.query.join(Race).filter(
@@ -315,7 +315,7 @@ def get_pilot_results_for_grid(pilot_id, grid_id, season_id):
 
 
 def get_active_protests_for_pilot(pilot_id, grid_id=None):
-    """Busca protestos conclu�dos (puni��es) de um piloto."""
+    """Busca protestos concluï¿½dos (puniï¿½ï¿½es) de um piloto."""
     from app.models import Protesto
     
     query = Protesto.query.filter_by(acusado_id=pilot_id, status='CONCLUIDO')
@@ -325,7 +325,7 @@ def get_active_protests_for_pilot(pilot_id, grid_id=None):
 
 
 def get_quali_ban_status(pilot_id, grid_id):
-    """Verifica se um piloto est� com ban de classifica��o por puni��o recente."""
+    """Verifica se um piloto estï¿½ com ban de classificaï¿½ï¿½o por puniï¿½ï¿½o recente."""
     from app.models import Protesto, RaceResult, Race
     
     ultimo_p = Protesto.query.filter_by(
@@ -338,7 +338,8 @@ def get_quali_ban_status(pilot_id, grid_id):
     
     ultima_res = RaceResult.query.join(Race).filter(
         RaceResult.pilot_id == pilot_id, Race.grid_id == grid_id,
-        Race.status == 'Concluida', RaceResult.ausencia == None
+        Race.status == 'Concluida', RaceResult.status_presenca == 'OK'
     ).order_by(Race.data_corrida.desc()).first()
     
     return not ultima_res or ultimo_p.data_fechamento.date() >= ultima_res.race.data_corrida
+

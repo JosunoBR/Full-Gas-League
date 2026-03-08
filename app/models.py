@@ -117,7 +117,12 @@ class PilotProfile(db.Model):
         cnh -= (adv_count // 3) * 3
         
         # 2. Descontos por W.O. (FNJ)
-        fnjs = RaceResult.query.join(Race).filter(RaceResult.pilot_id == self.id, RaceResult.ausencia == 'FNJ', Race.season_id == season_id, Race.grid_id == grid_id).count()
+        fnjs = RaceResult.query.join(Race).filter(
+            RaceResult.pilot_id == self.id,
+            RaceResult.status_presenca == 'FNJ',
+            Race.season_id == season_id,
+            Race.grid_id == grid_id
+        ).count()
         cnh -= (fnjs * 2)
         
         return {'cnh': cnh, 'advertencias': adv_count}
@@ -237,6 +242,7 @@ class RaceResult(db.Model):
     
     dnf = db.Column(db.Boolean, default=False) 
     dsq = db.Column(db.Boolean, default=False)
+    status_presenca = db.Column(db.String(10), nullable=False, default='OK')
     ausencia = db.Column(db.String(10), nullable=True)
 
     def to_dict(self):
@@ -245,6 +251,7 @@ class RaceResult(db.Model):
             'pontos': self.pontos_ganhos,
             'piloto': self.pilot.nickname,
             'equipe': self.team_snapshot.nome if self.team_snapshot else 'N/A',
+            'status_presenca': self.status_presenca,
             'dnf': self.dnf,
             'dsq': self.dsq,
             'vr': self.volta_rapida,

@@ -1004,6 +1004,7 @@ def race_results(race_id):
         # 1. PROCESSAR TITULARES
         titulares_ids = request.form.getlist('titular_id')
         titulares_sem_equipe = []
+        titulares_sem_status = []
         for pid in titulares_ids:
             pid_int = int(pid)
             try:
@@ -1011,7 +1012,10 @@ def race_results(race_id):
             except ValueError:
                 posicao = 0
 
-            status_presenca = request.form.get(f'status_{pid}') # OK, FJ, FNJ
+            status_presenca = (request.form.get(f'status_{pid}') or '').strip().upper() # OK, FJ, FNJ
+            if status_presenca not in {'OK', 'FJ', 'FNJ'}:
+                titulares_sem_status.append(f"ID {pid_int}")
+                continue
             piloto = PilotProfile.query.get(pid_int)
             
             equipe_id = team_snapshot.get(pid_int)
@@ -1058,6 +1062,7 @@ def race_results(race_id):
                 db.session.add(RaceResult(
                     race_id=race.id, pilot_id=pid_int, team_id=equipe_id,
                     posicao=posicao, pontos_ganhos=pontos,
+                    status_presenca='OK',
                     dnf=dnf, dsq=dsq, volta_rapida=vr, piloto_do_dia=dotd,
                     piloto_torcida=fan,
                     ausencia=None
@@ -1068,13 +1073,22 @@ def race_results(race_id):
                     pass # A punição de 2 pontos na CNH agora é calculada dinamicamente pelo 'get_cnh_info'
                 db.session.add(RaceResult(
                     race_id=race.id, pilot_id=pid_int, team_id=equipe_id,
-                    posicao=0, pontos_ganhos=0, ausencia=status_presenca
+                    posicao=0, pontos_ganhos=0,
+                    status_presenca=status_presenca,
+                    ausencia=status_presenca
                 ))
 
         if titulares_sem_equipe:
             db.session.rollback()
             flash(
                 'Nao foi possivel salvar: titulares sem equipe no grid desta corrida: ' + ', '.join(titulares_sem_equipe),
+                'danger'
+            )
+            return redirect(url_for('admin.race_results', race_id=race.id))
+        if titulares_sem_status:
+            db.session.rollback()
+            flash(
+                'Nao foi possivel salvar: faltou preencher status de presenca para titulares: ' + ', '.join(titulares_sem_status),
                 'danger'
             )
             return redirect(url_for('admin.race_results', race_id=race.id))
@@ -1126,6 +1140,7 @@ def race_results(race_id):
                 db.session.add(RaceResult(
                     race_id=race.id, pilot_id=r_pid_int, team_id=r_team_id,
                     posicao=r_pos, pontos_ganhos=r_pontos,
+                    status_presenca='OK',
                     dnf=r_dnf, dsq=r_dsq, volta_rapida=r_vr, piloto_do_dia=r_dotd,
                     piloto_torcida=r_fan,
                     ausencia=None

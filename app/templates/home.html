@@ -533,7 +533,7 @@
                                     </thead>
                                     <tbody>
                                         {% for res in race.results|sort(attribute='posicao') %}
-                                        {% if not res.ausencia %}
+                                        {% if res.status_presenca == 'OK' %}
                                         <tr>
                                             <td class="ps-3 fw-bold">
                                                 {% if res.dsq %} <span class="badge bg-danger">DSQ</span>
@@ -880,11 +880,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // Estado de filtro: armazena quais pilotos estão visíveis por grid
     const filterState = {};
     const chartInstances = {};
+
+    function getChartRows(gridId) {
+        return (standings[gridId] || []).filter(row => !row.is_reserve);
+    }
     
     // Função para renderizar o dropdown de filtro
     function renderFilterDropdown(grid) {
         const gridId = grid.id;
-        const gridStandings = standings[gridId];
+        const gridStandings = getChartRows(gridId);
         
         console.log(`Renderizando filtro de pilotos para grid ${gridId}`, { gridStandings });
         
@@ -990,7 +994,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Função para renderizar dropdown de filtro de equipes
     function renderTeamFilterDropdown(grid) {
         const gridId = grid.id;
-        const gridStandings = standings[gridId];
+        const gridStandings = getChartRows(gridId);
         
         console.log(`Renderizando filtro de equipes para grid ${gridId}`, { gridStandings });
         
@@ -1103,7 +1107,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function applyChartPreset(gridId, preset) {
-        const gridStandings = standings[gridId] || [];
+        const gridStandings = getChartRows(gridId);
         if (!filterState[gridId]) return;
 
         if (preset === 'all') {
@@ -1233,9 +1237,10 @@ document.addEventListener('DOMContentLoaded', function() {
         const canvasId = `chart-evolucao-${grid.id}`;
         const canvas = document.getElementById(canvasId);
         
-        if (!canvas || !standings[grid.id] || standings[grid.id].length === 0) return;
+        if (!canvas) return;
         
-        const gridStandings = standings[grid.id];
+        const gridStandings = getChartRows(grid.id);
+        if (!gridStandings.length) return;
         const gridId = grid.id;
         
         // Garante que filterState[gridId] sempre existe
@@ -1291,7 +1296,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Cria datasets (aplicando filtro de pilotos e equipes)
         const mode = filterState[gridId].mode || 'acumulado';
-        const datasets = gridStandings
+        let datasets = gridStandings
             .filter(row => {
                 const pilotoValido = row.evolucao && row.evolucao.length > 0 && filterState[gridId][row.piloto.id];
                 const teamName = row.team_name || 'Sem Equipe';
@@ -1327,6 +1332,48 @@ document.addEventListener('DOMContentLoaded', function() {
                     cubicInterpolationMode: 'monotone'
                 };
             });
+
+        // Fallback: se filtros salvos deixarem o gráfico vazio, reativa todos com dados.
+        if (!datasets.length) {
+            gridStandings.forEach(row => {
+                filterState[gridId][row.piloto.id] = !!(row.evolucao && row.evolucao.length > 0);
+            });
+            if (filterState[gridId].teams) {
+                Object.keys(filterState[gridId].teams).forEach(team => {
+                    filterState[gridId].teams[team] = true;
+                });
+            }
+            datasets = gridStandings
+                .filter(row => row.evolucao && row.evolucao.length > 0)
+                .map((row) => {
+                    const piloto = row.piloto;
+                    const evolucao = row.evolucao;
+                    const color = colorMap[piloto.id];
+
+                    const data = gpsOrdenados.map(gp => {
+                        const ev = evolucao.find(e => e.gp === gp);
+                        if (!ev) return null;
+                        return mode === 'etapa' ? ev.pontos_corrida : ev.pontos_acumulados;
+                    });
+
+                    return {
+                        label: piloto.nome_real || piloto.nickname,
+                        data: data,
+                        borderColor: color,
+                        backgroundColor: (context) => buildLineGradient(context.chart, color),
+                        borderWidth: 3,
+                        fill: false,
+                        tension: 0.35,
+                        pointRadius: 3,
+                        pointHoverRadius: 6,
+                        pointHitRadius: 14,
+                        pointBackgroundColor: color,
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 1.5,
+                        cubicInterpolationMode: 'monotone'
+                    };
+                });
+        }
         
         // Cria o gráfico
         const chart = new Chart(canvas, {

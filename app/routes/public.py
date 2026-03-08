@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from flask import Blueprint, render_template, request, flash, redirect, url_for, current_app
 from flask_login import login_required, current_user, login_user, logout_user
 from werkzeug.security import check_password_hash
+from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 from app.models import db, Season, Race, PilotProfile, Protesto, RaceResult, VotoComissario, Team, RaceRegistration, User, Invite, News, GridConfig, SeasonChampion, PilotGridPhoto
 from app.utils import allowed_file, get_embed_url, ORDEM_CARROS, get_grid_name, find_grid_config, gerar_evolucao_pontos, grid_matches, calcular_pontos_totais_piloto
@@ -154,7 +155,7 @@ def home():
         ).filter(
             Race.season_id == season_ativa.id,
             Race.status == "Concluida",
-            RaceResult.ausencia.is_(None)
+            RaceResult.status_presenca == 'OK'
         ).all()
         last_participation = {}
         for pilot_id, grid_id, data_corrida in last_participation_rows:
@@ -491,7 +492,7 @@ def public_profile(pilot_id):
                 RaceResult.pilot_id == perfil.id, 
                 Race.grid_id == grid_id_contexto,
                 Race.status == 'Concluida',
-                RaceResult.ausencia == None
+                RaceResult.status_presenca == 'OK'
             ).order_by(Race.data_corrida.desc()).first()
             if not ultima_res or ultimo_p.data_fechamento.date() >= ultima_res.race.data_corrida:
                 quali_ban = True
@@ -514,7 +515,7 @@ def public_profile(pilot_id):
             resultado = next((r for r in race.results if r.pilot_id == perfil.id), None)
             desempenho_temporada.append({
                 'gp': race.nome_gp, 'data': race.data_corrida, 'status_corrida': race.status,
-                'participou': True if resultado and not resultado.ausencia else False,
+                'participou': True if resultado and resultado.status_presenca == 'OK' else False,
                 'posicao': resultado.posicao if resultado else 0,
                 'pontos': resultado.pontos_ganhos if resultado else 0,
                 'dnf': resultado.dnf if resultado else False, 'dsq': resultado.dsq if resultado else False
@@ -691,7 +692,7 @@ def my_profile():
                 RaceResult.pilot_id == perfil.id, 
                 Race.grid_id == grid_id_contexto,
                 Race.status == 'Concluida',
-                RaceResult.ausencia == None
+                RaceResult.status_presenca == 'OK'
             ).order_by(Race.data_corrida.desc()).first()
             if not ultima_res or ultimo_p.data_fechamento.date() >= ultima_res.race.data_corrida:
                 quali_ban = True
@@ -748,7 +749,7 @@ def my_profile():
             resultado = next((r for r in race.results if r.pilot_id == perfil.id), None)
             desempenho_temporada.append({
                 'gp': race.nome_gp, 'data': race.data_corrida, 'status_corrida': race.status,
-                'participou': True if resultado and not resultado.ausencia else False,
+                'participou': True if resultado and resultado.status_presenca == 'OK' else False,
                 'posicao': resultado.posicao if resultado else 0,
                 'pontos': resultado.pontos_ganhos if resultado else 0,
                 'dnf': resultado.dnf if resultado else False, 'dsq': resultado.dsq if resultado else False

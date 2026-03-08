@@ -34,6 +34,31 @@ def atualizar_banco():
                 print("- Adicionando coluna 'exibir_lastro' em grid_config...")
                 conn.execute(text("ALTER TABLE grid_config ADD COLUMN exibir_lastro BOOLEAN DEFAULT 1"))
 
+            # Verifica e adiciona status_presenca em race_result
+            try:
+                conn.execute(text("SELECT status_presenca FROM race_result LIMIT 1"))
+            except:
+                print("- Adicionando coluna 'status_presenca' em race_result...")
+                conn.execute(text("ALTER TABLE race_result ADD COLUMN status_presenca TEXT"))
+                print("- Preenchendo status_presenca legado (OK/FJ/FNJ)...")
+                conn.execute(text("""
+                    UPDATE race_result
+                    SET status_presenca = CASE
+                        WHEN ausencia IS NULL THEN 'OK'
+                        ELSE ausencia
+                    END
+                    WHERE status_presenca IS NULL
+                """))
+            # Garante backfill mesmo se a coluna ja existir
+            conn.execute(text("""
+                UPDATE race_result
+                SET status_presenca = CASE
+                    WHEN ausencia IS NULL THEN 'OK'
+                    ELSE ausencia
+                END
+                WHERE status_presenca IS NULL
+            """))
+
             # Verifica e adiciona season_id em team
             try:
                 conn.execute(text("SELECT season_id FROM team LIMIT 1"))
