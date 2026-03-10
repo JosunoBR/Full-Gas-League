@@ -6,38 +6,15 @@ from werkzeug.security import check_password_hash
 from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 from app.models import db, Season, Race, PilotProfile, Protesto, RaceResult, VotoComissario, Team, RaceRegistration, User, Invite, News, GridConfig, SeasonChampion, PilotGridPhoto
-from app.utils import allowed_file, get_embed_url, ORDEM_CARROS, get_grid_name, find_grid_config, gerar_evolucao_pontos, grid_matches, calcular_pontos_totais_piloto
+from app.utils import allowed_file, get_embed_url, ORDEM_CARROS, get_grid_name, find_grid_config, grid_matches
 from app.services.team_context import build_team_context
-from app.services.scoring import build_constructors_for_home, team_has_results_in_season, get_team_profile_stats
+from app.services.standings_service import StandingsService
+from app.services.scoring_service import ScoringService
+from app.services.discipline_service import DisciplineService
 
 public_bp = Blueprint('public', __name__)
 
 # --- FUNÇÕES AUXILIARES ---
-
-def converter_standings_para_json(standings):
-    """Converte standings com objetos SQLAlchemy para dicionários serializáveis"""
-    resultado = {}
-    for grid_id, pilotos_list in standings.items():
-        resultado[grid_id] = []
-        for item in pilotos_list:
-            piloto = item['piloto']
-            resultado[grid_id].append({
-                'piloto': {
-                    'id': piloto.id,
-                    'nome_real': piloto.nome_real,
-                    'nickname': piloto.nickname
-                },
-                'pontos': item['pontos'],
-                'vitorias': item['vitorias'],
-                'carro': item['carro'],
-                'quali_ban': item['quali_ban'],
-                'foto_url': item['foto_url'],
-                'team_name': item['team_name'],
-                'is_reserve': item['is_reserve'],
-                'evolucao': item.get('evolucao', [])
-            })
-    return resultado
-
 
 def _parse_profile_grids(profile_grid_value):
     tokens = [g.strip() for g in (profile_grid_value or "").split(",") if g.strip()]
@@ -92,8 +69,6 @@ def _can_interact_with_checkin(pilot, race, today):
 @public_bp.route('/')
 def home():
     all_active_seasons = Season.query.filter_by(ativa=True).order_by(Season.id.asc()).all()
-    
-    # Fallback: Se não houver temporadas ativas, busca todas
     if not all_active_seasons:
         all_active_seasons = Season.query.order_by(Season.id.desc()).all()
     
@@ -101,141 +76,16 @@ def home():
     season_ativa = None
     if selected_season_id:
         season_ativa = next((s for s in all_active_seasons if s.id == selected_season_id), None)
-    
     if not season_ativa and all_active_seasons:
         season_ativa = all_active_seasons[0]
     
-    # LÓGICA 100% ID: Busca as configurações de grid da temporada selecionada
-    grid_configs = []
-    if season_ativa:
-        grid_configs = GridConfig.query.filter_by(season_id=season_ativa.id).order_by(GridConfig.ordem).all()
+    if not season_ativa:
+        return render_template('home.html', season_ativa=None, all_seasons=all_active_seasons, noticias=[], grid_configs=[], standings={}, constructors={}, calendar={}, last_races={}, pilots_by_grid={})
 
-    # Dicionários indexados por grid_id
-    standings = { g.id: [] for g in grid_configs }
-    constructors = { g.id: [] for g in grid_configs }
-    calendar = { g.id: [] for g in grid_configs }
-    last_races = { g.id: None for g in grid_configs }
-    pilots_by_grid = { g.id: [] for g in grid_configs }
-    noticias = News.query.order_by(News.data_publicacao.desc()).limit(5).all()
-    
-    if season_ativa:
-        pilotos = PilotProfile.query.options(
-            joinedload(PilotProfile.user),
-            joinedload(PilotProfile.race_results).joinedload(RaceResult.race),
-            joinedload(PilotProfile.teams),
-            joinedload(PilotProfile.grid_photos)
-        ).all()
+    # Passo 3: Refatoração para usar StandingsService com Cache
+    data = StandingsService.get_home_data(season_ativa.id)
 
-        team_ctx = build_team_context(season_ativa.id)
-        participants_by_grid = team_ctx["participants_by_grid"]
-        constructors = build_constructors_for_home(
-            season_ativa.id,
-            grid_configs,
-            team_ctx["canonical_teams"],
-            team_ctx["alias_ids_by_key"]
-        )
-
-        # Preload severe protests and last participations to reduce per-row queries.
-        severe_protests = Protesto.query.join(Race).filter(
-            Race.season_id == season_ativa.id,
-            Protesto.status == "CONCLUIDO",
-            Protesto.veredito_final.in_(["MEDIA", "GRAVE"])
-        ).all()
-        latest_severe = {}
-        for pr in severe_protests:
-            if not pr.grid_id:
-                continue
-            key = (pr.acusado_id, pr.grid_id)
-            prev = latest_severe.get(key)
-            if not prev or (pr.data_fechamento and prev.data_fechamento and pr.data_fechamento > prev.data_fechamento):
-                latest_severe[key] = pr
-
-        last_participation_rows = RaceResult.query.join(Race).with_entities(
-            RaceResult.pilot_id, Race.grid_id, Race.data_corrida
-        ).filter(
-            Race.season_id == season_ativa.id,
-            Race.status == "Concluida",
-            RaceResult.status_presenca == 'OK'
-        ).all()
-        last_participation = {}
-        for pilot_id, grid_id, data_corrida in last_participation_rows:
-            if not grid_id:
-                continue
-            key = (pilot_id, grid_id)
-            prev_date = last_participation.get(key)
-            if not prev_date or (data_corrida and data_corrida > prev_date):
-                last_participation[key] = data_corrida
-
-        points_cache = {}
-        evolution_cache = {}
-
-        for g in grid_configs:
-            for item in participants_by_grid.get(g.id, []):
-                p = item["pilot"]
-                team_ref = item["team"]
-                is_reserve = item["is_reserve"]
-
-                resultados = [r for r in p.race_results if r.race.season_id == season_ativa.id]
-                res_no_grid = [r for r in resultados if grid_matches(r.race, g)]
-
-                key_pg = (p.id, g.id)
-                if key_pg not in points_cache:
-                    points_cache[key_pg] = calcular_pontos_totais_piloto(p.id, season_ativa.id, g.id)
-                pontos_totais = points_cache[key_pg]
-                vitorias = sum(1 for r in res_no_grid if r.posicao == 1 and not r.dsq)
-
-                ultimo_p = latest_severe.get(key_pg)
-                ultima_data = last_participation.get(key_pg)
-                quali_ban = bool(ultimo_p and (not ultima_data or ultimo_p.data_fechamento.date() >= ultima_data))
-
-                foto_final = p.foto_url
-                grid_photo = next((gp for gp in p.grid_photos if getattr(gp, "grid_id", None) == g.id), None)
-                if grid_photo:
-                    foto_final = grid_photo.foto_url
-
-                if key_pg not in evolution_cache:
-                    evolution_cache[key_pg] = gerar_evolucao_pontos(p.id, g.id, season_ativa.id)
-
-                standings[g.id].append({
-                    "piloto": p,
-                    "pontos": pontos_totais,
-                    "vitorias": vitorias,
-                    "carro": "",
-                    "quali_ban": quali_ban,
-                    "foto_url": foto_final,
-                    "team_name": team_ref.nome if team_ref else "Sem Equipe",
-                    "is_reserve": is_reserve,
-                    "evolucao": evolution_cache[key_pg],
-                })
-
-                if not any(x["data"].id == p.id for x in pilots_by_grid[g.id]):
-                    pilots_by_grid[g.id].append({"data": p, "foto_url": foto_final, "team": team_ref})
-
-        # Lastro assignment.
-        for g in grid_configs:
-            standings[g.id].sort(key=lambda x: (x["pontos"], x["vitorias"]), reverse=True)
-            for i, item in enumerate(standings[g.id]):
-                item["carro"] = ORDEM_CARROS[i] if (g.exibir_lastro and i < len(ORDEM_CARROS)) else ("-" if not g.exibir_lastro else "McLaren (Extra)")
-
-        # 5. Calendário e Últimas Corridas
-        all_races = Race.query.filter_by(season_id=season_ativa.id).order_by(Race.data_corrida).all()
-        for r in all_races:
-            r_grid_id = r.grid_id
-            
-            if r_grid_id and r_grid_id in calendar:
-                calendar[r_grid_id].append(r)
-
-        for g_id in last_races:
-            concluidas = [r for r in calendar[g_id] if r.status == 'Concluida']
-            if concluidas: last_races[g_id] = concluidas[-1]
-
-        # 6. Pilotos por Grid (Carrossel) already populated with same source as standings.
-
-    # Converte dados para formato JSON-seguro
-    grid_configs_json = [{'id': g.id, 'nome': g.nome, 'vagas': g.vagas, 'exibir_lastro': g.exibir_lastro} for g in grid_configs]
-    standings_json = converter_standings_para_json(standings)
-
-    return render_template('home.html', standings=standings_json, constructors=constructors, calendar=calendar, last_races=last_races, season_ativa=season_ativa, noticias=noticias, pilots_by_grid=pilots_by_grid, grid_configs=grid_configs_json, all_seasons=all_active_seasons)
+    return render_template('home.html', season_ativa=season_ativa, all_seasons=all_active_seasons, **data)
 
 @public_bp.route('/login', methods=['GET', 'POST'])
 def login():
@@ -477,25 +327,14 @@ def public_profile(pilot_id):
                                  ((t.grid_config and t.grid_config.nome == current_context['grid']) or t.grid == current_context['grid'])), None)
     
     if current_context:
-        cnh_info = perfil.get_cnh_info(current_context['season_id'], current_context['grid_id'])
+        cnh_info = DisciplineService.get_pilot_discipline_stats(perfil.id, current_context['season_id'], current_context['grid_id'])
         perfil.pontos_cnh = cnh_info['cnh']
         perfil.advertencias_acumuladas = cnh_info['advertencias']
         
         # Verificação de Quali Ban (100% via ID do Grid)
         grid_id_contexto = current_context.get('grid_id')
-        ultimo_p = Protesto.query.filter_by(acusado_id=perfil.id, grid_id=grid_id_contexto, status='CONCLUIDO')\
-            .filter(Protesto.veredito_final.in_(['MEDIA', 'GRAVE']))\
-            .order_by(Protesto.data_fechamento.desc()).first()
-            
-        if ultimo_p:
-            ultima_res = RaceResult.query.join(Race).filter(
-                RaceResult.pilot_id == perfil.id, 
-                Race.grid_id == grid_id_contexto,
-                Race.status == 'Concluida',
-                RaceResult.status_presenca == 'OK'
-            ).order_by(Race.data_corrida.desc()).first()
-            if not ultima_res or ultimo_p.data_fechamento.date() >= ultima_res.race.data_corrida:
-                quali_ban = True
+        if grid_id_contexto:
+            quali_ban = DisciplineService.is_quali_banned(perfil.id, grid_id_contexto)
 
     meus_pontos_camp = 0
     desempenho_temporada = []
@@ -506,7 +345,7 @@ def public_profile(pilot_id):
         
         # Usa a função centralizada para calcular pontos totais
         if grid_id_calc:
-            meus_pontos_camp = calcular_pontos_totais_piloto(perfil.id, s_id, grid_id_calc)
+            meus_pontos_camp = ScoringService.calculate_pilot_total_points(perfil.id, s_id, grid_id_calc)
         
         all_races_season = Race.query.filter_by(season_id=s_id).order_by(Race.data_corrida).all()
         corridas = [r for r in all_races_season if (r.grid_config and r.grid_config.nome == g_name) or r.grid == g_name]
@@ -677,25 +516,14 @@ def my_profile():
                                      ((t.grid_config and t.grid_config.nome == current_context['grid']) or t.grid == current_context['grid'])), None)
 
     if current_context:
-        cnh_info = perfil.get_cnh_info(current_context['season_id'], current_context['grid_id'])
+        cnh_info = DisciplineService.get_pilot_discipline_stats(perfil.id, current_context['season_id'], current_context['grid_id'])
         perfil.pontos_cnh = cnh_info['cnh']
         perfil.advertencias_acumuladas = cnh_info['advertencias']
         
         # Verificação de Quali Ban (100% via ID do Grid)
         grid_id_contexto = current_context.get('grid_id')
-        ultimo_p = Protesto.query.filter_by(acusado_id=perfil.id, grid_id=grid_id_contexto, status='CONCLUIDO')\
-            .filter(Protesto.veredito_final.in_(['MEDIA', 'GRAVE']))\
-            .order_by(Protesto.data_fechamento.desc()).first()
-            
-        if ultimo_p:
-            ultima_res = RaceResult.query.join(Race).filter(
-                RaceResult.pilot_id == perfil.id, 
-                Race.grid_id == grid_id_contexto,
-                Race.status == 'Concluida',
-                RaceResult.status_presenca == 'OK'
-            ).order_by(Race.data_corrida.desc()).first()
-            if not ultima_res or ultimo_p.data_fechamento.date() >= ultima_res.race.data_corrida:
-                quali_ban = True
+        if grid_id_contexto:
+            quali_ban = DisciplineService.is_quali_banned(perfil.id, grid_id_contexto)
 
     if perfil.esta_banido():
         flash('ALERTA: Sua CNH está zerada ou negativa. Você está suspenso das atividades de pista.', 'danger')
@@ -737,7 +565,7 @@ def my_profile():
         
         # Usa a função centralizada para calcular pontos totais
         if grid_id_calc:
-            meus_pontos_camp = calcular_pontos_totais_piloto(perfil.id, s_id, grid_id_calc)
+            meus_pontos_camp = ScoringService.calculate_pilot_total_points(perfil.id, s_id, grid_id_calc)
         
         all_races_season = Race.query.filter_by(season_id=s_id).order_by(Race.data_corrida).all()
         if grid_id_calc:
@@ -898,7 +726,7 @@ def team_profile(team_id):
         
         if active_seasons:
             for s in active_seasons:
-                if team_has_results_in_season(team, s.id):
+                if ScoringService.team_has_results_in_season(team, s.id):
                     season_ativa = s
                     break
             
@@ -911,7 +739,7 @@ def team_profile(team_id):
     total_vitorias = 0
     stats_pilotos = []
     if season_ativa:
-        profile_stats = get_team_profile_stats(team, season_ativa.id)
+        profile_stats = ScoringService.get_team_profile_stats(team, season_ativa.id)
         total_pontos = profile_stats["total_pontos"]
         total_vitorias = profile_stats["total_vitorias"]
         # Exibe apenas titulares atualmente cadastrados nesta equipe.
@@ -1097,10 +925,8 @@ def open_protest():
             p_grid_names = set()
             for g in p.grid.split(','):
                 g = g.strip()
-                if g.isdigit():
-                    p_grid_ids.add(int(g))
-                else:
-                    p_grid_names.add(g.upper())
+                if g.isdigit(): p_grid_ids.add(int(g))
+                else: p_grid_names.add(g.upper())
                 
             if (p_grid_ids & user_grid_ids) or (p_grid_names & user_grid_names):
                 pilots.append(p)

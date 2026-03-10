@@ -128,46 +128,6 @@ def calcular_perda(veredito):
     return 0
 
 
-def calcular_pontos_totais_piloto(piloto_id, season_id, grid_id):
-    """
-    Calcula os pontos totais de um piloto em uma temporada/grid especÃ­fico.
-    Desconta puniÃ§Ãµes do tribunal E penalidade manual.
-    Fonte Ãºnica de verdade para cÃ¡lculo de pontos.
-    """
-    from app.models import PilotProfile, RaceResult, Race, Protesto
-    
-    piloto = PilotProfile.query.get(piloto_id)
-    if not piloto:
-        return 0.0
-    
-    # Busca todos os resultados do piloto nesta temporada/grid
-    resultados = RaceResult.query.join(Race).filter(
-        RaceResult.pilot_id == piloto_id,
-        Race.season_id == season_id,
-        Race.grid_id == grid_id
-    ).all()
-    
-    # Soma pontos das corridas
-    pontos_corridas = float(sum(r.pontos_ganhos or 0 for r in resultados))
-    
-    # Soma puniÃ§Ãµes do tribunal para este grid especÃ­fico nesta temporada
-    punicoes_tribunal = Protesto.query.join(Race).filter(
-        Protesto.acusado_id == piloto_id,
-        Protesto.grid_id == grid_id,
-        Race.season_id == season_id,
-        Protesto.status == 'CONCLUIDO'
-    ).all()
-    total_punicoes_tribunal = sum(calcular_perda(p.veredito_final) for p in punicoes_tribunal)
-    
-    # Penalidade manual do campeonato
-    penalidade_manual = float(piloto.penalidade_campeonato or 0)
-    
-    # CÃ¡lculo final
-    pontos_totais = pontos_corridas - total_punicoes_tribunal - penalidade_manual
-    
-    return round(pontos_totais, 1)
-
-
 # --- GRID HELPERS (NormalizaÃ§Ã£o e Matching) ---
 
 def get_grid_name(obj):
@@ -241,66 +201,6 @@ def find_grid_config(nome_grid, grid_configs_list):
     return None
 
 
-# --- EVOLUÃ‡ÃƒO DE PONTOS E ESTATÃSTICAS ---
-
-def gerar_evolucao_pontos(piloto_id, grid_id, season_id):
-    """
-    Gera dados de evoluÃ§Ã£o acumulativa de pontos para um piloto em um grid especÃ­fico.
-    
-    Args:
-        piloto_id: int - ID do piloto
-        grid_id: int - ID do grid
-        season_id: int - ID da temporada
-    
-    Returns:
-        list: Lista de dicts com: 
-              {'gp': nome_gp, 'data': data, 'pontos_acumulados': float, 'pontos_corrida': float}
-    """
-    # Import late para evitar circular imports
-    from app.models import db, Race, RaceResult, Protesto
-    
-    # 1. Busca apenas os dados necessÃ¡rios das corridas concluÃ­das
-    corridas = db.session.query(Race.id, Race.nome_gp, Race.data_corrida)\
-        .filter(Race.season_id == season_id, Race.grid_id == grid_id, Race.status == 'Concluida')\
-        .order_by(Race.data_corrida).all()
-    
-    if not corridas:
-        return []
-    
-    # 2. Busca apenas os pontos ganhos pelo piloto
-    resultados = db.session.query(RaceResult.race_id, RaceResult.pontos_ganhos)\
-        .join(Race)\
-        .filter(RaceResult.pilot_id == piloto_id, Race.season_id == season_id, Race.grid_id == grid_id)\
-        .all()
-    
-    results_dict = {r.race_id: r.pontos_ganhos for r in resultados}
-    
-    # 3. Busca puniÃ§Ãµes do tribunal para este grid
-    punicoes = db.session.query(Protesto.etapa_id, Protesto.veredito_final)\
-        .join(Race, Protesto.etapa_id == Race.id)\
-        .filter(Protesto.acusado_id == piloto_id, Protesto.status == 'CONCLUIDO', 
-                Race.season_id == season_id, Race.grid_id == grid_id).all()
-    
-    punicoes_dict = {p.etapa_id: calcular_perda(p.veredito_final) for p in punicoes}
-    
-    evolucao = []
-    pontos_acumulados = 0.0
-    
-    for corrida in corridas:
-        if corrida.id in results_dict:
-            pontos_corrida = float(results_dict[corrida.id] or 0.0)
-            penalidade = punicoes_dict.get(corrida.id, 0)
-            pontos_acumulados += (pontos_corrida - penalidade)
-            
-            evolucao.append({
-                'gp': corrida.nome_gp,
-                'data': corrida.data_corrida.strftime('%d/%m'),
-                'pontos_acumulados': round(pontos_acumulados, 1),
-                'pontos_corrida': round(pontos_corrida - penalidade, 1)
-            })
-    
-    return evolucao
-
 # --- QUERY HELPERS (Consolidaï¿½ï¿½o de Queries Comuns) ---
 
 def get_pilot_results_for_grid(pilot_id, grid_id, season_id):
@@ -322,26 +222,3 @@ def get_active_protests_for_pilot(pilot_id, grid_id=None):
     if grid_id is not None:
         query = query.filter_by(grid_id=grid_id)
     return query.all()
-
-
-def get_quali_ban_status(pilot_id, grid_id):
-    """Verifica se um piloto estï¿½ com ban de classificaï¿½ï¿½o por puniï¿½ï¿½o recente."""
-    from app.models import Protesto, RaceResult, Race
-    
-    ultimo_p = Protesto.query.filter_by(
-        acusado_id=pilot_id, grid_id=grid_id, status='CONCLUIDO'
-    ).filter(Protesto.veredito_final.in_(['MEDIA', 'GRAVE'])
-    ).order_by(Protesto.data_fechamento.desc()).first()
-    
-    if not ultimo_p:
-        return False
-    
-    ultima_res = RaceResult.query.join(Race).filter(
-        RaceResult.pilot_id == pilot_id, Race.grid_id == grid_id,
-        Race.status == 'Concluida', RaceResult.status_presenca == 'OK'
-    ).order_by(Race.data_corrida.desc()).first()
-    
-    if not ultima_res or ultimo_p.data_fechamento.date() >= ultima_res.race.data_corrida:
-        return True
-        
-    return False

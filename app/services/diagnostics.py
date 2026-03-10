@@ -3,7 +3,7 @@ from collections import defaultdict
 from sqlalchemy import text
 
 from app.models import db, GridConfig, Race, RaceResult
-from app.services.scoring import get_orphan_results_without_team
+from app.services.scoring_service import ScoringService
 
 
 def build_data_health_report(season_id):
@@ -120,7 +120,7 @@ def build_data_health_report(season_id):
         "duplicate_team_names": [dict(r._mapping) for r in dup_team_names],
         "duplicate_titular_links": [dict(r._mapping) for r in dup_titulares],
         "duplicate_reserve_links": [dict(r._mapping) for r in dup_reservas],
-        "results_without_team": get_orphan_results_without_team(season_id),
+        "results_without_team": ScoringService.get_orphan_results_without_team(season_id),
         "orphan_results_by_grid": orphan_by_grid,
         "duplicate_open_races_same_day": duplicate_open_races_same_day,
         "duplicate_open_races_conflicting_event": duplicate_open_races_conflicting_event,

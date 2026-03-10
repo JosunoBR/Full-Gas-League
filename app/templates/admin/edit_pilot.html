@@ -133,10 +133,10 @@
                                     <!-- Opções Especiais -->
                                     {% for opt in special_options %}
                                     <div class="form-check mb-2">
-                                        <input class="form-check-input" type="checkbox" name="grids" value="{{ opt }}" id="grid_opt_{{ loop.index }}" 
-                                               {% if opt in current_pilot_grids %}checked{% endif %}>
+                                        <input class="form-check-input" type="checkbox" name="grids" value="{{ opt.id }}" id="grid_opt_{{ loop.index }}" 
+                                               {% if opt.id|string in current_pilot_grids %}checked{% endif %}>
                                         <label class="form-check-label text-white" for="grid_opt_{{ loop.index }}">
-                                            {{ opt }}
+                                            {{ opt.nome }}
                                         </label>
                                     </div>
                                     {% endfor %}
@@ -159,6 +159,28 @@
                             <input type="text" name="motivo_penalidade" class="form-control bg-secondary text-white border-0" value="{{ pilot.motivo_penalidade or '' }}" placeholder="Ex: Ausência em reunião obrigatória">
                         </div>
                     </div>
+
+                    {% if current_user.role == 'SUPER_ADM' %}
+                    <div class="card mb-4 border-warning bg-transparent">
+                        <div class="card-header bg-warning text-dark">
+                            <strong>Zona de Promoção</strong>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label for="role" class="form-label text-white">Nível de Acesso</label>
+                                <select class="form-select bg-secondary text-white border-0" id="role" name="role">
+                                    <option value="PILOTO" {% if pilot.user.role == 'PILOTO' %}selected{% endif %}>Piloto (Padrão)</option>
+                                    <option value="ADM" {% if pilot.user.role == 'ADM' %}selected{% endif %}>Administrador (Direção de Prova)</option>
+                                    <option value="SUPER_ADM" {% if pilot.user.role == 'SUPER_ADM' %}selected{% endif %}>Super Admin (Dono)</option>
+                                </select>
+                                <div class="form-text text-white-50">
+                                    <strong>ADM:</strong> Pode gerenciar corridas, resultados e punições.<br>
+                                    <strong>SUPER_ADM:</strong> Acesso total (criar temporadas, apagar dados, gerenciar admins).
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
 
                     <hr class="border-secondary my-4">
                     <h5 class="text-white fw-bold"><i class="fa-solid fa-lock me-2"></i> Reset de Senha Administrativo</h5>

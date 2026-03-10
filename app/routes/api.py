@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify
 from app.models import News, Season, Race, PilotProfile, Team, RaceResult, GridConfig
-from app.utils import calcular_pontos_totais_piloto
 from app.services.team_context import build_team_context
+from app.services.scoring_service import ScoringService
 
 api_bp = Blueprint('api', __name__)
 
@@ -27,7 +27,7 @@ def get_standings(grid):
 
     for item in participants:
         p = item["pilot"]
-        pts_finais = calcular_pontos_totais_piloto(p.id, season.id, grid_cfg.id)
+        pts_finais = ScoringService.calculate_pilot_total_points(p.id, season.id, grid_cfg.id)
 
         ranking.append({
             'id': p.id,

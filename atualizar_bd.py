@@ -8,7 +8,7 @@ def atualizar_banco():
         
         # 1. Cria tabelas novas (como GridConfig, SeasonChampion, PilotGridPhoto, pilot_teams, pilot_reserves) que não existiam
         db.create_all()
-        print("- Tabelas estruturais sincronizadas.")
+        print("- Tabelas estruturais sincronizadas (incluindo HomeCache).")
 
         # 2. Adiciona colunas novas na tabela pilot_profile se faltarem
         # Usa 'begin()' para garantir commit automático das alterações

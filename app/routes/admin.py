@@ -5,9 +5,12 @@ from datetime import datetime
 from flask import Blueprint, render_template, request, flash, redirect, url_for, current_app, abort
 from flask_login import login_required, current_user
 from sqlalchemy import func, case
-from app.models import db, User, PilotProfile, Season, Race, RaceResult, Invite, Protesto, VotoComissario, Team, RaceRegistration, SeletivaEntry, News, GridConfig, SeasonChampion, PilotGridPhoto
-from app.utils import allowed_file, get_embed_url, PONTUACAO_20, PONTUACAO_22, ORDEM_CARROS, calcular_perda, get_grid_name, find_grid_config, gerar_evolucao_pontos, grid_matches, calcular_pontos_totais_piloto
+from app.models import db, User, PilotProfile, Season, Race, RaceResult, Invite, Protesto, VotoComissario, Team, RaceRegistration, SeletivaEntry, News, GridConfig, SeasonChampion, PilotGridPhoto, HomeCache
+from app.utils import allowed_file, get_embed_url, PONTUACAO_20, PONTUACAO_22, ORDEM_CARROS, calcular_perda, get_grid_name, find_grid_config, grid_matches
+from app.services.scoring_service import ScoringService
 from app.services.diagnostics import build_data_health_report
+from app.services.seletiva_service import SeletivaService
+from app.services.race_result_service import RaceResultService
 from app.services.domain_rules import validate_unique_membership_per_grid
 
 admin_bp = Blueprint('admin', __name__)
@@ -191,7 +194,7 @@ def overview():
                     my_punicoes = punicoes_by_pilot.get(p.id, [])
                     my_punicoes_grid = [pun for pun in my_punicoes if pun.grid_id == g_id]
                     
-                    pontos_totais = calcular_pontos_totais_piloto(p.id, season_ativa.id, g_id)
+                    pontos_totais = ScoringService.calculate_pilot_total_points(p.id, season_ativa.id, g_id)
                     
                     vitorias = sum(1 for r in res_no_grid if r.posicao == 1 and not r.dsq)
                     podios = sum(1 for r in res_no_grid if r.posicao in [1, 2, 3] and not r.dsq)
@@ -302,7 +305,7 @@ def overview():
             # evolution chart data for top pilots
             evol_list = []
             for info in classif[:5]:
-                evol = gerar_evolucao_pontos(info['piloto'].id, g_id, season_ativa.id)
+                evol = ScoringService.generate_points_evolution(info['piloto'].id, g_id, season_ativa.id)
                 evol_list.append({'piloto': info['piloto'], 'evol': evol})
             dados_grids[g_id]['evol_chart'] = evol_list
             
@@ -374,7 +377,7 @@ def export_classification():
         if grid_id not in grids:
             continue
 
-        pontos_totais = calcular_pontos_totais_piloto(p.id, season_id, grid_id)
+        pontos_totais = ScoringService.calculate_pilot_total_points(p.id, season_id, grid_id)
         res_no_grid = [r for r in resultados_season if grid_matches(r.race, grid_cfg)]
         
         vitorias = sum(1 for r in res_no_grid if r.posicao == 1 and not r.dsq)
@@ -425,6 +428,8 @@ def create_news():
                 file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], nome_arq))
                 nova_noticia.imagem_url = nome_arq
         
+        # Invalida cache de todas as temporadas (notícias são globais)
+        HomeCache.query.delete()
         db.session.commit()
         flash('Notícia publicada com sucesso!', 'success')
         return redirect(url_for('admin.list_news'))
@@ -438,6 +443,8 @@ def delete_news(news_id):
         path = os.path.join(current_app.config['UPLOAD_FOLDER'], noticia.imagem_url)
         if os.path.exists(path): os.remove(path)
     db.session.delete(noticia)
+    # Invalida cache de todas as temporadas
+    HomeCache.query.delete()
     db.session.commit()
     flash('Notícia removida.', 'success')
     return redirect(url_for('admin.list_news'))
@@ -655,6 +662,8 @@ def manage_season(season_id):
         
         nova_race = Race(season_id=season.id, nome_gp=nome_gp, pista=pista, grid=grid_nome, grid_id=grid_id, data_corrida=data_obj, tipo_etapa=tipo_etapa)
         db.session.add(nova_race)
+        # Invalida cache da temporada
+        HomeCache.query.filter_by(season_id=season.id).delete()
         db.session.commit()
         flash('Corrida adicionada ao calendário!', 'success')
         return redirect(url_for('admin.manage_season', season_id=season.id))
@@ -861,6 +870,8 @@ def edit_race(race_id):
                 flash('Data inválida.', 'danger')
                 return redirect(url_for('admin.edit_race', race_id=race.id))
             
+        # Invalida cache da temporada
+        HomeCache.query.filter_by(season_id=race.season_id).delete()
         db.session.commit()
         flash('Corrida atualizada com sucesso!', 'success')
         return redirect(url_for('admin.manage_season', season_id=race.season_id))
@@ -908,6 +919,8 @@ def delete_race(race_id):
         db.session.delete(p)
         
     db.session.delete(race)
+    # Invalida cache da temporada
+    HomeCache.query.filter_by(season_id=season_id).delete()
     db.session.commit()
     flash('Corrida removida.', 'success')
     return redirect(url_for('admin.manage_season', season_id=season_id))
@@ -977,179 +990,18 @@ def generate_grid_text(race_id):
 def race_results(race_id):
     race = Race.query.get_or_404(race_id)
     if request.method == 'POST':
-        if not race.season.ativa:
-            flash('Temporada encerrada.', 'warning')
+        try:
+            RaceResultService.save_race_results(race.id, request.form)
+            flash('Resultados salvos com sucesso!', 'success')
             return redirect(url_for('admin.manage_season', season_id=race.season_id))
-        
-        # FIX: Estornar punições de W.O. (FNJ) anteriores para evitar duplicidade ao editar
-        resultados_anteriores = RaceResult.query.filter_by(race_id=race.id).all()
-        # Nota: Estorno global de CNH removido (cálculo dinâmico).
-
-        # FIX: Snapshot dos times usados nesta corrida antes de apagar
-        # Isso impede que, ao editar uma corrida antiga, o piloto "mude de equipe" retroativamente
-        team_snapshot = { r.pilot_id: r.team_id for r in resultados_anteriores }
-
-        # Limpa resultados anteriores
-        RaceResult.query.filter_by(race_id=race.id).delete()
-        
-        # --- DEFINIÇÃO DA PONTUAÇÃO (20 ou 22) ---
-        # Verifica se o grid está configurado para mais de 20 vagas
-        grid_config = race.grid_config
-        pontuacao_ativa = PONTUACAO_20 # Padrão
-        
-        if grid_config and grid_config.vagas > 20:
-            pontuacao_ativa = PONTUACAO_22
-        # -----------------------------------------
-
-        # 1. PROCESSAR TITULARES
-        titulares_ids = request.form.getlist('titular_id')
-        titulares_sem_equipe = []
-        titulares_sem_status = []
-        for pid in titulares_ids:
-            pid_int = int(pid)
-            try:
-                posicao = int(request.form.get(f'pos_{pid}') or 0)
-            except ValueError:
-                posicao = 0
-
-            status_presenca = (request.form.get(f'status_{pid}') or '').strip().upper() # OK, FJ, FNJ
-            if status_presenca not in {'OK', 'FJ', 'FNJ'}:
-                titulares_sem_status.append(f"ID {pid_int}")
-                continue
-            piloto = PilotProfile.query.get(pid_int)
-            
-            equipe_id = team_snapshot.get(pid_int)
-
-            # Prioriza equipe enviada pelo formulario (fonte da tela GET)
-            form_team_raw = (request.form.get(f'titular_team_{pid_int}') or '').strip()
-            if equipe_id is None and form_team_raw.isdigit():
-                form_team_id = int(form_team_raw)
-                team_from_form = Team.query.get(form_team_id)
-                if team_from_form and team_from_form.grid_id == race.grid_id:
-                    equipe_id = team_from_form.id
-            if equipe_id is None:
-                # Busca a equipe atual do piloto para o grid desta corrida
-                r_gname = (race.grid_config.nome if race.grid_config else race.grid).upper()
-                if race.grid_id:
-                    team = next((t for t in piloto.teams if t.grid_id == race.grid_id), None)
-                else:
-                    team = next((t for t in piloto.teams if t.grid.upper() == r_gname), None)
-                
-                equipe_id = team.id if team else None
-
-            if equipe_id is None:
-                titulares_sem_equipe.append(piloto.nickname if piloto else f'ID {pid_int}')
-                continue
-
-            if status_presenca == 'OK':
-                posicao = int(request.form.get(f'pos_{pid}') or 0)
-                dnf = request.form.get(f'dnf_{pid}') == 'on'
-                dsq = request.form.get(f'dsq_{pid}') == 'on'
-                vr = request.form.get(f'vr_{pid}') == 'on'
-                dotd = request.form.get(f'dotd_{pid}') == 'on'
-                fan = request.form.get(f'fan_{pid}') == 'on' # Bônus Torcida
-                
-                pontos = 0.0
-                if not dsq:
-                    if not dnf and posicao > 0: pontos = float(pontuacao_ativa.get(posicao, 0))
-                    if race.tipo_etapa == 'SPRINT': pontos *= 0.5
-                    elif race.tipo_etapa == 'FINAL': pontos *= 2.0
-                    if vr and not dnf: pontos += 1.0
-                    if dotd: pontos += 1.0
-                    if fan: pontos += 1.0 # Soma Bônus Torcida
-                
-                
-                db.session.add(RaceResult(
-                    race_id=race.id, pilot_id=pid_int, team_id=equipe_id,
-                    posicao=posicao, pontos_ganhos=pontos,
-                    status_presenca='OK',
-                    dnf=dnf, dsq=dsq, volta_rapida=vr, piloto_do_dia=dotd,
-                    piloto_torcida=fan,
-                    ausencia=None
-                ))
-            else:
-                # FJ ou FNJ
-                if status_presenca == 'FNJ':
-                    pass # A punição de 2 pontos na CNH agora é calculada dinamicamente pelo 'get_cnh_info'
-                db.session.add(RaceResult(
-                    race_id=race.id, pilot_id=pid_int, team_id=equipe_id,
-                    posicao=0, pontos_ganhos=0,
-                    status_presenca=status_presenca,
-                    ausencia=status_presenca
-                ))
-
-        if titulares_sem_equipe:
+        except ValueError as e:
             db.session.rollback()
-            flash(
-                'Nao foi possivel salvar: titulares sem equipe no grid desta corrida: ' + ', '.join(titulares_sem_equipe),
-                'danger'
-            )
+            flash(str(e), 'danger')
             return redirect(url_for('admin.race_results', race_id=race.id))
-        if titulares_sem_status:
+        except Exception as e:
             db.session.rollback()
-            flash(
-                'Nao foi possivel salvar: faltou preencher status de presenca para titulares: ' + ', '.join(titulares_sem_status),
-                'danger'
-            )
-            return redirect(url_for('admin.race_results', race_id=race.id))
-
-        # 2. PROCESSAR RESERVAS
-        reserva_pids = request.form.getlist('reserva_pilot')
-        reserva_teams = request.form.getlist('reserva_team')
-        reserva_pos = request.form.getlist('reserva_pos')
-        
-        for i, r_pid in enumerate(reserva_pids):
-            if r_pid and r_pid.strip() != "":
-                r_pid_int = int(r_pid)
-                # Tratamento seguro para ID da equipe (evita erro com string vazia)
-                r_team_val = reserva_teams[i] if i < len(reserva_teams) else None
-                
-                if not r_team_val or not r_team_val.strip():
-                    flash(f'Erro: É obrigatório selecionar uma equipe para o piloto reserva (Linha {i+1}).', 'danger')
-                    db.session.rollback()
-                    return redirect(url_for('admin.race_results', race_id=race.id))
-
-                r_team_id = int(r_team_val)
-                r_team_obj = Team.query.get(r_team_id)
-                if not r_team_obj or r_team_obj.grid_id != race.grid_id:
-                    flash(f'Erro: equipe invalida para o grid desta corrida (Linha {i+1}).', 'danger')
-                    db.session.rollback()
-                    return redirect(url_for('admin.race_results', race_id=race.id))
-                
-                try:
-                    r_pos_val = reserva_pos[i] if i < len(reserva_pos) else 0
-                    r_pos = int(r_pos_val) if r_pos_val else 0
-                except ValueError:
-                    r_pos = 0
-                
-                r_dnf = request.form.get(f'reserva_dnf_{i}') == 'on'
-                r_dsq = request.form.get(f'reserva_dsq_{i}') == 'on'
-                r_vr = request.form.get(f'reserva_vr_{i}') == 'on'
-                r_dotd = request.form.get(f'reserva_dotd_{i}') == 'on'
-                r_fan = request.form.get(f'reserva_fan_{i}') == 'on' # Bônus Reserva
-                
-                r_pontos = 0.0
-                if not r_dsq:
-                    if not r_dnf and r_pos > 0: r_pontos = float(pontuacao_ativa.get(r_pos, 0))
-                    if race.tipo_etapa == 'SPRINT': r_pontos *= 0.5
-                    elif race.tipo_etapa == 'FINAL': r_pontos *= 2.0
-                    if r_vr and not r_dnf: r_pontos += 1.0
-                    if r_dotd: r_pontos += 1.0
-                    if r_fan: r_pontos += 1.0
-                
-                db.session.add(RaceResult(
-                    race_id=race.id, pilot_id=r_pid_int, team_id=r_team_id,
-                    posicao=r_pos, pontos_ganhos=r_pontos,
-                    status_presenca='OK',
-                    dnf=r_dnf, dsq=r_dsq, volta_rapida=r_vr, piloto_do_dia=r_dotd,
-                    piloto_torcida=r_fan,
-                    ausencia=None
-                ))
-
-        race.status = 'Concluida'
-        db.session.commit()
-        flash('Resultados salvos com sucesso!', 'success')
-        return redirect(url_for('admin.manage_season', season_id=race.season_id))
+            flash(f'Ocorreu um erro inesperado: {e}', 'danger')
+            return redirect(url_for('admin.manage_season', season_id=race.season_id))
 
     # --- GET: Preparar dados ---
     
@@ -1278,8 +1130,13 @@ def edit_pilot(pilot_id):
         ids_limpos = []
         if grid_ids_selecionados:
             for val in grid_ids_selecionados:
-                if val and val.strip().isdigit():
-                    ids_limpos.append(str(int(val.strip())))
+                val_clean = val.strip()
+                if val_clean:
+                    # Aceita IDs numéricos E tokens especiais (ex: 'RESERVA')
+                    if val_clean.isdigit():
+                        ids_limpos.append(str(int(val_clean)))
+                    else:
+                        ids_limpos.append(val_clean)
         pilot.grid = ",".join(sorted(set(ids_limpos))) if ids_limpos else 'SEM_GRID'
         pilot.telefone = request.form.get('telefone')[:20] if request.form.get('telefone') else None
         
@@ -1306,6 +1163,17 @@ def edit_pilot(pilot_id):
             else:
                 pilot.user.set_password(nova_senha)
                 flash(f'Senha alterada com sucesso para: {nova_senha}', 'info')
+        
+        # --- GESTÃO DE NÍVEL DE ACESSO (PROMOÇÃO/REBAIXAMENTO) ---
+        # Apenas Super Admin pode alterar o papel do usuário
+        if current_user.role == 'SUPER_ADM':
+            new_role = request.form.get('role')
+            if new_role and new_role in ['PILOTO', 'ADM', 'SUPER_ADM']:
+                # Impede que o Super Admin rebaixe a si mesmo para evitar bloqueio acidental
+                if pilot.user.id != current_user.id:
+                    pilot.user.role = new_role
+                elif new_role != 'SUPER_ADM':
+                    flash('Você não pode alterar seu próprio nível de acesso.', 'warning')
         
         if 'foto' in request.files:
             file = request.files['foto']
@@ -1357,6 +1225,8 @@ def edit_pilot(pilot_id):
                 if os.path.exists(path): os.remove(path)
                 db.session.delete(gp_to_del)
                 
+        # Invalida todos os caches (mudança de piloto afeta rankings de várias temporadas)
+        HomeCache.query.delete()
         db.session.commit()
         flash('Perfil atualizado com sucesso.', 'success')
         return redirect(url_for('admin.list_pilots'))
@@ -1367,7 +1237,7 @@ def edit_pilot(pilot_id):
     
     # Lista de objetos GridConfig para o template usar IDs no value do checkbox
     grid_configs_options = GridConfig.query.filter(GridConfig.season_id.in_(active_ids)).order_by(GridConfig.season_id, GridConfig.ordem).all()
-    special_options = ['RESERVA', 'SEM_GRID']
+    special_options = [{'id': 'RESERVA', 'nome': 'RESERVA'}, {'id': 'SEM_GRID', 'nome': 'SEM_GRID'}]
 
     # Busca histórico de punições para exibir no admin
     historico_punicoes = Protesto.query.filter(
@@ -1661,6 +1531,8 @@ def edit_team(team_id):
             flash(str(e), 'danger')
             return redirect(url_for('admin.edit_team', team_id=team.id))
 
+        # Invalida cache da temporada
+        HomeCache.query.filter_by(season_id=team.season_id).delete()
         db.session.commit()
         flash('Equipe atualizada!', 'success')
         return redirect(url_for('admin.list_teams'))
@@ -1703,7 +1575,9 @@ def delete_team(team_id):
         if team.logo_url:
             path = os.path.join(current_app.config['UPLOAD_FOLDER'], team.logo_url)
             if os.path.exists(path): os.remove(path)
-            
+        
+        # Invalida cache da temporada
+        HomeCache.query.filter_by(season_id=team.season_id).delete()
         db.session.delete(team)
         db.session.commit()
         flash('Equipe excluída permanentemente.', 'success')
@@ -1749,28 +1623,7 @@ def seletiva():
             
         # Parser de Tempo (1:35.800 -> ms)
         try:
-            # Remove tudo que não é dígito para garantir
-            digits = "".join(filter(str.isdigit, tempo_input))
-            # Assume formato M:SS.mmm (6 ou 7 dígitos). Ex: 135800
-            if len(digits) < 4: raise ValueError("Tempo muito curto")
-            
-            ms = int(digits[-3:])
-            sec = int(digits[-5:-3])
-            min = int(digits[:-5]) if len(digits) > 5 else 0
-            
-            total_ms = (min * 60 * 1000) + (sec * 1000) + ms
-            
-            # Verifica se já existe entrada para este piloto (Atualiza ou Cria)
-            entry = SeletivaEntry.query.filter_by(pilot_id=pilot_id).first()
-            if not entry:
-                entry = SeletivaEntry(pilot_id=pilot_id)
-                db.session.add(entry)
-            
-            entry.tempo_str = tempo_input
-            entry.tempo_ms = total_ms
-            entry.data_registro = datetime.utcnow()
-            
-            db.session.commit()
+            entry = SeletivaService.register_time(pilot_id, tempo_input)
             flash(f'Tempo de {entry.piloto.nickname} registrado: {tempo_input}', 'success')
             
         except Exception as e:
@@ -1815,58 +1668,9 @@ def close_seletiva():
         flash('O nome da temporada é obrigatório para encerrar a seletiva.', 'danger')
         return redirect(url_for('admin.seletiva'))
 
-    # 1. Criar a nova temporada (sem desativar as anteriores)
-    nova_season = Season(
-        nome=season_name, 
-        ativa=True, 
-        data_inicio=datetime.utcnow().date()
-    )
-    db.session.add(nova_season)
-
-    entradas = SeletivaEntry.query.order_by(SeletivaEntry.tempo_ms.asc()).all()
-    configs = GridConfig.query.filter_by(season_id=None).order_by(GridConfig.ordem).all()
+    count = SeletivaService.close_seletiva(season_name)
     
-    if not configs:
-        # Fallback para o comportamento antigo se não houver configs
-        for i, entry in enumerate(entradas):
-            pos = i + 1
-            # Preserva grids anteriores
-            grids_atuais = set([g.strip() for g in entry.piloto.grid.split(',')]) if entry.piloto.grid and entry.piloto.grid != 'SEM_GRID' else set()
-            
-            if pos <= 20: grids_atuais.add('ELITE')
-            elif pos <= 40: grids_atuais.add('ADVANCED')
-            elif pos <= 60: grids_atuais.add('INITIAL')
-            else: grids_atuais.add('RESERVA')
-            
-            if 'SEM_GRID' in grids_atuais and len(grids_atuais) > 1: grids_atuais.remove('SEM_GRID')
-            entry.piloto.grid = ",".join(sorted(list(grids_atuais)))
-    else:
-        # Lógica dinâmica baseada nas vagas configuradas
-        for i, entry in enumerate(entradas):
-            pos = i + 1
-            alocado = False
-            vagas_acumuladas = 0
-            
-            # Preserva grids anteriores
-            grids_atuais = set([g.strip() for g in entry.piloto.grid.split(',')]) if entry.piloto.grid and entry.piloto.grid != 'SEM_GRID' else set()
-
-            for config in configs:
-                vagas_acumuladas += config.vagas
-                if pos <= vagas_acumuladas:
-                    grids_atuais.add(config.nome)
-                    alocado = True
-                    break
-            if not alocado:
-                grids_atuais.add('RESERVA')
-            
-            if 'SEM_GRID' in grids_atuais and len(grids_atuais) > 1: grids_atuais.remove('SEM_GRID')
-            entry.piloto.grid = ",".join(sorted(list(grids_atuais)))
-
-    # 2. Limpar a tabela de seletiva para o próximo ciclo
-    SeletivaEntry.query.delete()
-    
-    db.session.commit()
-    flash(f'Temporada "{season_name}" criada e {len(entradas)} pilotos alocados com sucesso!', 'success')
+    flash(f'Temporada "{season_name}" criada e {count} pilotos alocados com sucesso!', 'success')
     return redirect(url_for('admin.seasons'))
 
 # --- TRIBUNAL DE PUNIÇÕES (CORRIGIDO: BUSCA NO BANCO) ---
@@ -1940,6 +1744,9 @@ def view_protest(protest_id):
             protesto.status = 'CONCLUIDO'
             protesto.data_fechamento = datetime.utcnow()
             
+            # Invalida cache da temporada
+            HomeCache.query.filter_by(season_id=protesto.etapa.season_id).delete()
+            
             db.session.commit()
             flash('Caso encerrado e punições aplicadas.', 'success')
             return redirect(url_for('admin.protests'))
@@ -1964,6 +1771,9 @@ def view_protest(protest_id):
 
             protesto.status = 'EM_VOTACAO'
             protesto.veredito_final = None
+            
+            # Invalida cache da temporada
+            HomeCache.query.filter_by(season_id=protesto.etapa.season_id).delete()
             db.session.commit()
             flash('Caso reaberto! Pontos estornados.', 'warning')
             return redirect(url_for('admin.view_protest', protest_id=protesto.id))

@@ -87,46 +87,6 @@ class PilotProfile(db.Model):
     def esta_banido(self):
         return self.pontos_cnh <= 0
 
-    def get_cnh_info(self, season_id, grid_id):
-        """
-        Calcula a CNH e Advertências para um contexto específico (Temporada + Grid).
-        Retorna um dicionário: {'cnh': int, 'advertencias': int}
-        """
-        # Imports locais para evitar dependência circular
-        from app.models import Protesto, RaceResult, Race
-        
-        cnh = 25
-        adv_count = 0
-        
-        # 1. Protestos (Punições e Advertências)
-        protestos = Protesto.query.join(Race).filter(
-            Protesto.acusado_id == self.id,
-            Protesto.status == 'CONCLUIDO',
-            Race.season_id == season_id,
-            Race.grid_id == grid_id
-        ).all()
-        
-        for p in protestos:
-            v = p.veredito_final
-            if v == 'LEVE': cnh -= 3
-            elif v == 'MEDIA': cnh -= 5
-            elif v == 'GRAVE': cnh -= 10
-            elif v == 'ADVERTENCIA': adv_count += 1
-            
-        # Regra de Advertência: A cada 3 acumuladas, perde 3 pontos
-        cnh -= (adv_count // 3) * 3
-        
-        # 2. Descontos por W.O. (FNJ)
-        fnjs = RaceResult.query.join(Race).filter(
-            RaceResult.pilot_id == self.id,
-            RaceResult.status_presenca == 'FNJ',
-            Race.season_id == season_id,
-            Race.grid_id == grid_id
-        ).count()
-        cnh -= (fnjs * 2)
-        
-        return {'cnh': cnh, 'advertencias': adv_count}
-
     def to_dict(self):
         return {
             'id': self.id,
@@ -360,3 +320,12 @@ def _ensure_protest_grid_id(mapper, connection, target):
 
 event.listen(Protesto, "before_insert", _ensure_protest_grid_id)
 event.listen(Protesto, "before_update", _ensure_protest_grid_id)
+
+class HomeCache(db.Model):
+    """Armazena o JSON pré-calculado da home para carregamento instantâneo."""
+    id = db.Column(db.Integer, primary_key=True)
+    season_id = db.Column(db.Integer, db.ForeignKey('season.id'), unique=True)
+    data_json = db.Column(db.Text, nullable=False)
+    last_updated = db.Column(db.DateTime, default=datetime.utcnow)
+
+    season = db.relationship('Season', backref=db.backref('home_cache', uselist=False))
