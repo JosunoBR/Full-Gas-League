@@ -282,7 +282,7 @@ class News(db.Model):
             'id': self.id,
             'titulo': self.titulo,
             'subtitulo': self.subtitulo,
-            'imagem': self.imagem_url,
+            'imagem_url': self.imagem_url,
             'data': self.data_publicacao.strftime('%d/%m/%Y'),
             'texto': self.texto
         }
