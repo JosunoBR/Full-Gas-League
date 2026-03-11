@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timedelta
+efrom datetime import datetime, timedelta, date
 from app.models import db, Race, RaceResult, Protesto, Team, PilotProfile, GridConfig, HomeCache, News
 from sqlalchemy.orm import joinedload
 from app.utils import calcular_perda, ORDEM_CARROS, grid_matches
@@ -121,7 +121,15 @@ class StandingsService:
         if not cache:
             cache = HomeCache(season_id=season_id)
             db.session.add(cache)
-        cache.data_json = json.dumps(data, default=str)
+            
+        def json_serial(obj):
+            if isinstance(obj, (datetime, date)):
+                return obj.isoformat()
+            if hasattr(obj, 'to_dict'):
+                return obj.to_dict()
+            return str(obj)
+
+        cache.data_json = json.dumps(data, default=json_serial)
         cache.last_updated = datetime.utcnow()
         db.session.commit()
         return data

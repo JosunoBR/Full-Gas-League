@@ -12,7 +12,11 @@ class CalendarService:
         
         for r in all_races:
             if r.grid_id in calendar:
-                calendar[r.grid_id].append(r.to_dict())
+                r_dict = r.to_dict()
+                # FIX: Garante que a data esteja presente explicitamente no dicionário
+                r_dict['data'] = r.data_corrida
+                r_dict['data_corrida'] = r.data_corrida
+                calendar[r.grid_id].append(r_dict)
         
         return calendar, all_races
 
@@ -31,7 +35,11 @@ class CalendarService:
                 if last_race_obj:
                     # Serialização manual para garantir a estrutura correta para o HTML
                     last_races[g_id] = {
-                        'id': last_race_obj.id, 'nome_gp': last_race_obj.nome_gp, 'pista': last_race_obj.pista,
+                        'id': last_race_obj.id, 
+                        'nome_gp': last_race_obj.nome_gp, 
+                        'pista': last_race_obj.pista,
+                        'data': last_race_obj.data_corrida, # FIX: Adicionado campo data que faltava
+                        'data_corrida': last_race_obj.data_corrida,
                         'results': [{'posicao': r.posicao, 'pontos': r.pontos_ganhos, 'pilot': {'nickname': r.pilot.nickname}, 'team': {'nome': r.team_snapshot.nome if r.team_snapshot else 'N/A'}, 'dnf': r.dnf, 'dsq': r.dsq} for r in last_race_obj.results]
                     }
         return last_races
