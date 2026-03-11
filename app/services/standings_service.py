@@ -1,5 +1,5 @@
 import json
-efrom datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date
 from app.models import db, Race, RaceResult, Protesto, Team, PilotProfile, GridConfig, HomeCache, News
 from sqlalchemy.orm import joinedload
 from app.utils import calcular_perda, ORDEM_CARROS, grid_matches
