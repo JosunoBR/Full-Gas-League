@@ -56,4 +56,4 @@ class DisciplineService:
             Race.status == 'Concluida', RaceResult.status_presenca == 'OK'
         ).order_by(Race.data_corrida.desc()).first()
         
-        return not ultima_res or ultimo_p.data_fechamento.date() >= ultima_res.race.data_corrida
+        return not ultima_res or ultimo_p.data_fechamento.date() > ultima_res.race.data_corrida
