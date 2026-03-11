@@ -54,6 +54,17 @@
                             <input type="date" class="form-control bg-dark text-white border-secondary" name="data" value="{{ race.data_corrida }}">
                         </div>
                     </div>
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <label class="form-label text-white-50 small fw-bold">STATUS DA CORRIDA</label>
+                            <select class="form-select bg-dark text-white border-secondary" name="status">
+                                {% for s in statuses %}
+                                    <option value="{{ s }}" {% if race.status == s %}selected{% endif %}>{{ s }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="form-text text-muted">Mude para 'Agendada' para reabrir o check-in.</small>
+                        </div>
+                    </div>
 
                     <button type="submit" class="btn btn-warning fw-bold w-100 mt-3">SALVAR ALTERAÇÕES</button>
                 </form>

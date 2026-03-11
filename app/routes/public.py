@@ -531,7 +531,7 @@ def my_profile():
     checkin_race = None
     registro_atual = None
     
-    hoje = datetime.utcnow().date()
+    hoje = (datetime.utcnow() - timedelta(hours=3)).date()
     if current_context:
         ctx_grid_id = current_context.get('grid_id')
         ctx_grid_name = (current_context.get('grid') or '').upper()
@@ -639,7 +639,7 @@ def checkin_confirm(race_id):
         flash('Você está com a CNH Suspensa/Banida e não pode correr.', 'danger')
         return redirect(url_for('public.my_profile'))
         
-    today = datetime.utcnow().date()
+    today = (datetime.utcnow() - timedelta(hours=3)).date()
     if not _can_interact_with_checkin(current_user.pilot_profile, race, today):
         flash('Check-in indisponivel para esta corrida no seu contexto atual.', 'warning')
         return redirect(url_for('public.my_profile'))
@@ -690,7 +690,7 @@ def checkin_absent(race_id):
         flash('É obrigatório informar o motivo da ausência.', 'warning')
         return redirect(url_for('public.my_profile'))
 
-    today = datetime.utcnow().date()
+    today = (datetime.utcnow() - timedelta(hours=3)).date()
     if not _can_interact_with_checkin(current_user.pilot_profile, race, today):
         flash('Check-in indisponivel para esta corrida no seu contexto atual.', 'warning')
         return redirect(url_for('public.my_profile'))

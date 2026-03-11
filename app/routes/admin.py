@@ -861,6 +861,7 @@ def edit_race(race_id):
         race.grid = grid_cfg.nome if grid_cfg else "SEM_GRID"
         
         race.tipo_etapa = request.form.get('tipo_etapa')
+        race.status = request.form.get('status')
         
         data_str = request.form.get('data')
         if data_str:
@@ -898,7 +899,8 @@ def edit_race(race_id):
             
     final_grids.sort(key=lambda x: x.ordem if hasattr(x, 'ordem') else 999)
     
-    return render_template('admin/edit_race.html', race=race, pistas=PISTAS_F1, grid_configs=final_grids)
+    statuses = ['Agendada', 'Concluida']
+    return render_template('admin/edit_race.html', race=race, pistas=PISTAS_F1, grid_configs=final_grids, statuses=statuses)
 
 @admin_bp.route('/race/<int:race_id>/delete', methods=['POST'])
 def delete_race(race_id):
