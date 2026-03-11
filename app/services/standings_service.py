@@ -24,6 +24,26 @@ class StandingsService:
                 for field in ['standings', 'constructors', 'calendar', 'last_races', 'pilots_by_grid']:
                     if field in data:
                         data[field] = {int(k): v for k, v in data[field].items()}
+                
+                # FIX: Reconverte strings de data (do JSON) para objetos 'date' reais
+                # 1. Calendário
+                if 'calendar' in data:
+                    for gid, races in data['calendar'].items():
+                        for r in races:
+                            if r.get('data_corrida') and isinstance(r['data_corrida'], str):
+                                try:
+                                    r['data_corrida'] = date.fromisoformat(r['data_corrida'][:10])
+                                except ValueError:
+                                    pass
+                # 2. Últimas Corridas
+                if 'last_races' in data:
+                    for gid, r in data['last_races'].items():
+                        if r and r.get('data_corrida') and isinstance(r['data_corrida'], str):
+                            try:
+                                r['data_corrida'] = date.fromisoformat(r['data_corrida'][:10])
+                            except ValueError:
+                                pass
+                                
                 return data
             except:
                 print("DEBUG: Erro ao ler JSON do cache, recalculando...")
