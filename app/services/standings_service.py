@@ -16,7 +16,7 @@ class StandingsService:
         Agrega todos os dados da Home (Notícias, Classificação, Calendário) com cache.
         """
         cache = HomeCache.query.filter_by(season_id=season_id).first()
-        if cache and cache.last_updated > datetime.utcnow() - timedelta(minutes=10):
+        if cache and cache.last_updated > datetime.utcnow() - timedelta(minutes=2):
             try:
                 print(f"DEBUG: Carregando Home do Cache (Season {season_id})")
                 data = json.loads(cache.data_json)
