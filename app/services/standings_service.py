@@ -34,6 +34,12 @@ class StandingsService:
                                 try:
                                     r['data_corrida'] = date.fromisoformat(r['data_corrida'][:10])
                                 except ValueError:
+                                    r['data_corrida'] = None
+                            # FIX: Corrige também o campo 'data' visual se estiver no formato ISO (YYYY-MM-DD)
+                            if r.get('data') and isinstance(r['data'], str) and '-' in r['data']:
+                                try:
+                                    r['data'] = date.fromisoformat(r['data'][:10])
+                                except ValueError:
                                     pass
                 # 2. Últimas Corridas
                 if 'last_races' in data:
@@ -41,6 +47,12 @@ class StandingsService:
                         if r and r.get('data_corrida') and isinstance(r['data_corrida'], str):
                             try:
                                 r['data_corrida'] = date.fromisoformat(r['data_corrida'][:10])
+                            except ValueError:
+                                r['data_corrida'] = None
+                        # FIX: Corrige também o campo 'data' visual das súmulas
+                        if r and r.get('data') and isinstance(r['data'], str) and '-' in r['data']:
+                            try:
+                                r['data'] = date.fromisoformat(r['data'][:10])
                             except ValueError:
                                 pass
                                 
