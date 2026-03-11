@@ -21,7 +21,7 @@ class StandingsService:
                 print(f"DEBUG: Carregando Home do Cache (Season {season_id})")
                 data = json.loads(cache.data_json)
                 # Converte chaves de string de volta para int para compatibilidade com o Jinja
-                for field in ['standings', 'constructors', 'calendar', 'last_races', 'pilots_by_grid']:
+                for field in ['standings', 'standings_chart', 'constructors', 'calendar', 'last_races', 'pilots_by_grid']:
                     if field in data:
                         data[field] = {int(k): v for k, v in data[field].items()}
                 
@@ -35,12 +35,10 @@ class StandingsService:
                                     r['data_corrida'] = date.fromisoformat(r['data_corrida'][:10])
                                 except ValueError:
                                     r['data_corrida'] = None
-                            # FIX: Corrige também o campo 'data' visual se estiver no formato ISO (YYYY-MM-DD)
-                            if r.get('data') and isinstance(r['data'], str) and '-' in r['data']:
-                                try:
-                                    r['data'] = date.fromisoformat(r['data'][:10])
-                                except ValueError:
-                                    pass
+                            
+                            # SAFETY NET: Se ainda for string (conversão falhou ou foi pulada), força None para evitar erro 500
+                            if r.get('data_corrida') and isinstance(r['data_corrida'], str):
+                                r['data_corrida'] = None
                 # 2. Últimas Corridas
                 if 'last_races' in data:
                     for gid, r in data['last_races'].items():
@@ -49,17 +47,19 @@ class StandingsService:
                                 r['data_corrida'] = date.fromisoformat(r['data_corrida'][:10])
                             except ValueError:
                                 r['data_corrida'] = None
-                        # FIX: Corrige também o campo 'data' visual das súmulas
-                        if r and r.get('data') and isinstance(r['data'], str) and '-' in r['data']:
-                            try:
-                                r['data'] = date.fromisoformat(r['data'][:10])
-                            except ValueError:
-                                pass
-                                
+
+                        # SAFETY NET: Garante que não sobrou string no last_races também
+                        if r and r.get('data_corrida') and isinstance(r['data_corrida'], str):
+                            r['data_corrida'] = None
                 return data
-            except:
-                print("DEBUG: Erro ao ler JSON do cache, recalculando...")
-                pass
+            except Exception as e:
+                print(f"DEBUG: Erro ao ler JSON do cache ({e}), limpando e recalculando...")
+                try:
+                    # Remove o cache corrompido para que o próximo carregamento venha limpo do banco
+                    db.session.delete(cache)
+                    db.session.commit()
+                except:
+                    pass
 
         print(f"DEBUG: Cache expirado ou inexistente. Recalculando tudo para Season {season_id}...")
         # 1. Notícias
@@ -88,10 +88,11 @@ class StandingsService:
 
         # 4. Classificação (Standings) e Pilotos por Grid
         standings = { g.id: [] for g in grid_configs }
+        # Versão enxuta apenas para os gráficos (menos memória no JS do navegador)
+        standings_chart = { g.id: [] for g in grid_configs }
         pilots_by_grid = { g.id: [] for g in grid_configs }
         
         points_cache = {}
-        evolution_cache = {}
 
         for g in grid_configs:
             for item in team_ctx["participants_by_grid"].get(g.id, []):
@@ -109,10 +110,7 @@ class StandingsService:
 
                 foto_final = PresentationService.get_pilot_photo_for_grid(p, g.id)
 
-                if key_pg not in evolution_cache:
-                    evolution_cache[key_pg] = ScoringService.generate_points_evolution(p.id, g.id, season_id)
-
-                standings[g.id].append({
+                full_row = {
                     "piloto": {'id': p.id, 'nome_real': p.nome_real, 'nickname': p.nickname},
                     "pilot": {'id': p.id, 'nome_real': p.nome_real, 'nickname': p.nickname},
                     "pontos": points_cache[key_pg],
@@ -122,8 +120,9 @@ class StandingsService:
                     "foto_url": foto_final,
                     "team_name": team_ref.nome if team_ref else "Sem Equipe",
                     "is_reserve": item["is_reserve"],
-                    "evolucao": evolution_cache[key_pg],
-                })
+                    "evolucao": [], # OTIMIZAÇÃO: Dados de gráfico removidos da carga inicial. Buscados via API.
+                }
+                standings[g.id].append(full_row)
 
                 if not any(x["data"]["id"] == p.id for x in pilots_by_grid[g.id]):
                     pilots_by_grid[g.id].append({
@@ -138,12 +137,13 @@ class StandingsService:
 
         # 5. Calendário e Últimas Corridas
         calendar, all_races_db = CalendarService.build_season_calendar(season_id, grid_configs_json)
-        last_races = CalendarService.find_last_races(calendar, all_races_db, grid_configs_json)
+        last_races = CalendarService.find_last_races(calendar, grid_configs_json)
         
         data = {
             'noticias': news_list,
             'grid_configs': grid_configs_json,
             'standings': standings,
+            'standings_chart': {}, # Obsoleto com a nova API
             'constructors': constructors,
             'calendar': calendar,
             'last_races': last_races,
@@ -165,3 +165,32 @@ class StandingsService:
         cache.last_updated = datetime.utcnow()
         db.session.commit()
         return data
+
+    @staticmethod
+    def get_evolution_data(season_id, grid_id):
+        """
+        Método exclusivo para a API de gráficos.
+        Calcula a evolução de pontos apenas para o grid solicitado.
+        """
+        team_ctx = build_team_context(season_id)
+        participants = team_ctx["participants_by_grid"].get(grid_id, [])
+        
+        chart_data = []
+        
+        for item in participants:
+            p = item["pilot"]
+            # Ignora reservas para o gráfico principal se desejar, ou mantém
+            # Aqui mantemos todos para permitir filtros
+            
+            evol = ScoringService.generate_points_evolution(p.id, grid_id, season_id)
+            
+            if evol:
+                chart_data.append({
+                    "piloto": {'id': p.id, 'nickname': p.nickname, 'nome_real': p.nome_real},
+                    "team_name": item["team"].nome if item["team"] else "Sem Equipe",
+                    "evolucao": evol,
+                    # Pontos totais para ordenação "Top 5"
+                    "pontos": ScoringService.calculate_pilot_total_points(p.id, season_id, grid_id)
+                })
+                
+        return chart_data

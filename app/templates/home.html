@@ -513,7 +513,7 @@
 {% for grid in grid_configs %}
     {% for race in calendar[grid.id] %}
                 {% if race.status == 'Concluida' %}
-                <div class="modal fade" id="modalRace{{ race.id }}" tabindex="-1" aria-hidden="true">
+                <div class="modal fade race-summary-modal" id="modalRace{{ race.id }}" tabindex="-1" aria-hidden="true" data-race-id="{{ race.id }}">
                     <div class="modal-dialog modal-lg modal-dialog-centered">
                         <div class="modal-content bg-dark border-silver text-white">
                             <div class="modal-header border-secondary">
@@ -521,37 +521,10 @@
                                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                             </div>
                             <div class="modal-body p-0">
-                                <table class="table table-dark table-striped mb-0 small">
-                                    <thead>
-                                        <tr class="text-warning">
-                                            <th class="ps-3">Pos</th>
-                                            <th>Piloto</th>
-                                            <th>Equipe</th>
-                                            <th class="text-center">Pts</th>
-                                            <th class="text-center">Extras</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for res in race.results|sort(attribute='posicao') %}
-                                        {% if res.status_presenca == 'OK' %}
-                                        <tr>
-                                            <td class="ps-3 fw-bold">
-                                                {% if res.dsq %} <span class="badge bg-danger">DSQ</span>
-                                                {% elif res.dnf %} <span class="badge bg-secondary">DNF</span>
-                                                {% else %} {{ res.posicao }}º {% endif %}
-                                            </td>
-                                            <td class="fw-bold">{{ res.pilot.nickname }}</td>
-                                            <td class="text-white-50">{{ res.team.nome if res.team else '-' }}</td>
-                                            <td class="text-center fw-bold text-info">{{ '%g' | format(res.pontos_ganhos|float) }}</td>
-                                            <td class="text-center">
-                                                {% if res.volta_rapida %}<span class="badge bg-primary me-1" title="Volta Rápida">VR</span>{% endif %}
-                                                {% if res.piloto_do_dia %}<span class="badge bg-warning text-dark" title="Piloto do Dia">DOTD</span>{% endif %}
-                                            </td>
-                                        </tr>
-                                        {% endif %}
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
+                                <div class="race-summary-content p-4 text-center text-white-50">
+                                    <div class="spinner-border text-danger mb-3" role="status" aria-hidden="true"></div>
+                                    <div>Carregando súmula...</div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -877,6 +850,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const standings = {{ standings|tojson }};
     const currentPilotId = {% if current_user.is_authenticated and current_user.pilot_profile %}{{ current_user.pilot_profile.id }}{% else %}null{% endif %};
     
+    // Cache local para dados de evolução carregados via API
+    const evolutionDataCache = {};
+
     // Estado de filtro: armazena quais pilotos estão visíveis por grid
     const filterState = {};
     const chartInstances = {};
@@ -886,9 +862,10 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Função para renderizar o dropdown de filtro
-    function renderFilterDropdown(grid) {
+    // Agora recebe os dados explicitamente, pois podem vir da API
+    function renderFilterDropdown(grid, chartData) {
         const gridId = grid.id;
-        const gridStandings = getChartRows(gridId);
+        const gridStandings = chartData || []; // Usa dados da API se disponíveis
         
         console.log(`Renderizando filtro de pilotos para grid ${gridId}`, { gridStandings });
         
@@ -992,9 +969,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Função para renderizar dropdown de filtro de equipes
-    function renderTeamFilterDropdown(grid) {
+    function renderTeamFilterDropdown(grid, chartData) {
         const gridId = grid.id;
-        const gridStandings = getChartRows(gridId);
+        const gridStandings = chartData || [];
         
         console.log(`Renderizando filtro de equipes para grid ${gridId}`, { gridStandings });
         
@@ -1107,7 +1084,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function applyChartPreset(gridId, preset) {
-        const gridStandings = getChartRows(gridId);
+        // Usa o cache de evolução, pois é lá que estão os dados do gráfico
+        const gridStandings = evolutionDataCache[gridId] || [];
         if (!filterState[gridId]) return;
 
         if (preset === 'all') {
@@ -1145,8 +1123,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const grid = gridConfigs.find(g => g.id === gridId);
         if (grid) {
-            renderFilterDropdown(grid);
-            renderTeamFilterDropdown(grid);
+            // Não precisa re-renderizar dropdowns inteiros, apenas atualizar gráfico
             updateChart(gridId);
         }
     }
@@ -1233,15 +1210,43 @@ document.addEventListener('DOMContentLoaded', function() {
     };
     
     // Função para renderizar o gráfico com filtro aplicado
-    function renderChartForGrid(grid) {
+    async function renderChartForGrid(grid) {
         const canvasId = `chart-evolucao-${grid.id}`;
         const canvas = document.getElementById(canvasId);
         
         if (!canvas) return;
         
-        const gridStandings = getChartRows(grid.id);
-        if (!gridStandings.length) return;
         const gridId = grid.id;
+
+        // --- LAZY LOADING: Busca dados da API se ainda não tiver ---
+        if (!evolutionDataCache[gridId]) {
+            try {
+                // Mostra um indicador visual simples (opcional) ou apenas espera
+                // Pode-se limpar o canvas ou mostrar texto "Carregando..."
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.font = "14px Arial";
+                ctx.fillStyle = "white";
+                ctx.textAlign = "center";
+                ctx.fillText("Carregando gráfico...", canvas.width/2, canvas.height/2);
+
+                const response = await fetch(`/api/standings/${gridId}/evolution`);
+                if (!response.ok) throw new Error('Erro na API');
+                const data = await response.json();
+                evolutionDataCache[gridId] = data;
+                
+                // Agora que temos dados, inicializa os filtros pela primeira vez
+                renderFilterDropdown(grid, data);
+                renderTeamFilterDropdown(grid, data);
+
+            } catch (err) {
+                console.error("Erro ao carregar gráfico:", err);
+                return;
+            }
+        }
+
+        const gridStandings = evolutionDataCache[gridId] || [];
+        if (!gridStandings.length) return;
         
         // Garante que filterState[gridId] sempre existe
         if (!filterState[gridId]) {
@@ -1447,10 +1452,28 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Inicializa todos os grids: renderiza dropdowns e gráfico
-    gridConfigs.forEach((grid) => {
-        renderFilterDropdown(grid);
-        renderTeamFilterDropdown(grid);
-        renderChartForGrid(grid);
+    gridConfigs.forEach(grid => {
+        const gridId = grid.id;
+        const tabButton = document.getElementById(`tab-${gridId}`);
+        if (!tabButton) return;
+
+        // Função para inicializar o conteúdo de uma aba de grid
+        const initializeGridTab = () => {
+            // Evita reinicializar
+            if (tabButton.dataset.initialized === '1') return;
+
+            console.log(`Inicializando conteúdo da aba para o grid ${gridId}...`);
+            // Renderização de filtros movida para dentro de renderChartForGrid (após fetch)
+            renderChartForGrid(grid);
+            tabButton.dataset.initialized = '1';
+        };
+
+        // Se a aba já estiver ativa no carregamento, inicializa imediatamente
+        if (tabButton.classList.contains('active')) {
+            initializeGridTab();
+        }
+        // Adiciona o listener para inicializar quando a aba for mostrada
+        tabButton.addEventListener('shown.bs.tab', initializeGridTab);
     });
 
     function setClassificationView(gridId, view, persist = true) {
@@ -1493,12 +1516,15 @@ document.addEventListener('DOMContentLoaded', function() {
         if (persist) localStorage.setItem(`home_pilots_expanded_${gridId}`, expanded ? '1' : '0');
     }
 
+    // Persistência da aba de grid principal
     document.querySelectorAll('button[id^="tab-"]').forEach(btn => {
         btn.addEventListener('shown.bs.tab', () => {
             localStorage.setItem('home_grid_tab', btn.id);
         });
     });
     const savedGridTab = localStorage.getItem('home_grid_tab');
+    // Se houver uma aba salva, desativa a default e ativa a salva.
+    // O listener 'shown.bs.tab' cuidará da inicialização.
     if (savedGridTab) {
         const savedBtn = document.getElementById(savedGridTab);
         if (savedBtn) bootstrap.Tab.getOrCreateInstance(savedBtn).show();
@@ -1555,6 +1581,130 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Debug: verifica se elementos existem
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function buildRaceSummaryHtml(summary) {
+        const results = Array.isArray(summary.results) ? summary.results : [];
+        if (!results.length) {
+            return `
+                <div class="p-4 text-center text-white-50">
+                    Nenhum resultado disponível para esta corrida.
+                </div>
+            `;
+        }
+
+        // Ordenação visual: Classificados (1) -> DNF (2) -> DSQ (3) -> Sem Pos/0º (4)
+        results.sort((a, b) => {
+            const getRank = (r) => {
+                if (r.dsq) return 3;
+                if (r.dnf) return 2;
+                if (r.ausencia || !r.posicao) return 4;
+                return 1;
+            };
+            const rankA = getRank(a);
+            const rankB = getRank(b);
+            
+            if (rankA !== rankB) return rankA - rankB;
+            
+            // Desempate por posição (tratando nulos como fim da lista)
+            const posA = (a.posicao !== null && a.posicao !== undefined) ? a.posicao : 9999;
+            const posB = (b.posicao !== null && b.posicao !== undefined) ? b.posicao : 9999;
+            return posA - posB;
+        });
+
+        const rows = results.map((res) => {
+            let posCell;
+            if (res.dsq) {
+                posCell = '<span class="badge bg-danger">DSQ</span>';
+            } else if (res.dnf) {
+                posCell = '<span class="badge bg-secondary">DNF</span>';
+            } else if (res.ausencia || !res.posicao) {
+                posCell = '<span class="badge bg-dark border border-secondary text-secondary">DNS</span>';
+            } else {
+                posCell = `${escapeHtml(res.posicao)}º`;
+            }
+
+            const extras = [
+                res.vr ? '<span class="badge bg-primary me-1" title="Volta Rápida">VR</span>' : '',
+                res.dotd ? '<span class="badge bg-warning text-dark" title="Piloto do Dia">DOTD</span>' : ''
+            ].join('');
+
+            return `
+                <tr>
+                    <td class="ps-3 fw-bold">${posCell}</td>
+                    <td class="fw-bold">${escapeHtml(res.pilot?.nickname || 'Piloto Removido')}</td>
+                    <td class="text-white-50">${escapeHtml(res.team?.nome || '-')}</td>
+                    <td class="text-center fw-bold text-info">${escapeHtml(Number(res.pontos || 0).toString())}</td>
+                    <td class="text-center">${extras || '<span class="text-white-50">-</span>'}</td>
+                </tr>
+            `;
+        }).join('');
+
+        return `
+            <table class="table table-dark table-striped mb-0 small">
+                <thead>
+                    <tr class="text-warning">
+                        <th class="ps-3">Pos</th>
+                        <th>Piloto</th>
+                        <th>Equipe</th>
+                        <th class="text-center">Pts</th>
+                        <th class="text-center">Extras</th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>
+        `;
+    }
+
+    document.querySelectorAll('.race-summary-modal').forEach((modalEl) => {
+        // FIX: Move o modal para o final do body para evitar conflitos de Z-Index/Backdrop
+        // Isso resolve o problema da "película" escura ficando na frente do modal
+        document.body.appendChild(modalEl);
+
+        modalEl.addEventListener('show.bs.modal', async () => {
+            if (modalEl.dataset.loaded === '1') return;
+
+            const raceId = modalEl.dataset.raceId;
+            const contentEl = modalEl.querySelector('.race-summary-content');
+            if (!raceId || !contentEl) return;
+
+            contentEl.innerHTML = `
+                <div class="p-4 text-center text-white-50">
+                    <div class="spinner-border text-danger mb-3" role="status" aria-hidden="true"></div>
+                    <div>Carregando súmula...</div>
+                </div>
+            `;
+
+            try {
+                const response = await fetch(`/api/race/${raceId}/results`, {
+                    headers: { 'Accept': 'application/json' }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const summary = await response.json();
+                contentEl.innerHTML = buildRaceSummaryHtml(summary);
+                modalEl.dataset.loaded = '1';
+            } catch (error) {
+                console.error('Erro ao carregar súmula da corrida:', raceId, error);
+                contentEl.innerHTML = `
+                    <div class="p-4 text-center text-danger">
+                        Não foi possível carregar a súmula desta corrida.
+                    </div>
+                `;
+            }
+        });
+    });
+
     console.log('gridConfigs:', gridConfigs);
     console.log('filterState:', filterState);
 });
