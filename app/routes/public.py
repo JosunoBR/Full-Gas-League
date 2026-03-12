@@ -936,42 +936,66 @@ def open_protest():
     
     active_seasons_ids = [s.id for s in Season.query.filter_by(ativa=True).all()]
     user_profile = current_user.pilot_profile
+
+    # 1. Verifica se tem equipe ativa (Titular ou Reserva) e coleta os grids dessa equipe
+    has_active_team = False
+    my_team_grid_ids = set()
     
-    # 1. Determina os grids do usuário (IDs e Nomes para compatibilidade)
-    user_grid_ids = set()
-    user_grid_names = set()
-    
-    for g in user_profile.grid.split(','):
+    for t in user_profile.teams:
+        if t.season_id in active_seasons_ids:
+            has_active_team = True
+            if t.grid_id: my_team_grid_ids.add(t.grid_id)
+            
+    for t in user_profile.reserve_teams:
+        if t.season_id in active_seasons_ids:
+            has_active_team = True
+            if t.grid_id: my_team_grid_ids.add(t.grid_id)
+
+    # 2. Verifica se é um piloto válido (Tem grid definido no perfil OU é Reserva explícito)
+    is_valid_pilot = False
+    profile_grids = (user_profile.grid or '').upper().split(',')
+    for g in profile_grids:
         g = g.strip()
-        if g.isdigit(): user_grid_ids.add(int(g))
-        else: user_grid_names.add(g.upper())
+        if g.isdigit() or g == 'RESERVA':
+            is_valid_pilot = True
+            # Se tiver ID no perfil, adiciona aos grids conhecidos
+            if g.isdigit(): 
+                my_team_grid_ids.add(int(g))
 
-    if 'SEM_GRID' in user_grid_names and (len(user_grid_names) > 1 or user_grid_ids):
-        user_grid_names.remove('SEM_GRID')
-
-    is_global = not user_grid_ids and (not user_grid_names or user_grid_names.issubset({'RESERVA', 'SEM_GRID'}))
-
-    if is_global:
+    if not has_active_team and not is_valid_pilot:
         flash('Você precisa estar vinculado a um grid para abrir protestos.', 'warning')
         return redirect(url_for('public.my_profile'))
-    else:
-        all_races = Race.query.filter(Race.season_id.in_(active_seasons_ids)).order_by(Race.data_corrida.desc()).all()
-        races = []
-        for r in all_races:
-            if r.grid_id in user_grid_ids or (r.grid and r.grid.upper() in user_grid_names):
-                races.append(r)
+
+    races = []
+    pilots = []
+
+    if has_active_team:
+        # CENÁRIO 1: Vinculado a equipe -> Restringe aos grids da equipe
+        # Mostra corridas apenas dos grids onde ele corre pela equipe
+        races = Race.query.filter(
+            Race.season_id.in_(active_seasons_ids),
+            Race.grid_id.in_(my_team_grid_ids)
+        ).order_by(Race.data_corrida.desc()).all()
         
-        all_pilots = PilotProfile.query.filter(PilotProfile.id != user_profile.id).all()
-        pilots = []
+        # Filtra pilotos que também estão nesses grids (para acusar)
+        # Nota: Trazemos todos e filtramos no Python para garantir cruzamento correto de grids
+        all_pilots = PilotProfile.query.filter(PilotProfile.id != user_profile.id).order_by(PilotProfile.nickname).all()
         for p in all_pilots:
-            p_grid_ids = set()
-            p_grid_names = set()
-            for g in p.grid.split(','):
-                g = g.strip()
-                if g.isdigit(): p_grid_ids.add(int(g))
-                else: p_grid_names.add(g.upper())
-                
-            if (p_grid_ids & user_grid_ids) or (p_grid_names & user_grid_names):
+            p_grids = set()
+            for g in (p.grid or '').split(','):
+                if g.strip().isdigit(): p_grids.add(int(g.strip()))
+            for t in p.teams:
+                if t.season_id in active_seasons_ids and t.grid_id: p_grids.add(t.grid_id)
+            for t in p.reserve_teams:
+                if t.season_id in active_seasons_ids and t.grid_id: p_grids.add(t.grid_id)
+            
+            if p_grids & my_team_grid_ids:
                 pilots.append(p)
+    else:
+        # CENÁRIO 2: Sem equipe (Reserva Global) -> Acesso Total
+        # Pode ver todas as corridas e acusar qualquer piloto
+        all_races = Race.query.filter(Race.season_id.in_(active_seasons_ids)).order_by(Race.data_corrida.desc()).all()
+        races = all_races
+        pilots = PilotProfile.query.filter(PilotProfile.id != user_profile.id).order_by(PilotProfile.nickname).all()
         
     return render_template('pilot/protest.html', races=races, pilots=pilots)
