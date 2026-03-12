@@ -548,35 +548,178 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('applyTeamFilter', gridId);
     }
 
-    // after DOM load, render evolution charts
-    // ensure overview charts have same height as home charts
-    // (canvas height attribute already set to 400)
+    // Paleta e helpers de cores similares ao gráfico da Home
+    const overviewColorPalette = [
+        { h: 0, s: 70 },      // Vermelho
+        { h: 210, s: 70 },    // Azul
+        { h: 120, s: 70 },    // Verde
+        { h: 30, s: 70 },     // Laranja
+        { h: 280, s: 70 },    // Roxo
+        { h: 160, s: 60 },    // Ciano-esverdeado
+        { h: 50, s: 70 },     // Amarelo
+        { h: 330, s: 60 }     // Rosa
+    ];
+
+    function hslToRgb(h, s, l) {
+        s /= 100;
+        l /= 100;
+        const a = s * Math.min(l, 1 - l);
+        const f = n => {
+            const k = (n + h / 30) % 12;
+            return l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+        };
+        return {
+            r: Math.round(255 * f(0)),
+            g: Math.round(255 * f(8)),
+            b: Math.round(255 * f(4))
+        };
+    }
+
+    function baseColorForIndex(idx) {
+        const hsl = overviewColorPalette[idx % overviewColorPalette.length];
+        const rgb = hslToRgb(hsl.h, hsl.s, 48);
+        return `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`;
+    }
+
+    function toRgba(rgb, alpha) {
+        const m = (rgb || '').match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/i);
+        if (!m) return `rgba(255,255,255,${alpha})`;
+        return `rgba(${m[1]}, ${m[2]}, ${m[3]}, ${alpha})`;
+    }
+
+    function buildLineGradient(chart, color) {
+        const { ctx, chartArea } = chart;
+        if (!chartArea) return toRgba(color, 0.16);
+        const g = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+        g.addColorStop(0, toRgba(color, 0.42));
+        g.addColorStop(1, toRgba(color, 0.04));
+        return g;
+    }
+
+    const overviewChartAreaBackdrop = {
+        id: 'overviewChartAreaBackdrop',
+        beforeDraw(chart) {
+            const { ctx, chartArea } = chart;
+            if (!chartArea) return;
+            ctx.save();
+            const bg = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+            bg.addColorStop(0, 'rgba(255,255,255,0.07)');
+            bg.addColorStop(1, 'rgba(255,255,255,0.01)');
+            ctx.fillStyle = bg;
+            ctx.fillRect(chartArea.left, chartArea.top, chartArea.right - chartArea.left, chartArea.bottom - chartArea.top);
+            ctx.restore();
+        }
+    };
+
+    // Renderiza gráficos de evolução no estilo da Home
     {% for grid in grid_configs %}
     (function(){
         const canvas = document.getElementById('overview-evol-{{ grid.id }}');
-        if(!canvas) return;
-        const data = {{ overview_json[grid.id]['evol_chart']|tojson }};
-        const labels = [];
-        const datasets = data.map(item => {
-            item.evol.forEach(x=>{ if(!labels.includes(x.gp)) labels.push(x.gp); });
+        if (!canvas) return;
+
+        const rawData = {{ overview_json[grid.id]['evol_chart']|tojson }};
+        if (!Array.isArray(rawData) || !rawData.length) return;
+
+        // Coleta e ordena GPs
+        const gpSet = new Set();
+        rawData.forEach(item => {
+            (item.evol || []).forEach(e => gpSet.add(e.gp));
+        });
+        const labels = Array.from(gpSet);
+
+        const datasets = rawData.map((item, idx) => {
+            const evol = item.evol || [];
+            const color = baseColorForIndex(idx);
+            const data = labels.map(gp => {
+                const ev = evol.find(e => e.gp === gp);
+                return ev ? ev.pontos_acumulados : null;
+            });
+
             return {
                 label: item.piloto.nickname || item.piloto.nome_real,
-                data: item.evol.map(x=>x.pontos_acumulados),
-                borderColor: getRandomColor(),
-                fill:false,
-                tension:0.4
+                data,
+                borderColor: color,
+                backgroundColor: (context) => buildLineGradient(context.chart, color),
+                borderWidth: 3,
+                fill: false,
+                tension: 0.35,
+                pointRadius: 3,
+                pointHoverRadius: 6,
+                pointHitRadius: 14,
+                pointBackgroundColor: color,
+                pointBorderColor: '#ffffff',
+                pointBorderWidth: 1.5,
+                cubicInterpolationMode: 'monotone'
             };
         });
-        new Chart(canvas,{type:'line',data:{labels:labels,datasets:datasets},options:{responsive:true,maintainAspectRatio:false}});
+
+        new Chart(canvas, {
+            type: 'line',
+            data: {
+                labels,
+                datasets
+            },
+            plugins: [overviewChartAreaBackdrop],
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'bottom',
+                        labels: {
+                            color: '#f2f4f8',
+                            font: { size: 11, weight: '600' },
+                            padding: 14,
+                            boxWidth: 10,
+                            boxHeight: 10,
+                            usePointStyle: true,
+                            pointStyle: 'circle'
+                        },
+                        maxHeight: 90
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(5, 8, 16, 0.94)',
+                        titleColor: '#ffffff',
+                        bodyColor: '#f2f4f8',
+                        borderColor: 'rgba(225, 6, 0, 0.65)',
+                        borderWidth: 1,
+                        padding: 14,
+                        titleFont: { size: 12, weight: '700' },
+                        bodyFont: { size: 11, weight: '600' },
+                        cornerRadius: 8,
+                        displayColors: true
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            color: 'rgba(255,255,255,0.10)',
+                            drawBorder: false,
+                            borderDash: [4, 4]
+                        },
+                        ticks: { color: '#bfc7d5', font: { size: 10, weight: '600' } },
+                        title: { display: true, text: 'Etapas', color: '#e0e0e0', font: { weight: '700' } }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(255,255,255,0.10)',
+                            drawBorder: false,
+                            borderDash: [4, 4]
+                        },
+                        ticks: { color: '#bfc7d5', font: { size: 10, weight: '600' } },
+                        title: { display: true, text: 'Pontos Acumulados', color: '#e0e0e0', font: { weight: '700' } }
+                    }
+                }
+            }
+        });
     })();
     {% endfor %}
-
-    function getRandomColor(){
-        const r=Math.floor(Math.random()*200)+20;
-        const g=Math.floor(Math.random()*200)+20;
-        const b=Math.floor(Math.random()*200)+20;
-        return `rgb(${r},${g},${b})`;
-    }
 });
 </script>
 
