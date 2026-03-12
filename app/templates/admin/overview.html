@@ -55,15 +55,19 @@
     .grid-chip-elite { background-color: #ffc107 !important; color: #1a1a1a !important; }
     .grid-chip-advanced { background-color: #a855f7 !important; color: #ffffff !important; }
     .grid-chip-initial { background-color: #3b82f6 !important; color: #ffffff !important; }
+    .grid-chip-rivals { background-color: #E60000 !important; color: #ffffff !important; }
     .grid-tab-elite { border-color: #ffc107 !important; color: #ffc107 !important; }
     .grid-tab-advanced { border-color: #a855f7 !important; color: #a855f7 !important; }
     .grid-tab-initial { border-color: #3b82f6 !important; color: #3b82f6 !important; }
+    .grid-tab-rivals { border-color: #E60000 !important; color: #E60000 !important; }
     .nav-pills .grid-tab-elite.active { background-color: #ffc107 !important; color: #1a1a1a !important; }
     .nav-pills .grid-tab-advanced.active { background-color: #a855f7 !important; color: #ffffff !important; }
     .nav-pills .grid-tab-initial.active { background-color: #3b82f6 !important; color: #ffffff !important; }
+    .nav-pills .grid-tab-rivals.active { background-color: #E60000 !important; color: #ffffff !important; }
     .nav-pills .grid-tab-elite:hover,
     .nav-pills .grid-tab-advanced:hover,
-    .nav-pills .grid-tab-initial:hover {
+    .nav-pills .grid-tab-initial:hover,
+    .nav-pills .grid-tab-rivals:hover {
         color: #ffffff !important;
     }
     /* visual da Home aplicado ao Overview */
@@ -152,7 +156,7 @@
         <ul class="nav nav-pills nav-fill" id="pills-tab" role="tablist">
             {% for grid in grid_configs %}
             <li class="nav-item" role="presentation">
-                <button class="nav-link {% if loop.first %}active{% endif %} fw-bold border mx-1 text-uppercase {% if grid.nome == 'ELITE' %}grid-tab-elite{% elif grid.nome == 'ADVANCED' %}grid-tab-advanced{% else %}grid-tab-initial{% endif %}" 
+                <button class="nav-link {% if loop.first %}active{% endif %} fw-bold border mx-1 text-uppercase {% if grid.nome == 'ELITE' %}grid-tab-elite{% elif grid.nome == 'ADVANCED' %}grid-tab-advanced{% elif grid.nome == 'RIVALS' %}grid-tab-rivals{% else %}grid-tab-initial{% endif %}" 
                         id="pills-{{ grid.id }}-tab" data-bs-toggle="pill" data-bs-target="#pills-{{ grid.id }}" type="button" role="tab">GRID {{ grid.nome }}</button>
             </li>
             {% endfor %}
@@ -729,4 +733,3 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 
 {% endblock %}
-
