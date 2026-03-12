@@ -447,12 +447,23 @@
                         <label class="form-label text-white small fw-bold">Nova Foto Específica</label>
                         <select name="grid_photo_target" class="form-select border-0 mb-2 bg-dark text-white">
                             <option value="">Selecione o Grid...</option>
-                            {% for g in perfil.grid.split(',') %}
-                                {% set grid_clean = g.strip() %}
-                                {% if grid_clean and grid_clean != 'SEM_GRID' %}
-                                <option value="{{ grid_clean }}">{{ grid_clean }}</option>
+                            {% set seen_ids = [] %}
+                            {% set has_grid_options = false %}
+                            {% for ctx in available_contexts %}
+                                {% if ctx.grid_id and ctx.grid_id not in seen_ids %}
+                                <option value="{{ ctx.grid_id }}">{{ ctx.grid }}</option>
+                                {% set seen_ids = seen_ids + [ctx.grid_id] %}
+                                {% set has_grid_options = true %}
                                 {% endif %}
                             {% endfor %}
+                            {% if not has_grid_options %}
+                                {% for g in perfil.grid.split(',') %}
+                                    {% set grid_clean = g.strip() %}
+                                    {% if grid_clean and grid_clean != 'SEM_GRID' %}
+                                    <option value="{{ grid_clean }}">{{ grid_clean }}</option>
+                                    {% endif %}
+                                {% endfor %}
+                            {% endif %}
                         </select>
                         <input type="file" name="grid_photo_file" class="form-control border-0 bg-dark text-white">
                     </div>

@@ -42,6 +42,7 @@
                     </div>
 
                     <!-- FOTOS ESPECÍFICAS POR GRID -->
+                    {% if pilot.user.role != 'NARRADOR' %}
                     <div class="mb-4 pb-3 border-bottom border-secondary">
                         <h5 class="text-white fw-bold mb-3"><i class="fa-solid fa-camera-retro me-2"></i> Fotos por Grid (Opcional)</h5>
                         <p class="text-white-50 small">Use esta seção se o piloto usa macacões diferentes para cada categoria.</p>
@@ -80,6 +81,7 @@
                             <div class="form-text text-white-50 small mt-1">Selecione o grid e o arquivo, depois clique em "Salvar Alterações" abaixo.</div>
                         </div>
                     </div>
+                    {% endif %}
 
                     <div class="row">
                         <div class="col-md-6 mb-3">
@@ -92,6 +94,7 @@
                         </div>
                     </div>
 
+                    {% if pilot.user.role != 'NARRADOR' %}
                     <div class="mb-3">
                         <label class="form-label text-white">Telefone / WhatsApp</label>
                         <div class="input-group">
@@ -115,7 +118,10 @@
                                     Selecionar Grids...
                                 </button>
                                 <div class="dropdown-menu dropdown-menu-dark w-100 p-3 shadow border-secondary" aria-labelledby="gridDropdown" style="max-height: 250px; overflow-y: auto;">
-                                    {% set current_pilot_grids = pilot.grid.split(',') %}
+                                    {% set current_pilot_grids = [] %}
+                                    {% for g in (pilot.grid or '').split(',') %}
+                                        {% if current_pilot_grids.append(g.strip()) %}{% endif %}
+                                    {% endfor %}
                                     
                                     <!-- Grids Reais por Temporada -->
                                     {% for config in grid_configs_options %}
@@ -123,7 +129,7 @@
                                         <input class="form-check-input" type="checkbox" name="grids" value="{{ config.id }}" id="grid_cfg_{{ config.id }}" 
                                                {% if config.id|string in current_pilot_grids or config.nome in current_pilot_grids %}checked{% endif %}>
                                         <label class="form-check-label text-white" for="grid_cfg_{{ config.id }}">
-                                            {{ config.nome }} <small class="text-white-50">({{ config.season_rel.nome }})</small>
+                                            {{ config.nome }} <small class="text-white-50">({{ config.season_rel.nome if config.season_rel else 'Season ' ~ config.season_id }})</small>
                                         </label>
                                     </div>
                                     {% endfor %}
@@ -159,6 +165,7 @@
                             <input type="text" name="motivo_penalidade" class="form-control bg-secondary text-white border-0" value="{{ pilot.motivo_penalidade or '' }}" placeholder="Ex: Ausência em reunião obrigatória">
                         </div>
                     </div>
+                    {% endif %}
 
                     {% if current_user.role == 'SUPER_ADM' %}
                     <div class="card mb-4 border-warning bg-transparent">

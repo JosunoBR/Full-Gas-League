@@ -1,9 +1,10 @@
-import os
+﻿import os
 from datetime import datetime, timedelta
 from flask import Blueprint, render_template, request, flash, redirect, url_for, current_app
 from flask_login import login_required, current_user, login_user, logout_user
 from werkzeug.security import check_password_hash
 from sqlalchemy import or_
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 from app.models import db, Season, Race, PilotProfile, Protesto, RaceResult, VotoComissario, Team, RaceRegistration, User, Invite, News, GridConfig, SeasonChampion, PilotGridPhoto
 from app.utils import allowed_file, get_embed_url, ORDEM_CARROS, get_grid_name, find_grid_config, grid_matches
@@ -673,7 +674,12 @@ def checkin_confirm(race_id):
         registro.justificativa = None
         registro.data_resposta = datetime.utcnow()
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        flash('Nao foi possivel confirmar o check-in. Tente novamente.', 'danger')
+        return redirect(url_for('public.my_profile'))
     if len(same_day_races) > 1:
         flash('Presença confirmada para todas as corridas do mesmo dia neste grid.', 'success')
     else:
@@ -685,9 +691,9 @@ def checkin_confirm(race_id):
 def checkin_absent(race_id):
     if not current_user.pilot_profile: return redirect(url_for('public.home'))
     race = Race.query.get_or_404(race_id)
-    motivo = request.form.get('justificativa')
+    motivo = (request.form.get('justificativa') or '').strip()
     if not motivo:
-        flash('É obrigatório informar o motivo da ausência.', 'warning')
+        flash('E obrigatorio informar o motivo da ausencia.', 'warning')
         return redirect(url_for('public.my_profile'))
 
     today = (datetime.utcnow() - timedelta(hours=3)).date()
@@ -703,7 +709,12 @@ def checkin_absent(race_id):
     registro.status = 'JUSTIFICADO'
     registro.justificativa = motivo
     registro.data_resposta = datetime.utcnow()
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        flash('Nao foi possivel registrar a ausencia. Tente novamente.', 'danger')
+        return redirect(url_for('public.my_profile'))
     flash('Ausência registrada. Agradecemos o aviso.', 'info')
     return redirect(url_for('public.my_profile'))
 
@@ -786,11 +797,22 @@ def delete_protest(protest_id):
 @login_required
 def update_profile():
     if not current_user.pilot_profile: return redirect(url_for('public.home'))
-    new_nickname = (request.form.get('nickname') or '')[:50]
-    current_user.pilot_profile.nome_real = request.form.get('nome_real')[:100]
+    nome_real = (request.form.get('nome_real') or '').strip()
+    new_nickname = (request.form.get('nickname') or '').strip()[:50]
+    if not nome_real or not new_nickname:
+        flash('Nome real e nickname sao obrigatorios.', 'warning')
+        return redirect(url_for('public.my_profile'))
+
+    existing_user = User.query.filter(User.username == new_nickname, User.id != current_user.id).first()
+    if existing_user:
+        flash('Este nickname ja esta em uso. Escolha outro.', 'danger')
+        return redirect(url_for('public.my_profile'))
+
+    current_user.pilot_profile.nome_real = nome_real[:100]
     current_user.pilot_profile.nickname = new_nickname
-    current_user.username = new_nickname # Mantém o login em sincronia
-    current_user.pilot_profile.telefone = request.form.get('telefone')[:20] if request.form.get('telefone') else None
+    current_user.username = new_nickname # Mantem o login em sincronia
+    telefone_raw = (request.form.get('telefone') or '').strip()
+    current_user.pilot_profile.telefone = telefone_raw[:20] if telefone_raw else None
     
     nova_senha = request.form.get('password')
     confirma = request.form.get('confirm_password')
@@ -806,7 +828,11 @@ def update_profile():
         if file and file.filename != '' and allowed_file(file.filename):
             if current_user.pilot_profile.foto_url:
                 old_path = os.path.join(current_app.config['UPLOAD_FOLDER'], current_user.pilot_profile.foto_url)
-                if os.path.exists(old_path): os.remove(old_path)
+                if os.path.exists(old_path):
+                    try:
+                        os.remove(old_path)
+                    except OSError:
+                        pass
                 
             ext = file.filename.rsplit('.', 1)[1].lower()
             timestamp = int(datetime.utcnow().timestamp())
@@ -814,8 +840,18 @@ def update_profile():
             file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], nome))
             current_user.pilot_profile.foto_url = nome
             
-    # Upload de foto específica por grid (baseado em ID)
-    grid_photo_target_id = request.form.get('grid_photo_target', type=int)
+    # Upload de foto especifica por grid (baseado em ID)
+    grid_photo_target_raw = (request.form.get('grid_photo_target') or '').strip()
+    grid_photo_target_id = None
+    grid_cfg = None
+    if grid_photo_target_raw:
+        if grid_photo_target_raw.isdigit():
+            grid_photo_target_id = int(grid_photo_target_raw)
+        else:
+            grid_cfg = GridConfig.query.filter_by(nome=grid_photo_target_raw).first()
+            if grid_cfg:
+                grid_photo_target_id = grid_cfg.id
+
     if grid_photo_target_id and 'grid_photo_file' in request.files:
         g_file = request.files['grid_photo_file']
         if g_file and g_file.filename != '' and allowed_file(g_file.filename):
@@ -823,14 +859,19 @@ def update_profile():
             old_gp = PilotGridPhoto.query.filter_by(pilot_id=current_user.pilot_profile.id, grid_id=grid_photo_target_id).first()
             if old_gp:
                 old_path = os.path.join(current_app.config['UPLOAD_FOLDER'], old_gp.foto_url)
-                if os.path.exists(old_path): os.remove(old_path)
+                if os.path.exists(old_path):
+                    try:
+                        os.remove(old_path)
+                    except OSError:
+                        pass
                 db.session.delete(old_gp)
             
             ext = g_file.filename.rsplit('.', 1)[1].lower()
             timestamp = int(datetime.utcnow().timestamp())
 
             # Usa o nome do grid para um nome de arquivo mais descritivo
-            grid_cfg = db.session.get(GridConfig, grid_photo_target_id)
+            if not grid_cfg:
+                grid_cfg = db.session.get(GridConfig, grid_photo_target_id)
             grid_name_for_file = grid_cfg.nome.replace(" ", "_") if grid_cfg else f"grid_{grid_photo_target_id}"
 
             nome_gp = f"piloto_{current_user.pilot_profile.id}_{grid_name_for_file}_{timestamp}.{ext}"
@@ -840,15 +881,24 @@ def update_profile():
             new_gp = PilotGridPhoto(pilot_id=current_user.pilot_profile.id, grid_id=grid_photo_target_id, foto_url=nome_gp)
             db.session.add(new_gp)
 
-    delete_gp_id = request.form.get('delete_grid_photo_id')
+    delete_gp_id = request.form.get('delete_grid_photo_id', type=int)
     if delete_gp_id:
         gp_to_del = PilotGridPhoto.query.get(delete_gp_id)
         if gp_to_del and gp_to_del.pilot_id == current_user.pilot_profile.id:
             path = os.path.join(current_app.config['UPLOAD_FOLDER'], gp_to_del.foto_url)
-            if os.path.exists(path): os.remove(path)
+            if os.path.exists(path):
+                try:
+                    os.remove(path)
+                except OSError:
+                    pass
             db.session.delete(gp_to_del)
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        flash('Nao foi possivel salvar. Verifique se o nickname ja existe.', 'danger')
+        return redirect(url_for('public.my_profile'))
     return redirect(url_for('public.my_profile'))
 
 @public_bp.route('/protestar', methods=['GET', 'POST'])
