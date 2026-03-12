@@ -11,6 +11,7 @@ from app.services.scoring_service import ScoringService
 from app.services.diagnostics import build_data_health_report
 from app.services.seletiva_service import SeletivaService
 from app.services.race_result_service import RaceResultService
+from app.services.stats_service import StatsService
 from app.services.domain_rules import validate_unique_membership_per_grid
 
 admin_bp = Blueprint('admin', __name__)
@@ -320,6 +321,51 @@ def overview():
                            all_active_seasons=all_seasons,
                            grid_configs=grid_configs)
 
+
+@admin_bp.route('/overview/stats')
+def pilot_stats():
+    """
+    Página de estatísticas por piloto (estilo F1 TV), para uma temporada + grid.
+    Usa os mesmos critérios de classificação da overview e resume os números
+    diretamente a partir dos resultados das corridas.
+    """
+    season_id = request.args.get('season_id', type=int)
+    grid_id = request.args.get('grid_id', type=int)
+
+    if not season_id or not grid_id:
+        flash('Parâmetros insuficientes para estatísticas.', 'danger')
+        return redirect(url_for('admin.overview'))
+    
+    season = db.session.get(Season, season_id)
+    grid_cfg = db.session.get(GridConfig, grid_id)
+    
+    if not season or not grid_cfg:
+        flash('Dados não encontrados.', 'danger')
+        return redirect(url_for('admin.overview'))
+
+    # Usa o novo serviço para obter os dados
+    stats_rows = StatsService.get_grid_statistics(season_id, grid_id)
+
+    return render_template(
+        'admin/estatistic.html',
+        season=season,
+        grid=grid_cfg,
+        stats_rows=stats_rows,
+    )
+
+@admin_bp.route('/overview/stats/career')
+def pilot_career_stats():
+    """
+    Página de estatísticas GERAIS (Carreira) de todos os pilotos.
+    """
+    pilot_id = request.args.get('pilot_id', type=int)
+    stats_rows = StatsService.get_all_time_statistics(pilot_id=pilot_id)
+    return render_template(
+        'admin/estatistic.html',
+        career_mode=True,
+        stats_rows=stats_rows
+    )
+
 @admin_bp.route('/overview/export')
 def export_classification():
     # parameters
@@ -329,70 +375,23 @@ def export_classification():
         flash('Parâmetros insuficientes para exportar.', 'danger')
         return redirect(url_for('admin.overview', s=season_id))
 
-    # recreate classification same as overview
-    season = Season.query.get(season_id)
+    season = db.session.get(Season, season_id)
     if not season:
         flash('Temporada não encontrada.', 'danger')
         return redirect(url_for('admin.overview'))
 
-    grid_cfg = GridConfig.query.get(grid_id)
-    if not grid_cfg:
-        flash('Grid não encontrado.', 'danger')
-        return redirect(url_for('admin.overview', s=season_id))
-
-    # gather pilots similar to overview logic
-    pilotos = PilotProfile.query.join(User).all()
-    dados = []
-    punicoes_temporada = Protesto.query.join(Race).filter(
-        Protesto.status == 'CONCLUIDO',
-        Race.season_id == season_id,
-        Race.grid_id == grid_id
-    ).all()
-    punicoes_by_pilot = {}
-    for prot in punicoes_temporada:
-        punicoes_by_pilot.setdefault(prot.acusado_id, []).append(prot)
-
-    all_season_teams = Team.query.filter_by(season_id=season_id).all()
-    for p in pilotos:
-        resultados_season = [r for r in p.race_results if r.race.season_id == season_id]
-        p_grid_ids = [int(x.strip()) for x in p.grid.split(',') if x.strip().isdigit()]
-        
-        grids = set()
-        teams_season = [t for t in all_season_teams if any(pilot.id == p.id for pilot in t.pilots)]
-        for t in teams_season:
-            if t.grid_id and t.grid_id in p_grid_ids:
-                grids.add(t.grid_id)
-            else:
-                cfg = GridConfig.query.filter(func.upper(GridConfig.nome) == t.grid.upper(), GridConfig.season_id == season_id).first()
-                if cfg and cfg.id in p_grid_ids: grids.add(cfg.id)
-
-        reserves = [t for t in all_season_teams if any(pilot.id == p.id for pilot in t.reserves)]
-        for t in reserves:
-            if t.grid_id and t.grid_id in p_grid_ids:
-                grids.add(t.grid_id)
-            else:
-                cfg = GridConfig.query.filter(func.upper(GridConfig.nome) == t.grid.upper(), GridConfig.season_id == season_id).first()
-                if cfg and cfg.id in p_grid_ids: grids.add(cfg.id)
-
-        if grid_id not in grids:
-            continue
-
-        pontos_totais = ScoringService.calculate_pilot_total_points(p.id, season_id, grid_id)
-        res_no_grid = [r for r in resultados_season if grid_matches(r.race, grid_cfg)]
-        
-        vitorias = sum(1 for r in res_no_grid if r.posicao == 1 and not r.dsq)
-        podios = sum(1 for r in res_no_grid if r.posicao in [1,2,3] and not r.dsq)
-        dados.append({'piloto':p.nickname,'vitorias':vitorias,'podios':podios,'pontos':pontos_totais})
-
-    dados.sort(key=lambda x:(x['pontos'], x['vitorias']), reverse=True)
+    # Usa o mesmo serviço para garantir consistência dos dados
+    stats_data = StatsService.get_grid_statistics(season_id, grid_id)
 
     # build csv
     import csv, io
     si = io.StringIO()
     writer = csv.writer(si)
     writer.writerow(['Pos','Piloto','Vitórias','Pódios','Pontos'])
-    for idx,row in enumerate(dados, start=1):
-        writer.writerow([idx, row['piloto'], row['vitorias'], row['podios'], row['pontos']])
+    
+    for idx, row in enumerate(stats_data, start=1):
+        writer.writerow([idx, row['piloto'].nickname, row['wins'], row['podiums'], row['points']])
+        
     output = si.getvalue()
     return current_app.response_class(output, mimetype='text/csv',
                                        headers={'Content-Disposition':f'attachment;filename=classificacao_grid_{grid_id}_season_{season_id}.csv'})
@@ -1717,80 +1716,28 @@ def view_protest(protest_id):
         if 'voto' in request.form and protesto.status in ['EM_VOTACAO', 'AGUARDANDO_DEFESA']:
             # Impedir que partes envolvidas votem no próprio processo (exceto Super Admin)
             if current_user.pilot_profile and (current_user.pilot_profile.id == protesto.acusado_id or current_user.pilot_profile.id == protesto.acusador_id) and current_user.role != 'SUPER_ADM':
-                flash('Conflito de interesse: Você é parte envolvida neste protesto e não pode votar.', 'danger')
+                flash('Conflito de interesse: Você é parte envolvida neste protesto.', 'danger')
                 return redirect(url_for('admin.view_protest', protest_id=protesto.id))
 
             escolha = request.form.get('voto')
-            if meu_voto: meu_voto.escolha = escolha
-            else:
-                novo = VotoComissario(protesto_id=protesto.id, admin_id=current_user.id, escolha=escolha)
-                db.session.add(novo)
-            
-            if protesto.status == 'AGUARDANDO_DEFESA':
-                protesto.status = 'EM_VOTACAO'
-                
-            db.session.commit()
-            flash('Seu voto foi registrado.', 'success')
+            if escolha:
+                if meu_voto:
+                    meu_voto.escolha = escolha
+                else:
+                    novo_voto = VotoComissario(protesto_id=protesto.id, admin_id=current_user.id, escolha=escolha)
+                    db.session.add(novo_voto)
+                db.session.commit()
+                flash('Voto registrado.', 'success')
             return redirect(url_for('admin.view_protest', protest_id=protesto.id))
 
-        if 'encerrar' in request.form and current_user.role == 'SUPER_ADM':
-            if protesto.status == 'CONCLUIDO':
-                flash('Este caso já foi encerrado anteriormente. Para alterar o veredito, primeiro REABRA o caso.', 'warning')
-                return redirect(url_for('admin.view_protest', protest_id=protesto.id))
-
-            veredito = request.form.get('veredito_final')
-            texto = request.form.get('justificativa')
-            
-            protesto.veredito_final = veredito
-            protesto.justificativa_texto = texto
+        if 'fechar' in request.form and current_user.role == 'SUPER_ADM':
+            protesto.veredito_final = request.form.get('veredito')
+            protesto.justificativa_texto = request.form.get('justificativa')
             protesto.status = 'CONCLUIDO'
             protesto.data_fechamento = datetime.utcnow()
-            
-            # Invalida cache da temporada
-            HomeCache.query.filter_by(season_id=protesto.etapa.season_id).delete()
-            
+            HomeCache.query.delete()
             db.session.commit()
-            flash('Caso encerrado e punições aplicadas.', 'success')
+            flash('Protesto encerrado com sucesso.', 'success')
             return redirect(url_for('admin.protests'))
-            
-        if 'reabrir' in request.form and current_user.role == 'SUPER_ADM':
-            if protesto.status != 'CONCLUIDO':
-                flash('Este caso não está concluído para ser reaberto.', 'warning')
-                return redirect(url_for('admin.view_protest', protest_id=protesto.id))
 
-            piloto = protesto.acusado
-            veredito_anterior = protesto.veredito_final
-            resultado_corrida = RaceResult.query.filter_by(race_id=protesto.etapa_id, pilot_id=piloto.id).first()
-            
-            pontos_devolver = 0
-            if veredito_anterior == 'LEVE': pontos_devolver = 3
-            elif veredito_anterior == 'MEDIA': pontos_devolver = 5
-            elif veredito_anterior == 'GRAVE': pontos_devolver = 10
-            
-            if pontos_devolver > 0:
-                if resultado_corrida:
-                    resultado_corrida.pontos_ganhos += pontos_devolver
-
-            protesto.status = 'EM_VOTACAO'
-            protesto.veredito_final = None
-            
-            # Invalida cache da temporada
-            HomeCache.query.filter_by(season_id=protesto.etapa.season_id).delete()
-            db.session.commit()
-            flash('Caso reaberto! Pontos estornados.', 'warning')
-            return redirect(url_for('admin.view_protest', protest_id=protesto.id))
-
-    return render_template('admin/view_protest.html', 
-                           protesto=protesto, 
-                           meu_voto=meu_voto, 
-                           votos_resumo=votos_resumo,
-                           embed_acusacao=embed_acusacao,
-                           embed_defesa=embed_defesa)
-
-@admin_bp.route('/protests/delete/<int:protest_id>', methods=['POST'])
-def delete_protest_admin(protest_id):
-    protesto = Protesto.query.get_or_404(protest_id)
-    db.session.delete(protesto)
-    db.session.commit()
-    flash('Protesto removido pela administração.', 'success')
-    return redirect(url_for('admin.protests'))
+    return render_template('admin/view_protest.html', protesto=protesto, meu_voto=meu_voto, votos_resumo=votos_resumo, embed_acusacao=embed_acusacao, embed_defesa=embed_defesa)

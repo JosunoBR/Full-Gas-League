@@ -1,0 +1,295 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<style>
+    .driver-stats-wrapper {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    .driver-stats-card {
+        display: flex;
+        align-items: stretch;
+        background: linear-gradient(90deg, #050711 0%, #151a27 40%, #050711 100%);
+        border: 1px solid rgba(192, 192, 192, 0.4);
+        border-radius: 6px;
+        overflow: hidden;
+        margin-bottom: 0;
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.55);
+        position: relative;
+    }
+    .driver-stats-card::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        bottom: 0;
+        width: 100%;
+        height: 4px;
+        background: #E60000;
+    }
+    .driver-stats-photo {
+        width: 120px;
+        min-width: 120px;
+        background: #000;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        position: relative;
+    }
+    .driver-stats-photo img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    .driver-stats-flag {
+        position: absolute;
+        top: 6px;
+        left: 6px;
+        padding: 2px 6px;
+        font-size: 0.65rem;
+        background: rgba(0, 0, 0, 0.7);
+        color: #fff;
+        border-radius: 2px;
+    }
+    .driver-stats-main {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        padding: 10px 18px;
+        gap: 24px;
+    }
+    .driver-name-block {
+        min-width: 220px;
+    }
+    .driver-name-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        color: #d0d4e0;
+        letter-spacing: 0.12em;
+        margin-bottom: 2px;
+    }
+    .driver-name-main {
+        font-family: 'Orbitron', 'Segoe UI', sans-serif;
+        font-size: 1.4rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #ffffff;
+    }
+    .driver-name-main span.highlight {
+        color: #ffffff;
+    }
+    .driver-team {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        color: #aeb4c5;
+        letter-spacing: 0.08em;
+        margin-top: 2px;
+    }
+    .driver-career-label {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        color: #ff4b4b;
+        letter-spacing: 0.16em;
+        margin-bottom: 4px;
+    }
+    .driver-stats-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 18px;
+        align-items: center;
+    }
+    .driver-stat-item {
+        min-width: 80px;
+        text-align: center;
+    }
+    .driver-stat-value {
+        font-family: 'Orbitron', 'Segoe UI', sans-serif;
+        font-size: 1.3rem;
+        color: #fefefe;
+    }
+    .driver-stat-label {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        color: #c5cad6;
+        letter-spacing: 0.08em;
+    }
+
+    @media (max-width: 768px) {
+        .driver-card-wrapper {
+            flex-direction: column;
+        }
+        .driver-stats-card {
+            flex-direction: column;
+            width: 100%;
+        }
+        .driver-stats-main {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .driver-name-block {
+            min-width: auto;
+        }
+        .driver-stats-grid {
+            justify-content: flex-start;
+        }
+        .driver-actions-external {
+            flex-direction: row !important;
+            width: 100%;
+            justify-content: center;
+            margin-top: 10px;
+        }
+    }
+</style>
+
+<div class="driver-stats-wrapper">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="text-white mb-1">
+                {% if career_mode %}
+                    {% if stats_rows|length == 1 %}
+                        Carreira: {{ stats_rows[0].piloto.nickname }}
+                    {% else %}
+                        Estatísticas de Carreira – Histórico Geral
+                    {% endif %}
+                {% else %}
+                    Estatísticas dos Pilotos – {{ grid.nome }} ({{ season.nome }})
+                {% endif %}
+            </h3>
+            <small class="text-white-50">
+                {% if career_mode %}
+                    Consolidado de todas as temporadas e grids.
+                {% else %}
+                    Baseado nos resultados oficiais desta temporada e grid.
+                {% endif %}
+            </small>
+        </div>
+        {% if career_mode %}
+            <button onclick="history.back()" class="btn btn-outline-light btn-sm">
+                <i class="fa-solid fa-arrow-left"></i> Voltar
+            </button>
+        {% else %}
+            <a href="{{ url_for('admin.overview', s=season.id if season else None) }}" class="btn btn-outline-light btn-sm">
+                <i class="fa-solid fa-arrow-left"></i> Voltar para Overview
+            </a>
+        {% endif %}
+    </div>
+
+    {% if not stats_rows %}
+        <div class="alert alert-secondary border-secondary text-white-50">
+            Nenhum piloto com resultados registrados para este grid/temporada.
+        </div>
+    {% else %}
+        {% for row in stats_rows %}
+        <div class="driver-card-wrapper d-flex align-items-center gap-3 mb-3">
+            <div class="driver-stats-card flex-grow-1" id="driver-card-{{ row.piloto.id }}">
+                <div class="driver-stats-photo">
+                    {% if row.piloto.foto_url %}
+                        <img src="{{ url_for('static', filename='uploads/' + row.piloto.foto_url) }}" alt="{{ row.piloto.nickname }}">
+                    {% else %}
+                        <div class="d-flex flex-column justify-content-center align-items-center text-secondary" style="width:100%;height:100%;">
+                            <i class="fa-solid fa-user-astronaut fa-2x mb-1"></i>
+                            <small class="text-white-50">Sem Foto</small>
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="driver-stats-main">
+                    <div class="driver-name-block">
+                        <div class="driver-name-label">Driver</div>
+                        {% set parts = (row.piloto.nickname or row.piloto.nome_real).split(' ') %}
+                        <div class="driver-name-main">
+                            {% if parts|length > 1 %}
+                                {{ parts[0]|upper }} <span class="highlight">{{ (' '.join(parts[1:]))|upper }}</span>
+                            {% else %}
+                                <span class="highlight">{{ (row.piloto.nickname or row.piloto.nome_real)|upper }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="driver-team">
+                            {{ row.team.nome if row.team else 'Equipe Independente' }}
+                        </div>
+                    </div>
+                    <div>
+                        <div class="driver-career-label">Driver Career Stats</div>
+                        <div class="driver-stats-grid">
+                            <div class="driver-stat-item">
+                                <div class="driver-stat-value">{{ row.starts }}</div>
+                                <div class="driver-stat-label">Starts</div>
+                            </div>
+                            <div class="driver-stat-item">
+                                <div class="driver-stat-value">{{ row.fastest_laps }}</div>
+                                <div class="driver-stat-label">Fastest Lap</div>
+                            </div>
+                            <div class="driver-stat-item">
+                                <div class="driver-stat-value">{{ row.dnfs }}</div>
+                                <div class="driver-stat-label">DNF's</div>
+                            </div>
+                            <div class="driver-stat-item">
+                                <div class="driver-stat-value">{{ row.podiums }}</div>
+                                <div class="driver-stat-label">Podiums</div>
+                            </div>
+                            <div class="driver-stat-item">
+                                <div class="driver-stat-value">{{ row.wins }}</div>
+                                <div class="driver-stat-label">Wins</div>
+                            </div>
+                            {% if not career_mode %}
+                            <div class="driver-stat-item">
+                                <div class="driver-stat-value">{{ '%g'|format(row.points|float) }}</div>
+                                <div class="driver-stat-label">Season Pts</div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="driver-actions-external d-flex flex-column gap-2" data-html2canvas-ignore>
+                {% if not career_mode %}
+                <a href="{{ url_for('admin.pilot_career_stats', pilot_id=row.piloto.id) }}" class="btn btn-outline-warning btn-sm" title="Ver Histórico Geral">
+                    <i class="fa-solid fa-clock-rotate-left"></i> <span class="d-none d-md-inline">Career</span>
+                </a>
+                {% endif %}
+                <button class="btn btn-outline-light btn-sm" data-export-id="{{ row.piloto.id }}">
+                    <i class="fa-solid fa-image"></i> <span class="d-none d-md-inline">PNG</span>
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    {% endif %}
+</div>
+
+<!-- html2canvas para exportar cada card como PNG -->
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('button[data-export-id]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const pid = btn.getAttribute('data-export-id');
+            const card = document.getElementById(`driver-card-${pid}`);
+            if (!card) return;
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Gerando...';
+
+            try {
+                const canvas = await html2canvas(card, {
+                    backgroundColor: null,
+                    scale: window.devicePixelRatio || 2
+                });
+                const link = document.createElement('a');
+                link.href = canvas.toDataURL('image/png');
+                link.download = `pilot_stats_${pid}.png`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } catch (e) {
+                console.error('Erro ao gerar PNG do piloto', pid, e);
+                alert('Não foi possível gerar a imagem PNG deste piloto.');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-image"></i> PNG';
+            }
+        });
+    });
+});
+</script>
+
+{% endblock %}
