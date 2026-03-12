@@ -50,9 +50,26 @@ PISTAS_F1 = [
 @admin_bp.before_request
 @login_required
 def restrict_access():
-    if current_user.role not in ['SUPER_ADM', 'ADM']:
+    # 1. Permite acesso geral para ADMs e Narradores
+    if current_user.role not in ['SUPER_ADM', 'ADM', 'NARRADOR']:
         flash('Acesso negado. Área restrita à Direção de Prova.', 'danger')
         return redirect(url_for('public.home'))
+
+    # 2. Restrições específicas para Narrador (apenas leitura)
+    if current_user.role == 'NARRADOR':
+        endpoint_name = request.endpoint.split('.')[-1]
+
+        # Whitelist de endpoints permitidos para o Narrador
+        allowed_endpoints = [
+            'overview',
+            'pilot_stats',
+            'pilot_career_stats',
+        ]
+
+        if endpoint_name not in allowed_endpoints:
+            flash('Narradores têm acesso apenas à tela de Overview e Estatísticas.', 'warning')
+            # O ponto de entrada seguro para o narrador é a overview.
+            return redirect(url_for('admin.overview'))
 
 # --- DASHBOARD E VISÃO GERAL ---
 
@@ -455,7 +472,7 @@ def list_admins():
     if current_user.role != 'SUPER_ADM':
         flash('Acesso restrito ao Super Admin.', 'danger')
         return redirect(url_for('admin.dashboard'))
-    admins = User.query.filter(User.role.in_(['ADM', 'SUPER_ADM'])).order_by(User.role.desc(), User.username).all()
+    admins = User.query.filter(User.role.in_(['ADM', 'SUPER_ADM', 'NARRADOR'])).order_by(User.role.desc(), User.username).all()
     return render_template('admin/admin_users.html', admins=admins)
 
 @admin_bp.route('/users/new', methods=['GET', 'POST'])
@@ -469,6 +486,10 @@ def create_admin():
         email = (request.form.get('email') or '').lower()
         password = request.form.get('password')
         role = request.form.get('role')
+
+        if role not in ['ADM', 'SUPER_ADM', 'NARRADOR']:
+            flash('Nível de acesso inválido.', 'danger')
+            return redirect(url_for('admin.create_admin'))
         
         if User.query.filter_by(email=email).first():
             flash('Este e-mail já está cadastrado.', 'danger')
@@ -518,7 +539,7 @@ def update_admin_role(user_id):
         return redirect(url_for('admin.list_admins'))
         
     new_role = request.form.get('role')
-    if new_role in ['ADM', 'SUPER_ADM']:
+    if new_role in ['ADM', 'SUPER_ADM', 'NARRADOR']:
         user.role = new_role
         db.session.commit()
         flash(f'Nível de acesso de {user.username} atualizado para {new_role}.', 'success')
@@ -1169,7 +1190,7 @@ def edit_pilot(pilot_id):
         # Apenas Super Admin pode alterar o papel do usuário
         if current_user.role == 'SUPER_ADM':
             new_role = request.form.get('role')
-            if new_role and new_role in ['PILOTO', 'ADM', 'SUPER_ADM']:
+            if new_role and new_role in ['PILOTO', 'ADM', 'SUPER_ADM', 'NARRADOR']:
                 # Impede que o Super Admin rebaixe a si mesmo para evitar bloqueio acidental
                 if pilot.user.id != current_user.id:
                     pilot.user.role = new_role

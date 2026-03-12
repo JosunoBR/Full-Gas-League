@@ -3,40 +3,40 @@
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-6">
-        <div class="card shadow">
-            <div class="card-header bg-success text-white">
-                <h4 class="mb-0"><i class="fa-solid fa-user-shield"></i> Cadastrar Novo Staff</h4>
+        <div class="card shadow border-silver">
+            <div class="card-header bg-dark border-silver">
+                <h4 class="mb-0 text-white fw-bold">Novo Administrador</h4>
             </div>
-            <div class="card-body bg-dark text-white">
+            <div class="card-body bg-dark">
                 <form method="POST">
                     <div class="mb-3">
-                        <label class="form-label">Nome de Exibição (Comissário)</label>
-                        <input type="text" name="username" class="form-control bg-secondary text-white border-0" placeholder="Ex: Comissario_Bruno" required>
+                        <label class="form-label text-white">Nome de Usuário</label>
+                        <input type="text" name="username" class="form-control bg-secondary text-white border-0" required placeholder="Ex: Narrador Oficial">
                     </div>
-                    
                     <div class="mb-3">
-                        <label class="form-label">E-mail de Login</label>
-                        <input type="email" name="email" class="form-control bg-secondary text-white border-0" placeholder="email@comissario.com" required>
+                        <label class="form-label text-white">E-mail</label>
+                        <input type="email" name="email" class="form-control bg-secondary text-white border-0" required placeholder="email@fullgas.com">
                     </div>
-
                     <div class="mb-3">
-                        <label class="form-label">Senha Provisória</label>
-                        <input type="text" name="password" class="form-control bg-secondary text-white border-0" value="fullgas2026" required>
-                        <small class="text-muted">Recomendado alterar depois.</small>
+                        <label class="form-label text-white">Senha</label>
+                        <input type="text" name="password" class="form-control bg-secondary text-white border-0" required>
                     </div>
-
-                    <div class="mb-4">
-                        <label class="form-label">Nível de Acesso</label>
+                    <div class="mb-3">
+                        <label class="form-label text-white">Nível de Acesso</label>
                         <select name="role" class="form-select bg-secondary text-white border-0">
-                            <option value="ADM">Comissário (Padrão)</option>
-                            <option value="SUPER_ADM">Super ADM (Dono)</option>
+                            <option value="NARRADOR">Narrador (Acesso Leitura)</option>
+                            <option value="ADM">Administrador (Direção de Prova)</option>
+                            <option value="SUPER_ADM">Super Admin (Dono)</option>
                         </select>
-                        <small class="text-warning"><i class="fa-solid fa-triangle-exclamation"></i> Super ADMs podem excluir sua conta.</small>
+                        <div class="form-text text-white-50">
+                            <strong>Narrador:</strong> Acesso de visualização ao Painel e Estatísticas.<br>
+                            <strong>ADM:</strong> Gerencia corridas, resultados e punições.<br>
+                            <strong>Super Admin:</strong> Acesso total ao sistema.
+                        </div>
                     </div>
-
-                    <div class="d-flex justify-content-between">
-                        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-light">Cancelar</a>
-                        <button type="submit" class="btn btn-success">Criar Acesso</button>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-danger fw-bold">CRIAR LOGIN</button>
+                        <a href="{{ url_for('admin.list_admins') }}" class="btn btn-outline-light">Cancelar</a>
                     </div>
                 </form>
             </div>

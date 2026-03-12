@@ -170,10 +170,12 @@
                                 <label for="role" class="form-label text-white">Nível de Acesso</label>
                                 <select class="form-select bg-secondary text-white border-0" id="role" name="role">
                                     <option value="PILOTO" {% if pilot.user.role == 'PILOTO' %}selected{% endif %}>Piloto (Padrão)</option>
+                                    <option value="NARRADOR" {% if pilot.user.role == 'NARRADOR' %}selected{% endif %}>Narrador (Acesso Leitura)</option>
                                     <option value="ADM" {% if pilot.user.role == 'ADM' %}selected{% endif %}>Administrador (Direção de Prova)</option>
                                     <option value="SUPER_ADM" {% if pilot.user.role == 'SUPER_ADM' %}selected{% endif %}>Super Admin (Dono)</option>
                                 </select>
                                 <div class="form-text text-white-50">
+                                    <strong>Narrador:</strong> Acesso de leitura ao painel (Overview, Estatísticas).<br>
                                     <strong>ADM:</strong> Pode gerenciar corridas, resultados e punições.<br>
                                     <strong>SUPER_ADM:</strong> Acesso total (criar temporadas, apagar dados, gerenciar admins).
                                 </div>

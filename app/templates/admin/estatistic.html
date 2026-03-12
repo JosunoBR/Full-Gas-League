@@ -60,7 +60,7 @@
         gap: 24px;
     }
     .driver-name-block {
-        min-width: 220px;
+        min-width: 200px;
     }
     .driver-name-label {
         font-size: 0.75rem;
@@ -87,7 +87,7 @@
         margin-top: 2px;
     }
     .driver-career-label {
-        font-size: 0.7rem;
+        font-size: 0.65rem;
         text-transform: uppercase;
         color: #ff4b4b;
         letter-spacing: 0.16em;
@@ -195,7 +195,7 @@
                 </div>
                 <div class="driver-stats-main">
                     <div class="driver-name-block">
-                        <div class="driver-name-label">Driver</div>
+                        <div class="driver-name-label">Piloto</div>
                         {% set parts = (row.piloto.nickname or row.piloto.nome_real).split(' ') %}
                         <div class="driver-name-main">
                             {% if parts|length > 1 %}
@@ -209,32 +209,32 @@
                         </div>
                     </div>
                     <div>
-                        <div class="driver-career-label">Driver Career Stats</div>
+                        <div class="driver-career-label">Estatísticas de Carreira</div>
                         <div class="driver-stats-grid">
                             <div class="driver-stat-item">
                                 <div class="driver-stat-value">{{ row.starts }}</div>
-                                <div class="driver-stat-label">Starts</div>
+                                <div class="driver-stat-label">Largadas</div>
                             </div>
                             <div class="driver-stat-item">
                                 <div class="driver-stat-value">{{ row.fastest_laps }}</div>
-                                <div class="driver-stat-label">Fastest Lap</div>
+                                <div class="driver-stat-label">Volta Rápida</div>
                             </div>
                             <div class="driver-stat-item">
                                 <div class="driver-stat-value">{{ row.dnfs }}</div>
-                                <div class="driver-stat-label">DNF's</div>
+                                <div class="driver-stat-label">DNFs</div>
                             </div>
                             <div class="driver-stat-item">
                                 <div class="driver-stat-value">{{ row.podiums }}</div>
-                                <div class="driver-stat-label">Podiums</div>
+                                <div class="driver-stat-label">Pódios</div>
                             </div>
                             <div class="driver-stat-item">
                                 <div class="driver-stat-value">{{ row.wins }}</div>
-                                <div class="driver-stat-label">Wins</div>
+                                <div class="driver-stat-label">Vitórias</div>
                             </div>
                             {% if not career_mode %}
                             <div class="driver-stat-item">
                                 <div class="driver-stat-value">{{ '%g'|format(row.points|float) }}</div>
-                                <div class="driver-stat-label">Season Pts</div>
+                                <div class="driver-stat-label">Pts Temporada</div>
                             </div>
                             {% endif %}
                         </div>
@@ -244,7 +244,7 @@
             <div class="driver-actions-external d-flex flex-column gap-2" data-html2canvas-ignore>
                 {% if not career_mode %}
                 <a href="{{ url_for('admin.pilot_career_stats', pilot_id=row.piloto.id) }}" class="btn btn-outline-warning btn-sm" title="Ver Histórico Geral">
-                    <i class="fa-solid fa-clock-rotate-left"></i> <span class="d-none d-md-inline">Career</span>
+                    <i class="fa-solid fa-clock-rotate-left"></i> <span class="d-none d-md-inline">Carreira</span>
                 </a>
                 {% endif %}
                 <button class="btn btn-outline-light btn-sm" data-export-id="{{ row.piloto.id }}">
@@ -272,7 +272,8 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const canvas = await html2canvas(card, {
                     backgroundColor: null,
-                    scale: window.devicePixelRatio || 2
+                    // Aumenta a escala para 4x para uma qualidade próxima a 4K.
+                    scale: 4
                 });
                 const link = document.createElement('a');
                 link.href = canvas.toDataURL('image/png');
