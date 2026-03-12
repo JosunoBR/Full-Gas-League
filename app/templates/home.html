@@ -80,6 +80,7 @@
         <h4 class="text-white fw-bold mb-4 ps-3 border-start border-4 
             {% if grid.nome|upper == 'ELITE' %}grid-title-elite
             {% elif grid.nome|upper == 'ADVANCED' %}grid-title-advanced
+            {% elif grid.nome|upper == 'RIVALS' %}grid-title-rivals
             {% else %}grid-title-initial{% endif %}" 
             style="font-family: 'Cinzel', serif;">GRID {{ grid.nome }}</h4>
         
@@ -102,7 +103,7 @@
         <div class="col-lg-4">
             <div class="card bg-dark border-silver shadow h-100">
                 <div class="card-header border-secondary text-center bg-dark">
-                    <span class="badge {% if grid.nome == 'ELITE' %}grid-chip-elite{% elif grid.nome == 'ADVANCED' %}grid-chip-advanced{% else %}grid-chip-initial{% endif %} mb-2">{{ grid.nome }}</span>
+                    <span class="badge {% if grid.nome == 'ELITE' %}grid-chip-elite{% elif grid.nome == 'ADVANCED' %}grid-chip-advanced{% elif grid.nome == 'RIVALS' %}grid-chip-rivals{% else %}grid-chip-initial{% endif %} mb-2">{{ grid.nome }}</span>
                     <h5 class="text-white fw-bold mb-0"><i class="fa-solid fa-trophy text-warning me-2"></i> {{ race.nome_gp }}</h5>
                     <small class="text-white-50">{{ race.pista }}</small>
                 </div>
@@ -159,7 +160,7 @@
         <ul class="nav nav-pills nav-fill mb-4" id="gridTabs" role="tablist">
             {% for grid in grid_configs %}
             <li class="nav-item" role="presentation">
-                        <button class="nav-link {% if loop.first %}active{% endif %} border mx-1 fw-bold {% if grid.nome == 'ELITE' %}grid-tab-elite{% elif grid.nome == 'ADVANCED' %}grid-tab-advanced{% else %}grid-tab-initial{% endif %}" 
+                        <button class="nav-link {% if loop.first %}active{% endif %} border mx-1 fw-bold {% if grid.nome == 'ELITE' %}grid-tab-elite{% elif grid.nome == 'ADVANCED' %}grid-tab-advanced{% elif grid.nome == 'RIVALS' %}grid-tab-rivals{% else %}grid-tab-initial{% endif %}" 
                         id="tab-{{ grid.id }}" data-bs-toggle="pill" data-bs-target="#content-{{ grid.id }}" type="button">{{ grid.nome }}</button>
             </li>
             {% endfor %}
@@ -173,7 +174,7 @@
                         <div class="card bg-dark border-silver shadow f1-home-card">
                             <div class="card-header bg-dark border-secondary d-flex justify-content-between align-items-center">
                                 <h6 class="text-white mb-0 fw-bold">Top 3 Pilotos</h6>
-                                <span class="badge {% if grid.nome == 'ELITE' %}grid-chip-elite{% elif grid.nome == 'ADVANCED' %}grid-chip-advanced{% else %}grid-chip-initial{% endif %}">{{ grid.nome }}</span>
+                                <span class="badge {% if grid.nome == 'ELITE' %}grid-chip-elite{% elif grid.nome == 'ADVANCED' %}grid-chip-advanced{% elif grid.nome == 'RIVALS' %}grid-chip-rivals{% else %}grid-chip-initial{% endif %}">{{ grid.nome }}</span>
                             </div>
                             <div class="card-body p-2">
                                 {% set ns_top = namespace(count=1) %}
@@ -195,7 +196,7 @@
                         <div class="card bg-dark border-silver shadow f1-home-card">
                             <div class="card-header bg-dark border-secondary d-flex justify-content-between align-items-center">
                                 <h6 class="text-white mb-0 fw-bold">Top 3 Equipes</h6>
-                                <span class="badge {% if grid.nome == 'ELITE' %}grid-chip-elite{% elif grid.nome == 'ADVANCED' %}grid-chip-advanced{% else %}grid-chip-initial{% endif %}">{{ grid.nome }}</span>
+                                <span class="badge {% if grid.nome == 'ELITE' %}grid-chip-elite{% elif grid.nome == 'ADVANCED' %}grid-chip-advanced{% elif grid.nome == 'RIVALS' %}grid-chip-rivals{% else %}grid-chip-initial{% endif %}">{{ grid.nome }}</span>
                             </div>
                             <div class="card-body p-2">
                                 {% for row in constructors[grid.id][:3] %}
@@ -438,7 +439,7 @@
         <ul class="nav nav-pills nav-fill mb-4" id="calTabs" role="tablist">
             {% for grid in grid_configs %}
             <li class="nav-item" role="presentation">
-                        <button class="nav-link {% if loop.first %}active{% endif %} border mx-1 fw-bold {% if grid.nome == 'ELITE' %}grid-tab-elite{% elif grid.nome == 'ADVANCED' %}grid-tab-advanced{% else %}grid-tab-initial{% endif %}" 
+                        <button class="nav-link {% if loop.first %}active{% endif %} border mx-1 fw-bold {% if grid.nome == 'ELITE' %}grid-tab-elite{% elif grid.nome == 'ADVANCED' %}grid-tab-advanced{% elif grid.nome == 'RIVALS' %}grid-tab-rivals{% else %}grid-tab-initial{% endif %}" 
                         id="cal-tab-{{ grid.id }}" data-bs-toggle="pill" data-bs-target="#cal-content-{{ grid.id }}" type="button">{{ grid.nome }}</button>
             </li>
             {% endfor %}
@@ -581,16 +582,28 @@
     .border-blue { border-color: #3b82f6 !important; }
     .grid-title-elite { color: #ffc107 !important; border-color: #ffc107 !important; }
     .grid-title-advanced { color: #a855f7 !important; border-color: #a855f7 !important; }
+    .grid-title-rivals { color: #E60000 !important; border-color: #E60000 !important; }
     .grid-title-initial { color: #3b82f6 !important; border-color: #3b82f6 !important; }
     .grid-chip-elite { background-color: #ffc107 !important; color: #1a1a1a !important; }
     .grid-chip-advanced { background-color: #a855f7 !important; color: #ffffff !important; }
+    .grid-chip-rivals { background-color: #E60000 !important; color: #ffffff !important; }
     .grid-chip-initial { background-color: #3b82f6 !important; color: #ffffff !important; }
     .grid-tab-elite { border-color: #ffc107 !important; color: #ffc107 !important; }
     .grid-tab-advanced { border-color: #a855f7 !important; color: #a855f7 !important; }
+    .grid-tab-rivals { border-color: #E60000 !important; color: #E60000 !important; }
     .grid-tab-initial { border-color: #3b82f6 !important; color: #3b82f6 !important; }
     .nav-pills .grid-tab-elite.active { background-color: #ffc107 !important; color: #1a1a1a !important; }
     .nav-pills .grid-tab-advanced.active { background-color: #a855f7 !important; color: #ffffff !important; }
+    .nav-pills .grid-tab-rivals.active { background-color: #E60000 !important; color: #ffffff !important; }
     .nav-pills .grid-tab-initial.active { background-color: #3b82f6 !important; color: #ffffff !important; }
+
+    /* Texto das abas de grid em branco no hover */
+    .nav-pills .grid-tab-elite:hover,
+    .nav-pills .grid-tab-advanced:hover,
+    .nav-pills .grid-tab-rivals:hover,
+    .nav-pills .grid-tab-initial:hover {
+        color: #ffffff !important;
+    }
 
     /* Esconder barra de rolagem mas manter funcionalidade */
     .auto-scroll-container::-webkit-scrollbar {
