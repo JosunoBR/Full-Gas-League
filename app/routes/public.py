@@ -946,20 +946,13 @@ def open_protest():
         if g.isdigit(): user_grid_ids.add(int(g))
         else: user_grid_names.add(g.upper())
 
-    for t in user_profile.teams:
-        if t.grid_id: user_grid_ids.add(t.grid_id)
-        if t.grid: user_grid_names.add(t.grid.upper())
-    for t in user_profile.reserve_teams:
-        if t.grid_id: user_grid_ids.add(t.grid_id)
-        if t.grid: user_grid_names.add(t.grid.upper())
-
     if 'SEM_GRID' in user_grid_names and (len(user_grid_names) > 1 or user_grid_ids):
         user_grid_names.remove('SEM_GRID')
 
     is_global = not user_grid_ids and (not user_grid_names or user_grid_names.issubset({'RESERVA', 'SEM_GRID'}))
 
     if is_global:
-        flash('Você precisa estar vinculado a um grid ou equipe para abrir protestos.', 'warning')
+        flash('Você precisa estar vinculado a um grid para abrir protestos.', 'warning')
         return redirect(url_for('public.my_profile'))
     else:
         all_races = Race.query.filter(Race.season_id.in_(active_seasons_ids)).order_by(Race.data_corrida.desc()).all()
