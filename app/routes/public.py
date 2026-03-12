@@ -959,8 +959,8 @@ def open_protest():
     is_global = not user_grid_ids and (not user_grid_names or user_grid_names.issubset({'RESERVA', 'SEM_GRID'}))
 
     if is_global:
-        races = Race.query.filter(Race.season_id.in_(active_seasons_ids)).order_by(Race.data_corrida.desc()).all()
-        pilots = PilotProfile.query.filter(PilotProfile.id != user_profile.id).order_by(PilotProfile.nickname).all()
+        flash('Você precisa estar vinculado a um grid ou equipe para abrir protestos.', 'warning')
+        return redirect(url_for('public.my_profile'))
     else:
         all_races = Race.query.filter(Race.season_id.in_(active_seasons_ids)).order_by(Race.data_corrida.desc()).all()
         races = []
@@ -981,4 +981,4 @@ def open_protest():
             if (p_grid_ids & user_grid_ids) or (p_grid_names & user_grid_names):
                 pilots.append(p)
         
-    return render_template('pilot/open_protest.html', races=races, pilots=pilots)
+    return render_template('pilot/protest.html', races=races, pilots=pilots)
