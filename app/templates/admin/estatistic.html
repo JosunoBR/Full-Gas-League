@@ -272,8 +272,8 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const canvas = await html2canvas(card, {
                     backgroundColor: null,
-                    // Aumenta a escala para 4x para uma qualidade próxima a 4K.
-                    scale: 4
+                    // Calcula a escala para atingir 3840px de largura, mantendo a proporção.
+                    scale: 3840 / card.offsetWidth
                 });
                 const link = document.createElement('a');
                 link.href = canvas.toDataURL('image/png');
@@ -286,7 +286,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert('Não foi possível gerar a imagem PNG deste piloto.');
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = '<i class="fa-solid fa-image"></i> PNG';
+                btn.innerHTML = '<i class="fa-solid fa-image"></i> <span class="d-none d-md-inline">PNG</span>';
             }
         });
     });

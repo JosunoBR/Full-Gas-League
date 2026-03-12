@@ -260,17 +260,20 @@
         </div>
         <div class="row">
             <div class="col-lg-7">
-                <div class="card shadow border-secondary mb-4">
+                <div class="card shadow border-secondary mb-4" id="classification-card-{{ grid.id }}">
                     <div class="card-header bg-dark border-secondary d-flex justify-content-between align-items-center">
                         <h6 class="mb-0 text-white"><i class="fa-solid fa-trophy text-warning"></i> Tabela de Classificacao</h6>
-                        <ul class="nav nav-pills nav-pills-sm" id="pills-overview-tab-{{ grid.id }}" role="tablist">
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link active py-0 px-2 fw-bold" id="pills-titulares-ov-tab-{{ grid.id }}" data-bs-toggle="pill" data-bs-target="#pills-titulares-ov-{{ grid.id }}" type="button" role="tab">Titulares</button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link py-0 px-2 fw-bold" id="pills-reservas-ov-tab-{{ grid.id }}" data-bs-toggle="pill" data-bs-target="#pills-reservas-ov-{{ grid.id }}" type="button" role="tab">Reservas</button>
-                            </li>
-                        </ul>
+                        <div class="d-flex align-items-center">
+                            <button class="btn btn-outline-light btn-sm py-0 px-2 export-png-btn me-2" data-target-id="classification-card-{{ grid.id }}" data-filename="classificacao_grid_{{ grid.nome }}.png" title="Exportar para PNG"><i class="fa-solid fa-image"></i><span class="d-none d-md-inline ms-1"> PNG</span></button>
+                            <ul class="nav nav-pills nav-pills-sm" id="pills-overview-tab-{{ grid.id }}" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active py-0 px-2 fw-bold" id="pills-titulares-ov-tab-{{ grid.id }}" data-bs-toggle="pill" data-bs-target="#pills-titulares-ov-{{ grid.id }}" type="button" role="tab">Titulares</button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link py-0 px-2 fw-bold" id="pills-reservas-ov-tab-{{ grid.id }}" data-bs-toggle="pill" data-bs-target="#pills-reservas-ov-{{ grid.id }}" type="button" role="tab">Reservas</button>
+                                </li>
+                            </ul>
+                        </div>
                     </div>
                     <div class="tab-content" id="pills-overview-tabContent-{{ grid.id }}">
                         <!-- Aba Titulares -->
@@ -342,9 +345,12 @@
             </div>
 
             <div class="col-lg-5">
-                <div class="card shadow border-secondary">
-                    <div class="card-header bg-dark border-secondary">
+                <div class="card shadow border-secondary" id="discipline-card-{{ grid.id }}">
+                    <div class="card-header bg-dark border-secondary d-flex justify-content-between align-items-center">
                         <h6 class="mb-0 text-white"><i class="fa-solid fa-triangle-exclamation text-danger"></i> Risco Disciplinar (CNH)</h6>
+                        <button class="btn btn-outline-light btn-sm py-0 px-2 export-png-btn" data-target-id="discipline-card-{{ grid.id }}" data-filename="disciplina_grid_{{ grid.nome }}.png" title="Exportar para PNG">
+                            <i class="fa-solid fa-image"></i><span class="d-none d-md-inline ms-1"> PNG</span>
+                        </button>
                     </div>
                     <div class="table-responsive">
                         <table class="table table-dark table-hover table-sm mb-0 align-middle f1-classification-table">
@@ -431,9 +437,12 @@
         <!-- additional section: constructors & evolution & no score -->
         <div class="row mt-4">
             <div class="col-lg-7">
-                <div class="card shadow border-secondary mb-4">
-                    <div class="card-header bg-dark border-secondary">
+                <div class="card shadow border-secondary mb-4" id="constructors-card-{{ grid.id }}">
+                    <div class="card-header bg-dark border-secondary d-flex justify-content-between align-items-center">
                         <h6 class="mb-0 text-white"><i class="fa-solid fa-flag-checkered text-info"></i> Construtores</h6>
+                        <button class="btn btn-outline-light btn-sm py-0 px-2 export-png-btn" data-target-id="constructors-card-{{ grid.id }}" data-filename="construtores_grid_{{ grid.nome }}.png" title="Exportar para PNG">
+                            <i class="fa-solid fa-image"></i><span class="d-none d-md-inline ms-1"> PNG</span>
+                        </button>
                     </div>
                     <div class="table-responsive">
                         <table class="table table-dark table-hover table-sm mb-0 align-middle f1-classification-table">
@@ -482,11 +491,55 @@
 </div>
 {% endif %}
 
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script>
 // data for overview filters
 const overviewData = {{ overview_json|tojson }};
 
 document.addEventListener('DOMContentLoaded', () => {
+    // --- NEW: PNG EXPORT LOGIC ---
+    document.querySelectorAll('.export-png-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const targetId = btn.getAttribute('data-target-id');
+            const filename = btn.getAttribute('data-filename');
+            const targetElement = document.getElementById(targetId);
+
+            if (!targetElement) {
+                console.error('Target element for export not found:', targetId);
+                return;
+            }
+
+            const originalBtnHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+            try {
+                const targetWidth = 3840; // 4K width
+                const scale = targetWidth / targetElement.offsetWidth;
+
+                const canvas = await html2canvas(targetElement, {
+                    backgroundColor: '#0b0d11', // A dark background matching the theme
+                    scale: scale,
+                    useCORS: true
+                });
+
+                const link = document.createElement('a');
+                link.href = canvas.toDataURL('image/png');
+                link.download = filename || `export_${targetId}.png`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+            } catch (e) {
+                console.error('Error exporting to PNG:', e);
+                alert('Ocorreu um erro ao gerar a imagem PNG.');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalBtnHtml;
+            }
+        });
+    });
+
     // handlers for dropdown links
     document.querySelectorAll('[id^="filterPilots-"]').forEach(btn => {
         btn.addEventListener('click', (e) => {
