@@ -1762,3 +1762,17 @@ def view_protest(protest_id):
             return redirect(url_for('admin.protests'))
 
     return render_template('admin/view_protest.html', protesto=protesto, meu_voto=meu_voto, votos_resumo=votos_resumo, embed_acusacao=embed_acusacao, embed_defesa=embed_defesa)
+
+@admin_bp.route('/protests/<int:protest_id>/delete', methods=['POST'])
+def delete_protest_admin(protest_id):
+    if current_user.role != 'SUPER_ADM':
+        flash('Apenas o Super Admin pode apagar protestos.', 'danger')
+        return redirect(url_for('admin.protests'))
+
+    protesto = db.session.get(Protesto, protest_id) or abort(404)
+    VotoComissario.query.filter_by(protesto_id=protesto.id).delete()
+    db.session.delete(protesto)
+    HomeCache.query.delete()
+    db.session.commit()
+    flash('Protesto apagado com sucesso.', 'success')
+    return redirect(url_for('admin.protests'))
