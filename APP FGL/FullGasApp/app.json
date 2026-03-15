@@ -1,0 +1,46 @@
+{
+  "expo": {
+    "name": "FullGas League",
+    "slug": "FullGasApp",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#000000"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "icon": "./assets/icon.png"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#000000",
+        "foregroundImage": "./assets/icon.png"
+      },
+      "icon": "./assets/icon.png",
+      "package": "com.josunogueira.fullgasapp"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-image",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#E60000"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "cf92831f-a597-4b08-b69d-3fe1eb963fa7"
+      }
+    }
+  }
+}
