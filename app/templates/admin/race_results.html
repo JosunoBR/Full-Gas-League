@@ -129,8 +129,12 @@
             <h5 class="text-danger fw-bold mb-0"><i class="fa-solid fa-user-plus me-2"></i> ADICIONAR RESERVAS (Substitutos)</h5>
         </div>
         <div class="card-body bg-dark">
-            <div id="reserva-container">
-                {% for i in range(5) %}
+        {% set ns_res = namespace(total=1) %}
+            {% if reservas_que_correram|length > ns_res.total %}
+                {% set ns_res.total = reservas_que_correram|length %}
+            {% endif %}
+            <div id="reserva-container" data-next-index="{{ ns_res.total }}">
+                {% for i in range(ns_res.total) %}
                 {% set res_existente = reservas_que_correram[i] if i < reservas_que_correram|length else None %}
                 <div class="row align-items-center mb-3 pb-3 border-bottom border-secondary">
                     <div class="col-md-3">
@@ -156,7 +160,7 @@
                         <input type="number" name="reserva_pos" class="form-control bg-secondary text-white border-0 text-center" min="0" value="{{ res_existente.posicao if res_existente and res_existente.posicao > 0 else '' }}">
                     </div>
                     
-                    <div class="col-md-3 text-center">
+                    <div class="col-md-2 text-center">
                         <label class="small text-white-50 d-block">Status</label>
                         <div class="pt-2">
                             <div class="form-check form-check-inline">
@@ -187,10 +191,24 @@
                             </div>
                         </div>
                     </div>
+
+                    <div class="col-md-1 text-center">
+                        <label class="small text-white-50 d-block">&nbsp;</label>
+                        <div class="pt-2">
+                            <button type="button" class="btn btn-outline-danger btn-sm remove-reserva-btn" title="Remover linha">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
                 </div>
                 {% endfor %}
             </div>
-            <p class="text-white-50 small">* Selecione o piloto reserva e a equipe que ele representou nesta corrida.</p>
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <p class="text-white-50 small mb-0">* Selecione o piloto reserva e a equipe que ele representou nesta corrida.</p>
+                <button type="button" class="btn btn-outline-light btn-sm" id="add-reserva-row">
+                    <i class="fa-solid fa-plus me-1"></i> Adicionar reserva
+                </button>
+            </div>
         </div>
     </div>
 
@@ -198,6 +216,74 @@
         <button type="submit" class="btn btn-red btn-lg fw-bold">SALVAR RESULTADOS</button>
     </div>
 </form>
+
+<template id="reserva-row-template">
+    <div class="row align-items-center mb-3 pb-3 border-bottom border-secondary">
+        <div class="col-md-3">
+            <label class="small text-white-50">Piloto Reserva</label>
+            <select name="reserva_pilot" class="form-select bg-secondary text-white border-0">
+                <option value="">-- Selecione --</option>
+                {% for r in reservas %}
+                    <option value="{{ r.id }}">{{ r.nickname }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="small text-white-50">Equipe</label>
+            <select name="reserva_team" class="form-select bg-secondary text-white border-0">
+                <option value="">-- Selecione --</option>
+                {% for t in equipes %}
+                    <option value="{{ t.id }}">{{ t.nome }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-1">
+            <label class="small text-white-50">Pos</label>
+            <input type="number" name="reserva_pos" class="form-control bg-secondary text-white border-0 text-center" min="0">
+        </div>
+        
+        <div class="col-md-2 text-center">
+            <label class="small text-white-50 d-block">Status</label>
+            <div class="pt-2">
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="checkbox" name="reserva_dnf___INDEX__" id="reserva_dnf___INDEX__">
+                    <label class="form-check-label text-white small" for="reserva_dnf___INDEX__">DNF</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="checkbox" name="reserva_dsq___INDEX__" id="reserva_dsq___INDEX__">
+                    <label class="form-check-label text-danger small fw-bold" for="reserva_dsq___INDEX__">DSQ</label>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 text-center">
+            <label class="small text-white-50 d-block">Bônus</label>
+            <div class="pt-2">
+                <div class="form-check form-check-inline" title="Volta Rápida (+1)">
+                    <input class="form-check-input" type="checkbox" name="reserva_vr___INDEX__">
+                    <i class="fa-solid fa-stopwatch text-white"></i>
+                </div>
+                <div class="form-check form-check-inline" title="Piloto do Dia (+1)">
+                    <input class="form-check-input" type="checkbox" name="reserva_dotd___INDEX__">
+                    <i class="fa-solid fa-star text-warning"></i>
+                </div>
+                <div class="form-check form-check-inline" title="Destaque da Live (+1)">
+                    <input class="form-check-input" type="checkbox" name="reserva_fan___INDEX__">
+                    <i class="fa-solid fa-comment-dots text-light"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-1 text-center">
+            <label class="small text-white-50 d-block">&nbsp;</label>
+            <div class="pt-2">
+                <button type="button" class="btn btn-outline-danger btn-sm remove-reserva-btn" title="Remover linha">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</template>
 
 <script>
     function toggleRow(pid, enable) {
@@ -220,10 +306,51 @@
             posInput.classList.add('opacity-25');
         }
     }
-    // Ativa tooltips do Bootstrap (para mostrar justificativa)
-    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
-    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-      return new bootstrap.Tooltip(tooltipTriggerEl)
-    })
+
+    // Aguarda o carregamento completo do HTML antes de rodar os scripts
+    document.addEventListener("DOMContentLoaded", function() {
+        
+        // 1. Ativa tooltips do Bootstrap (Protegido contra erros)
+        try {
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+        } catch (e) {
+            console.warn("Tooltips do Bootstrap não puderam ser carregados:", e);
+        }
+
+        // 2. Adiciona linhas extras de reserva sob demanda (O botão de adicionar)
+        var container = document.getElementById('reserva-container');
+        var addBtn = document.getElementById('add-reserva-row');
+        var template = document.getElementById('reserva-row-template');
+        
+        if (container && addBtn && template) {
+            addBtn.addEventListener('click', function (event) {
+                event.preventDefault();
+                var nextIndex = parseInt(container.dataset.nextIndex || '0', 10);
+                var html = template.innerHTML.replace(/__INDEX__/g, String(nextIndex));
+                container.insertAdjacentHTML('beforeend', html.trim());
+                container.dataset.nextIndex = String(nextIndex + 1);
+            });
+        }
+
+        // 3. Remover linhas de reserva (Ocultando e limpando dados para preservar os índices do array backend)
+        if (container) {
+            container.addEventListener('click', function (event) {
+                var removeBtn = event.target.closest('.remove-reserva-btn');
+                if (removeBtn) {
+                    event.preventDefault();
+                    var row = removeBtn.closest('.row');
+                    if (row) {
+                        row.style.display = 'none';
+                        row.querySelectorAll('select').forEach(s => s.value = '');
+                        row.querySelectorAll('input[type="number"]').forEach(i => i.value = '');
+                        row.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = false);
+                    }
+                }
+            });
+        }
+    });
 </script>
 {% endblock %}
