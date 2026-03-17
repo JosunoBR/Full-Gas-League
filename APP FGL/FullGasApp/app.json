@@ -21,21 +21,15 @@
         "foregroundImage": "./assets/icon.png"
       },
       "icon": "./assets/icon.png",
-      "package": "com.josunogueira.fullgasapp"
+      "package": "com.josunogueira.fullgasapp",
+      "usesCleartextTraffic": true
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-secure-store",
-      "expo-image",
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/icon.png",
-          "color": "#E60000"
-        }
-      ]
+      "expo-image"
     ],
     "extra": {
       "eas": {

@@ -12,6 +12,7 @@ from app.services.team_context import build_team_context
 from app.services.standings_service import StandingsService
 from app.services.scoring_service import ScoringService
 from app.services.discipline_service import DisciplineService
+from app.services.notification_service import NotificationService
 
 public_bp = Blueprint('public', __name__)
 
@@ -932,6 +933,19 @@ def open_protest():
         )
         db.session.add(novo)
         db.session.commit()
+
+        # Envia notificação para o piloto acusado
+        try:
+            acusado = PilotProfile.query.get(novo.acusado_id)
+            if acusado and acusado.fcm_token:
+                NotificationService.send_single_notification(
+                    token=acusado.fcm_token,
+                    title="🚨 Novo Protesto Registrado",
+                    body=f"Você foi citado no protesto #{novo.id} por {novo.acusador.nickname}. Acesse o site para apresentar sua defesa."
+                )
+        except Exception as e:
+            print(f"Falha ao enviar notificação de protesto: {e}")
+
         return redirect(url_for('public.my_profile'))
     
     active_seasons_ids = [s.id for s in Season.query.filter_by(ativa=True).all()]

@@ -27,6 +27,13 @@ def atualizar_banco():
                 print("- Adicionando coluna 'motivo_penalidade'...")
                 conn.execute(text("ALTER TABLE pilot_profile ADD COLUMN motivo_penalidade TEXT"))
 
+            # Verifica e adiciona fcm_token
+            try:
+                conn.execute(text("SELECT fcm_token FROM pilot_profile LIMIT 1"))
+            except:
+                print("- Adicionando coluna 'fcm_token'...")
+                conn.execute(text("ALTER TABLE pilot_profile ADD COLUMN fcm_token VARCHAR(255)"))
+
             # Verifica e adiciona exibir_lastro em grid_config
             try:
                 conn.execute(text("SELECT exibir_lastro FROM grid_config LIMIT 1"))
@@ -90,7 +97,7 @@ def atualizar_banco():
             except Exception as e:
                 print(f"  > Erro ao migrar vínculos de equipe: {e}")
 
-        print("\n✅ ATUALIZAÇÃO CONCLUÍDA COM SUCESSO!")
+        print("\nATUALIZACAO CONCLUIDA COM SUCESSO!")
 
 if __name__ == "__main__":
     atualizar_banco()

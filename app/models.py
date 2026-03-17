@@ -76,6 +76,9 @@ class PilotProfile(db.Model):
     penalidade_campeonato = db.Column(db.Float, default=0.0)
     motivo_penalidade = db.Column(db.Text, nullable=True)
 
+    # Token para Notificações Push (Android/Expo)
+    fcm_token = db.Column(db.String(255), nullable=True)
+
     # Relacionamento Muitos-para-Muitos (Um piloto pode ter várias equipes, uma por grid)
     # O backref 'pilots' permite acessar team.pilots
     teams = db.relationship('Team', secondary=pilot_teams, lazy='subquery',

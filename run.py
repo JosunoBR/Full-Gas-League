@@ -2,13 +2,14 @@ from flask import Flask
 from flask_login import LoginManager
 from flask_migrate import Migrate  # NOVO
 from flask_cors import CORS # Essencial para o App
+from flask_jwt_extended import JWTManager # NOVO: Autenticação do App
 from app.models import db, User, PilotProfile
 from app.routes.public import public_bp
 from app.routes.admin import admin_bp
 from app.routes.api import api_bp # Importa a nova API
 from config import Config
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 # Configuração do App
 app = Flask(__name__, template_folder='app/templates', static_folder='app/static')
@@ -19,6 +20,16 @@ db.init_app(app)
 
 # Habilita o CORS para permitir que o App acesse a API
 CORS(app)
+
+# Configuração JWT (Segurança do App)
+app.config["JWT_SECRET_KEY"] = "fullgas-app-secret-key-2024"  # Troque por algo seguro em produção
+app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(days=30) # App manterá login por 30 dias
+jwt = JWTManager(app)
+
+# Converte o ID do usuário para String ao gerar o Token (Exigência do PyJWT)
+@jwt.user_identity_loader
+def user_identity_lookup(identity):
+    return str(identity)
 
 # Inicialização das Migrações (NOVO)
 migrate = Migrate(app, db)
@@ -72,4 +83,4 @@ if __name__ == '__main__':
         db.session.commit()
         print("Acesso Admin garantido: admin@fullgas.com / admin123")
 
-    app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0')

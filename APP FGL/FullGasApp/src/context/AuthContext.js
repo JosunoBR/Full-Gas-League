@@ -1,6 +1,6 @@
 ﻿import React, { createContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import api, { setAuthToken } from '../services/api';
+import api, { setAuthToken, SERVER_BASE_URL } from '../services/api';
 import { registerForPushNotificationsAsync } from '../services/notifications';
 
 export const AuthContext = createContext({});
@@ -67,7 +67,7 @@ function AuthProvider({ children }) {
       }
 
       // Primeiro faz login para obter o token de acesso
-      console.log(`[Auth] Disparando requisição para o servidor (IP 192.168.2.2) com o email: ${normalizedEmail}`);
+      console.log(`[Auth] Disparando requisição para o servidor (${SERVER_BASE_URL}) com o email: ${normalizedEmail}`);
       
       // Registra o token de notificação ANTES de fazer login
       let pushToken = null;
@@ -105,7 +105,7 @@ function AuthProvider({ children }) {
     } catch (err) {
       console.error('[Auth] Erro capturado pelo catch:', err.message);
       if (err.message === 'Network Error') {
-        return { success: false, msg: 'Erro de Rede: O App não alcançou o servidor no IP 192.168.2.2.' };
+        return { success: false, msg: `Erro de Rede: O App não alcançou o servidor em ${SERVER_BASE_URL}.` };
       }
       return { success: false, msg: err.response?.data?.msg || `Falha: ${err.message}` };
     } finally {

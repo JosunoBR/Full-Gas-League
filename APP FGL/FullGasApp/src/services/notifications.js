@@ -1,23 +1,42 @@
-﻿import * as Notifications from 'expo-notifications';
-import Constants from 'expo-constants';
+﻿// Wrapper para notifications - funciona mesmo se o modulo nao estiver disponivel
+let Notifications = null;
+let Constants = null;
 
-const isExpoGo = Constants.appOwnership === 'expo'
-  || Constants.executionEnvironment === 'storeClient';
+// Tenta importar os modulos
+try {
+  Notifications = require('expo-notifications');
+  Constants = require('expo-constants');
+} catch (e) {
+  console.warn('[Notifications] Modulo expo-notifications nao disponivel:', e.message);
+}
 
-// Configure o comportamento das notificacoes
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
+// Verifica se os modulos estao disponiveis
+const isAvailable = Notifications !== null && Constants !== null;
+
+if (isAvailable) {
+  const isExpoGo = Constants.appOwnership === 'expo'
+    || Constants.executionEnvironment === 'storeClient';
+
+  // Configure o comportamento das notificacoes
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+    }),
+  });
+}
 
 export async function registerForPushNotificationsAsync() {
+  if (!isAvailable) {
+    console.warn('[Notifications] Modulo nao disponivel');
+    return null;
+  }
+
   let token = null;
 
-  if (isExpoGo) {
-    console.warn('[Notifications] Expo Go nao suporta push remoto no SDK 53+. Use um Development Build.');
+  if (Constants.appOwnership === 'expo') {
+    console.warn('[Notifications] Expo Go nao suporta push remoto. Use um Development Build.');
     return null;
   }
 
@@ -60,6 +79,8 @@ export async function registerForPushNotificationsAsync() {
 }
 
 export async function scheduleCheckinReminder(raceName, raceDate, hoursBefore = 24) {
+  if (!isAvailable) return;
+
   const trigger = new Date(raceDate);
   trigger.setHours(trigger.getHours() - hoursBefore);
 
@@ -71,7 +92,7 @@ export async function scheduleCheckinReminder(raceName, raceDate, hoursBefore = 
   await Notifications.scheduleNotificationAsync({
     content: {
       title: 'Lembrete de Check-in',
-      body: `A corrida "${raceName}" esta chegando! Voce tem ate 24h antes para confirmar sua presenca.`,
+      body: `A corrida "${raceName}" esta chegada! Voce tem ate 24h antes para confirmar sua presenca.`,
       data: { type: 'checkin_reminder', raceName },
     },
     trigger,

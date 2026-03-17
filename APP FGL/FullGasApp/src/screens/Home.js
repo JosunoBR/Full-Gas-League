@@ -1,7 +1,7 @@
 ﻿import React, { useContext, useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image, ActivityIndicator, Alert, ScrollView } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
-import api from '../services/api';
+import api, { SERVER_BASE_URL } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function Home() {
@@ -128,7 +128,7 @@ export default function Home() {
   };
 
   // Monta a URL completa da imagem para o React Native conseguir ler
-  const serverBaseUrl = 'http://192.168.2.2:5000';
+  const serverBaseUrl = SERVER_BASE_URL;
   const profileImageUrl = profile?.foto_url 
     ? (profile.foto_url.startsWith('http') ? profile.foto_url : `${serverBaseUrl}/static/uploads/${profile.foto_url}`)
     : 'https://via.placeholder.com/150';

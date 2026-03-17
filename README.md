@@ -13,7 +13,7 @@ O sistema suporta múltiplos grids, temporadas, sistema de lastro invertido e c�
    - Windows: `venv\Scripts\activate`
    - Linux/Mac: `source venv/bin/activate`
 3. Instale as dependências: `pip install -r requirements.txt`
-   - *Nota:* Caso tenha erro de módulo faltando, execute: `pip install flask-cors flask-migrate`
+   - *Nota:* Caso tenha erro de módulo faltando, execute: `pip install flask-cors flask-migrate flask-jwt-extended firebase-admin`
 4. Execute o sistema: `python run.py`
    - O site rodará em: `http://127.0.0.1:5000`
 

@@ -5,6 +5,8 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'chave-super-secreta-fullgas-2026'
+    # JWT do App (mantem consistente independente do entrypoint)
+    JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY') or 'fullgas-app-secret-key-2024'
     
     # No SQLite, o prefixo 'sqlite:///' seguido de um caminho absoluto (que começa com / no Linux) 
     # resulta nas 4 barras necessárias para o PythonAnywhere.
