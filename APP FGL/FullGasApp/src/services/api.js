@@ -1,8 +1,8 @@
-﻿import axios from 'axios';
+﻿﻿import axios from 'axios';
 
 // Ajuste o IP conforme sua rede. Ou defina EXPO_PUBLIC_API_URL no ambiente.
 // Exemplo: EXPO_PUBLIC_API_URL=http://192.168.0.10:5000/api
-const defaultBaseURL = 'http://192.168.2.2:5000/api';
+const defaultBaseURL = 'https://www.fullgasleague.com.br/api';
 const baseURL = process.env.EXPO_PUBLIC_API_URL || defaultBaseURL;
 
 export const API_BASE_URL = baseURL;
