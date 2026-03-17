@@ -11,6 +11,8 @@ api_bp = Blueprint('api', __name__)
 
 @api_bp.route('/login', methods=['POST'])
 def login():
+    print("[API] Tentativa de login recebida no servidor!")
+    
     if not request.is_json:
         return jsonify({"msg": "Requisicao deve ser JSON"}), 400
     
