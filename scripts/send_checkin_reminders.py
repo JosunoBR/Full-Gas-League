@@ -19,9 +19,9 @@ def send_checkin_reminders():
     with app.app_context():
         print("--- Iniciando verificação de lembretes de check-in ---")
         
-        # Define o intervalo de tempo para buscar corridas (próximas 48h)
+        # Define o intervalo: de AGORA até 48h no futuro
         now = datetime.utcnow()
-        lookahead_start = now + timedelta(hours=23)
+        lookahead_start = now # Começa a cobrar 48h antes e continua até a hora da corrida
         lookahead_end = now + timedelta(hours=48)
 
         # 1. Encontra corridas agendadas dentro do intervalo

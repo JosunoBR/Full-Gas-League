@@ -128,7 +128,9 @@ class StandingsService:
                     pilots_by_grid[g.id].append({
                         "data": {'id': p.id, 'nickname': p.nickname},
                         "foto_url": foto_final,
-                        "team": team_ref.to_dict() if team_ref else None
+                        "team": team_ref.to_dict() if team_ref else None,
+                        "quali_ban": quali_ban,
+                        "is_reserve": item["is_reserve"],
                     })
 
             # Ordenação e Lastro

@@ -68,6 +68,41 @@ def get_profile():
     if pilot.pontos_cnh <= 10: cnh_status = "Em Risco"
     if pilot.pontos_cnh <= 5: cnh_status = "Crítico"
     if pilot.esta_banido(): cnh_status = "BANIDO"
+
+    # --- CÁLCULO DO LASTRO (Veículo da próxima corrida) ---
+    lastro_veiculo = "Não definido"
+    if active_season and current_team_name != "Sem Equipe":
+        # Pega o ID do grid atual do piloto
+        pilot_teams_in_season = [t for t in pilot.teams if t.season_id == active_season.id]
+        if pilot_teams_in_season:
+            p_grid_id = pilot_teams_in_season[0].grid_id
+            
+            # Busca a classificação atual do grid
+            team_ctx = build_team_context(active_season.id)
+            participants = team_ctx["participants_by_grid"].get(p_grid_id, [])
+            ranking = []
+            
+            for item in participants:
+                p = item["pilot"]
+                pts_finais = ScoringService.calculate_pilot_total_points(p.id, active_season.id, p_grid_id)
+                ranking.append({'id': p.id, 'pontos': pts_finais})
+            
+            # Ordena por pontos (Líderes no topo)
+            ranking.sort(key=lambda x: x['pontos'], reverse=True)
+            
+            # Descobre a posição do piloto na tabela
+            pos = next((i for i, r in enumerate(ranking) if r['id'] == pilot.id), -1)
+            if pos != -1:
+                pos += 1 # 1 para 1º lugar, 2 para 2º...
+                # Regra do Lastro: 1-2(Sauber), 3-4(Haas), 5-6(Alpine), 7-8(RB), 9-10(Williams)
+                # 11-12(Aston), 13-14(Ferrari), 15-16(Mercedes), 17-18(Red Bull), 19-20+(McLaren)
+                carros_lastro = [
+                    "Sauber", "Sauber", "Haas", "Haas", "Alpine", "Alpine", 
+                    "RB", "RB", "Williams", "Williams", "Aston Martin", "Aston Martin", 
+                    "Ferrari", "Ferrari", "Mercedes", "Mercedes", "Red Bull", "Red Bull", 
+                    "McLaren", "McLaren"
+                ]
+                lastro_veiculo = carros_lastro[pos-1] if pos <= len(carros_lastro) else "McLaren"
     
     # Busca o histórico de corridas do piloto na temporada atual
     desempenho_temporada = []
@@ -112,7 +147,7 @@ def get_profile():
         "equipe_atual": current_team_name,
         "cnh_pontos": pilot.pontos_cnh,
         "cnh_status": cnh_status,
-        "advertencias": pilot.advertencias_acumuladas,
+        "lastro_veiculo": lastro_veiculo,
         "desempenho_temporada": desempenho_temporada
     }
     

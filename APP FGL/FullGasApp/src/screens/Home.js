@@ -153,16 +153,14 @@ export default function Home() {
 
       <View style={styles.statsContainer}>
         <View style={styles.statBox}>
-          <Text style={styles.statValue}>{profile?.cnh_pontos}</Text>
+          <Text style={[styles.statValue, { color: profile?.cnh_pontos <= 0 ? '#E60000' : '#FFF' }]}>
+            {profile?.cnh_pontos}
+          </Text>
           <Text style={styles.statLabel}>Pontos CNH</Text>
         </View>
         <View style={styles.statBox}>
-          <Text style={[styles.statValue, {color: profile?.cnh_status === 'BANIDO' ? '#E60000' : '#FFF'}]}>{profile?.cnh_status}</Text>
-          <Text style={styles.statLabel}>Status CNH</Text>
-        </View>
-        <View style={styles.statBox}>
-          <Text style={styles.statValue}>{profile?.advertencias}</Text>
-          <Text style={styles.statLabel}>Advertencias</Text>
+          <Text style={[styles.statValue, { color: '#00BFFF' }]}>{profile?.lastro_veiculo || 'N/A'}</Text>
+          <Text style={styles.statLabel}>Carro da Próxima</Text>
         </View>
       </View>
 

@@ -10,6 +10,16 @@
         <div class="card-body text-center p-3 d-flex flex-column justify-content-center">
             <h5 class="card-title text-white fw-bold mb-1 text-truncate">{{ item.data.nome_real }}</h5>
             <p class="card-text text-white-50 small mb-1 text-truncate">{{ item.data.nickname }}</p>
+            <div class="d-flex justify-content-center gap-1 flex-wrap mb-2">
+                {% if item.is_reserve %}
+                    <span class="badge bg-secondary border border-dark text-white" style="font-size: 0.65rem;">RESERVA</span>
+                {% endif %}
+                {% if item.quali_ban %}
+                    <span class="badge bg-danger text-white" title="Quali Ban: Proibido de participar da classificacao na proxima etapa" style="font-size: 0.65rem;">
+                        <i class="fa-solid fa-ban me-1"></i>QUALI BAN
+                    </span>
+                {% endif %}
+            </div>
             <p class="card-text text-info small mb-0 text-truncate fw-bold">{{ item.team.nome if item.team else 'Sem Equipe' }}</p>
         </div>
     </div>

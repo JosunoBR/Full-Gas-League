@@ -1716,6 +1716,19 @@ def protests():
                            total_admins=total_admins,
                            voted_protest_ids=voted_protest_ids)
 
+
+def _resolve_protest_verdict(form_data):
+    """Aceita nomes antigos e novos dos campos do formulário."""
+    verdict = (form_data.get('veredito_final') or form_data.get('veredito') or '').strip().upper()
+    valid_verdicts = {'INOCENTE', 'INCIDENTE_CORRIDA', 'ADVERTENCIA', 'LEVE', 'MEDIA', 'GRAVE'}
+    return verdict if verdict in valid_verdicts else None
+
+
+def _resolve_reopened_protest_status(protesto):
+    """Ao reabrir, volta para votação se já existir defesa; senão, aguarda defesa."""
+    has_defense = bool((protesto.argumento_defesa or '').strip() or (protesto.video_defesa or '').strip())
+    return 'EM_VOTACAO' if has_defense else 'AGUARDANDO_DEFESA'
+
 @admin_bp.route('/protests/<int:protest_id>', methods=['GET', 'POST'])
 def view_protest(protest_id):
     protesto = db.session.get(Protesto, protest_id) or abort(404)
@@ -1751,15 +1764,35 @@ def view_protest(protest_id):
                 flash('Voto registrado.', 'success')
             return redirect(url_for('admin.view_protest', protest_id=protesto.id))
 
-        if 'fechar' in request.form and current_user.role == 'SUPER_ADM':
-            protesto.veredito_final = request.form.get('veredito')
-            protesto.justificativa_texto = request.form.get('justificativa')
+        if ('fechar' in request.form or 'encerrar' in request.form) and current_user.role == 'SUPER_ADM':
+            verdict = _resolve_protest_verdict(request.form)
+            justificativa = (request.form.get('justificativa') or '').strip()
+
+            if not verdict:
+                flash('Selecione um veredito válido para encerrar o protesto.', 'danger')
+                return redirect(url_for('admin.view_protest', protest_id=protesto.id))
+            if not justificativa:
+                flash('A justificativa oficial é obrigatória para encerrar o protesto.', 'danger')
+                return redirect(url_for('admin.view_protest', protest_id=protesto.id))
+
+            protesto.veredito_final = verdict
+            protesto.justificativa_texto = justificativa
             protesto.status = 'CONCLUIDO'
             protesto.data_fechamento = datetime.utcnow()
-            HomeCache.query.delete()
+            HomeCache.query.filter_by(season_id=protesto.etapa.season_id).delete()
             db.session.commit()
             flash('Protesto encerrado com sucesso.', 'success')
             return redirect(url_for('admin.protests'))
+
+        if 'reabrir' in request.form and current_user.role == 'SUPER_ADM':
+            protesto.status = _resolve_reopened_protest_status(protesto)
+            protesto.veredito_final = None
+            protesto.justificativa_texto = None
+            protesto.data_fechamento = None
+            HomeCache.query.filter_by(season_id=protesto.etapa.season_id).delete()
+            db.session.commit()
+            flash('Protesto reaberto com sucesso. Penalidades estornadas dinamicamente.', 'warning')
+            return redirect(url_for('admin.view_protest', protest_id=protesto.id))
 
     return render_template('admin/view_protest.html', protesto=protesto, meu_voto=meu_voto, votos_resumo=votos_resumo, embed_acusacao=embed_acusacao, embed_defesa=embed_defesa)
 
