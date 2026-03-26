@@ -16,6 +16,64 @@ from app.services.domain_rules import validate_unique_membership_per_grid
 
 admin_bp = Blueprint('admin', __name__)
 
+
+def _cleanup_closed_season_profile_grids(season, grid_configs):
+    closed_grid_ids = {str(cfg.id) for cfg in grid_configs if cfg and cfg.id}
+    closed_grid_names = {
+        (cfg.nome or '').strip().upper()
+        for cfg in grid_configs
+        if (cfg.nome or '').strip()
+    }
+    closed_grid_names.update(
+        (grid_name or '').strip().upper()
+        for (grid_name,) in db.session.query(Race.grid).filter_by(season_id=season.id).distinct().all()
+        if (grid_name or '').strip()
+    )
+
+    other_active_ids = [
+        s.id for s in Season.query.filter(Season.id != season.id, Season.ativa == True).all()
+    ]
+    other_active_names = set()
+    if other_active_ids:
+        other_active_names.update(
+            (cfg.nome or '').strip().upper()
+            for cfg in GridConfig.query.filter(GridConfig.season_id.in_(other_active_ids)).all()
+            if (cfg.nome or '').strip()
+        )
+        other_active_names.update(
+            (grid_name or '').strip().upper()
+            for (grid_name,) in db.session.query(Race.grid).filter(Race.season_id.in_(other_active_ids)).distinct().all()
+            if (grid_name or '').strip()
+        )
+
+    removable_legacy_names = closed_grid_names - other_active_names
+
+    pilots = PilotProfile.query.filter(PilotProfile.grid != 'SEM_GRID').all()
+    for pilot in pilots:
+        tokens = [token.strip() for token in (pilot.grid or '').split(',') if token.strip()]
+        cleaned_tokens = []
+        seen = set()
+        for token in tokens:
+            token_upper = token.upper()
+            should_remove = (
+                (token.isdigit() and token in closed_grid_ids)
+                or (not token.isdigit() and token_upper in removable_legacy_names)
+            )
+            if should_remove or token in seen:
+                continue
+            cleaned_tokens.append(token)
+            seen.add(token)
+
+        pilot.grid = ",".join(cleaned_tokens) if cleaned_tokens else 'SEM_GRID'
+
+
+def _archive_season_teams_and_unlink_pilots(season):
+    teams = Team.query.filter_by(season_id=season.id).all()
+    for team in teams:
+        team.ativa = False
+        team.pilots.clear()
+        team.reserves.clear()
+
 # Lista Oficial de Pistas (Referência 2025/2026)
 PISTAS_F1 = [
     {"nome": "Circuito Internacional do Bahrein", "gp": "GP do Bahrein"},
@@ -705,13 +763,21 @@ def close_season(season_id):
         return redirect(url_for('admin.seasons'))
     
     season = Season.query.get_or_404(season_id)
+
+    pending_protests = Protesto.query.join(Race).filter(
+        Race.season_id == season.id,
+        Protesto.status != 'CONCLUIDO'
+    ).count()
+    if pending_protests:
+        flash(
+            f'Nao e possivel encerrar a temporada enquanto existirem {pending_protests} protesto(s) pendente(s).',
+            'danger'
+        )
+        return redirect(url_for('admin.manage_season', season_id=season.id))
+
     season.ativa = False
     
     # --- HALL OF FAME SNAPSHOT (CONGELAMENTO) ---
-    # Identifica grids usados nesta temporada para limpeza posterior
-    grids_season_rows = db.session.query(Race.grid).filter_by(season_id=season.id).distinct().all()
-    grids_in_season = set([r[0] for r in grids_season_rows])
-
     # Busca as configurações de grid reais da temporada para garantir o uso de IDs
     grid_configs = GridConfig.query.filter_by(season_id=season.id).all()
 
@@ -720,15 +786,22 @@ def close_season(season_id):
     for g_cfg in grid_configs:
         grid_name = g_cfg.nome
         # 1. TOP 3 PILOTOS
-        # Calcula pontuação total
-        results = db.session.query(
+        pilot_rows = db.session.query(
             RaceResult.pilot_id,
-            func.sum(RaceResult.pontos_ganhos).label('total_pts'),
-            func.sum(case(( (RaceResult.posicao == 1) & (RaceResult.dsq == False), 1 ), else_=0)).label('total_wins')
+            func.sum(case((((RaceResult.posicao == 1) & (RaceResult.dsq == False)), 1), else_=0)).label('total_wins')
         ).join(Race).filter(
             Race.season_id == season.id,
-            Race.grid == grid_name
+            Race.grid_id == g_cfg.id
         ).group_by(RaceResult.pilot_id).all()
+
+        results = []
+        for row in pilot_rows:
+            total_pts = ScoringService.calculate_pilot_total_points(row.pilot_id, season.id, g_cfg.id)
+            results.append(type('PilotSeasonResult', (), {
+                'pilot_id': row.pilot_id,
+                'total_pts': total_pts,
+                'total_wins': int(row.total_wins or 0),
+            })())
 
         # Ordena e pega Top 3
         sorted_pilots = sorted(results, key=lambda x: (x.total_pts or 0, x.total_wins or 0), reverse=True)[:3]
@@ -736,7 +809,13 @@ def close_season(season_id):
         for i, res in enumerate(sorted_pilots):
             pilot = PilotProfile.query.get(res.pilot_id)
             # Busca a equipe do piloto específica para este grid
-            team = next((t for t in pilot.teams if t.grid == grid_name), None)
+            team = next(
+                (
+                    t for t in pilot.teams
+                    if t.season_id == season.id and ((t.grid_id and t.grid_id == g_cfg.id) or t.grid == grid_name)
+                ),
+                None
+            )
             
             # Copia a foto para preservar histórico (Snapshot)
             champ_img = None
@@ -762,7 +841,7 @@ def close_season(season_id):
             func.sum(case(( (RaceResult.posicao == 1) & (RaceResult.dsq == False), 1 ), else_=0)).label('total_wins')
         ).join(Race).filter(
             Race.season_id == season.id,
-            Race.grid == grid_name,
+            Race.grid_id == g_cfg.id,
             RaceResult.team_id != None
         ).group_by(RaceResult.team_id).all()
 
@@ -787,34 +866,14 @@ def close_season(season_id):
             ))
     # --------------------------------------------
 
-    # LIMPEZA INTELIGENTE DE GRIDS:
-    # Remove do perfil dos pilotos apenas os grids que pertencem EXCLUSIVAMENTE à temporada encerrada.
-    # Se um grid (ex: 'ELITE') for usado em outra temporada ativa, ele é mantido.
-
-    # 2. Identifica grids usados em outras temporadas que continuam ATIVAS
-    other_active_ids = [s.id for s in Season.query.filter(Season.id != season.id, Season.ativa == True).all()]
-    grids_other_active = set()
-    if other_active_ids:
-        grids_other_rows = db.session.query(Race.grid).filter(Race.season_id.in_(other_active_ids)).distinct().all()
-        grids_other_active = set([r[0] for r in grids_other_rows])
-
-    # 3. Grids que devem ser removidos (Exclusivos da temporada fechada)
-    grids_to_remove = grids_in_season - grids_other_active
-
-    if grids_to_remove:
-        pilots = PilotProfile.query.filter(PilotProfile.grid != 'SEM_GRID').all()
-        for p in pilots:
-            current_grids = set([g.strip() for g in p.grid.split(',')])
-            # Remove apenas os grids exclusivos da temporada fechada
-            new_grids = current_grids - grids_to_remove
-            
-            if not new_grids:
-                p.grid = 'SEM_GRID'
-            else:
-                p.grid = ",".join(sorted(list(new_grids)))
+    _archive_season_teams_and_unlink_pilots(season)
+    _cleanup_closed_season_profile_grids(season, grid_configs)
         
     db.session.commit()
-    flash(f'Temporada {season.nome} encerrada. Grids exclusivos desta temporada foram removidos dos perfis.', 'success')
+    flash(
+        f'Temporada {season.nome} encerrada. Pilotos foram desvinculados do grid e das equipes desta temporada.',
+        'success'
+    )
     return redirect(url_for('admin.seasons'))
 
 @admin_bp.route('/season/<int:season_id>/delete', methods=['POST'])

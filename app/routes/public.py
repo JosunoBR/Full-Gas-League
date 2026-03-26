@@ -66,6 +66,34 @@ def _can_interact_with_checkin(pilot, race, today):
         return False
     return _pilot_has_membership_for_race(pilot, race)
 
+
+def _get_active_protest_scope(profile):
+    active_seasons_ids = [s.id for s in Season.query.filter_by(ativa=True).all()]
+    has_active_team = False
+    my_team_grid_ids = set()
+
+    for team in profile.teams:
+        if team.season_id in active_seasons_ids:
+            has_active_team = True
+            if team.grid_id:
+                my_team_grid_ids.add(team.grid_id)
+
+    for team in profile.reserve_teams:
+        if team.season_id in active_seasons_ids:
+            has_active_team = True
+            if team.grid_id:
+                my_team_grid_ids.add(team.grid_id)
+
+    is_valid_pilot = False
+    for grid_token in (profile.grid or '').upper().split(','):
+        grid_token = grid_token.strip()
+        if grid_token.isdigit() or grid_token == 'RESERVA':
+            is_valid_pilot = True
+            if grid_token.isdigit():
+                my_team_grid_ids.add(int(grid_token))
+
+    return active_seasons_ids, has_active_team, my_team_grid_ids, is_valid_pilot
+
 # --- ROTAS PRINCIPAIS (HOME E LOGIN) ---
 
 @public_bp.route('/')
@@ -906,6 +934,9 @@ def update_profile():
 @login_required
 def open_protest():
     if not current_user.pilot_profile: return redirect(url_for('public.home'))
+    user_profile = current_user.pilot_profile
+    active_seasons_ids, has_active_team, my_team_grid_ids, is_valid_pilot = _get_active_protest_scope(user_profile)
+
     if request.method == 'POST':
         etapa_id = request.form.get('race_id', type=int)
         if not etapa_id:
@@ -916,15 +947,33 @@ def open_protest():
         if not race:
             flash('Corrida nao encontrada.', 'danger')
             return redirect(url_for('public.open_protest'))
+        if not race.season or not race.season.ativa or race.season_id not in active_seasons_ids:
+            flash('Nao e possivel abrir protesto para uma corrida de temporada encerrada.', 'warning')
+            return redirect(url_for('public.open_protest'))
         if not race.grid_id:
             flash('Corrida sem grid vinculado. Contate a administracao.', 'danger')
+            return redirect(url_for('public.open_protest'))
+        if not has_active_team and not is_valid_pilot:
+            flash('Voce precisa estar vinculado a um grid aberto para abrir protestos.', 'warning')
+            return redirect(url_for('public.my_profile'))
+        if not _pilot_has_membership_for_race(user_profile, race):
+            flash('Voce nao esta vinculado ao grid aberto desta corrida.', 'warning')
+            return redirect(url_for('public.open_protest'))
+
+        acusado_id = request.form.get('acusado_id', type=int)
+        acusado = db.session.get(PilotProfile, acusado_id) if acusado_id else None
+        if not acusado or acusado.id == user_profile.id:
+            flash('Selecione um piloto valido para abrir o protesto.', 'warning')
+            return redirect(url_for('public.open_protest'))
+        if not _pilot_has_membership_for_race(acusado, race):
+            flash('O piloto acusado nao pertence ao grid desta corrida.', 'warning')
             return redirect(url_for('public.open_protest'))
 
         novo = Protesto(
             etapa_id=etapa_id,
             grid_id=race.grid_id,
-            acusador_id=current_user.pilot_profile.id,
-            acusado_id=request.form.get('acusado_id'),
+            acusador_id=user_profile.id,
+            acusado_id=acusado.id,
             video_link=request.form.get('video'),
             minuto=request.form.get('minuto'),
             descricao=request.form.get('descricao'),
@@ -948,34 +997,6 @@ def open_protest():
 
         return redirect(url_for('public.my_profile'))
     
-    active_seasons_ids = [s.id for s in Season.query.filter_by(ativa=True).all()]
-    user_profile = current_user.pilot_profile
-
-    # 1. Verifica se tem equipe ativa (Titular ou Reserva) e coleta os grids dessa equipe
-    has_active_team = False
-    my_team_grid_ids = set()
-    
-    for t in user_profile.teams:
-        if t.season_id in active_seasons_ids:
-            has_active_team = True
-            if t.grid_id: my_team_grid_ids.add(t.grid_id)
-            
-    for t in user_profile.reserve_teams:
-        if t.season_id in active_seasons_ids:
-            has_active_team = True
-            if t.grid_id: my_team_grid_ids.add(t.grid_id)
-
-    # 2. Verifica se é um piloto válido (Tem grid definido no perfil OU é Reserva explícito)
-    is_valid_pilot = False
-    profile_grids = (user_profile.grid or '').upper().split(',')
-    for g in profile_grids:
-        g = g.strip()
-        if g.isdigit() or g == 'RESERVA':
-            is_valid_pilot = True
-            # Se tiver ID no perfil, adiciona aos grids conhecidos
-            if g.isdigit(): 
-                my_team_grid_ids.add(int(g))
-
     if not has_active_team and not is_valid_pilot:
         flash('Você precisa estar vinculado a um grid para abrir protestos.', 'warning')
         return redirect(url_for('public.my_profile'))

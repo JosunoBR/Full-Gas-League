@@ -21,6 +21,8 @@ from app.models import (
     Race,
     RaceResult,
     Season,
+    SeasonChampion,
+    Team,
     User,
     VotoComissario,
     db,
@@ -139,6 +141,18 @@ class ProtestFlowTests(unittest.TestCase):
         db.session.add_all([super_admin_profile, accuser_profile, accused_profile, voter_profile])
         db.session.flush()
 
+        team = Team(
+            nome='Equipe Teste',
+            grid='ELITE',
+            season_id=season.id,
+            grid_id=grid.id,
+            ativa=True,
+        )
+        team.pilots.append(accused_profile)
+        team.reserves.append(accuser_profile)
+        db.session.add(team)
+        db.session.flush()
+
         race = Race(
             season_id=season.id,
             nome_gp='GP de Teste',
@@ -154,6 +168,7 @@ class ProtestFlowTests(unittest.TestCase):
         race_result = RaceResult(
             race_id=race.id,
             pilot_id=accused_profile.id,
+            team_id=team.id,
             posicao=1,
             pontos_ganhos=18.0,
             status_presenca='OK',
@@ -183,6 +198,7 @@ class ProtestFlowTests(unittest.TestCase):
         self.voter_user_id = voter_user.id
         self.accuser_pilot_id = accuser_profile.id
         self.accused_pilot_id = accused_profile.id
+        self.team_id = team.id
 
     def _login_as(self, user_id):
         with self.client.session_transaction() as session:
@@ -337,6 +353,90 @@ class ProtestFlowTests(unittest.TestCase):
         self.assertEqual(protest.status, 'AGUARDANDO_DEFESA')
         self.assertIsNone(protest.veredito_final)
         self.assertIsNone(protest.data_fechamento)
+
+    def test_close_season_blocks_when_protest_is_still_open(self):
+        self._login_as(self.super_admin_user_id)
+        response = self.client.post(
+            f'/admin/season/{self.season_id}/close',
+            follow_redirects=False,
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(f'/admin/seasons/{self.season_id}', response.headers.get('Location', ''))
+
+        with self.app.app_context():
+            season = db.session.get(Season, self.season_id)
+            team = db.session.get(Team, self.team_id)
+            accused = db.session.get(PilotProfile, self.accused_pilot_id)
+            champions_count = SeasonChampion.query.filter_by(season_id=self.season_id).count()
+
+        self.assertTrue(season.ativa)
+        self.assertEqual(champions_count, 0)
+        self.assertTrue(team.ativa)
+        self.assertEqual(accused.grid, str(self.grid_id))
+        self.assertIn(team.id, [t.id for t in accused.teams])
+
+    def test_close_season_unlinks_team_and_grid_after_protests_are_resolved(self):
+        with self.app.app_context():
+            protest = db.session.get(Protesto, self.protest_id)
+            protest.status = 'CONCLUIDO'
+            protest.veredito_final = 'INOCENTE'
+            protest.justificativa_texto = 'Caso encerrado para liberar fechamento.'
+            protest.data_fechamento = datetime.utcnow()
+            db.session.commit()
+
+        self._login_as(self.super_admin_user_id)
+        response = self.client.post(
+            f'/admin/season/{self.season_id}/close',
+            follow_redirects=False,
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/admin/seasons', response.headers.get('Location', ''))
+
+        with self.app.app_context():
+            season = db.session.get(Season, self.season_id)
+            team = db.session.get(Team, self.team_id)
+            accused = db.session.get(PilotProfile, self.accused_pilot_id)
+            accuser = db.session.get(PilotProfile, self.accuser_pilot_id)
+            champions_count = SeasonChampion.query.filter_by(season_id=self.season_id).count()
+            accused_team_ids = [t.id for t in accused.teams]
+            accuser_reserve_team_ids = [t.id for t in accuser.reserve_teams]
+
+        self.assertFalse(season.ativa)
+        self.assertFalse(team.ativa)
+        self.assertEqual(accused.grid, 'SEM_GRID')
+        self.assertEqual(accuser.grid, 'SEM_GRID')
+        self.assertEqual(accused_team_ids, [])
+        self.assertEqual(accuser_reserve_team_ids, [])
+        self.assertGreater(champions_count, 0)
+
+    def test_open_protest_rejects_closed_season_even_with_direct_post(self):
+        with self.app.app_context():
+            season = db.session.get(Season, self.season_id)
+            season.ativa = False
+            db.session.commit()
+            before_count = Protesto.query.count()
+
+        self._login_as(self.accuser_user_id)
+        response = self.client.post(
+            '/protestar',
+            data={
+                'race_id': self.race_id,
+                'acusado_id': self.accused_pilot_id,
+                'video': 'https://youtube.com/watch?v=fechado',
+                'minuto': '09:99',
+                'descricao': 'Nao deveria abrir em temporada fechada',
+            },
+            follow_redirects=False,
+        )
+
+        self.assertEqual(response.status_code, 302)
+
+        with self.app.app_context():
+            after_count = Protesto.query.count()
+
+        self.assertEqual(after_count, before_count)
 
 
 if __name__ == '__main__':
