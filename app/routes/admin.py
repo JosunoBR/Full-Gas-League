@@ -180,11 +180,11 @@ def dashboard():
 
 @admin_bp.route('/data-health')
 def data_health():
-    all_seasons = Season.query.order_by(Season.id.desc()).all()
+    all_active_seasons = Season.query.filter_by(ativa=True).order_by(Season.id.desc()).all()
     selected_season_id = request.args.get('s', type=int)
     season_ativa = None
     if selected_season_id:
-        season_ativa = next((s for s in all_seasons if s.id == selected_season_id), None)
+        season_ativa = next((s for s in all_active_seasons if s.id == selected_season_id), None)
     if not season_ativa:
         season_ativa = next((s for s in all_seasons if s.ativa), None)
     if not season_ativa and all_seasons:
@@ -204,20 +204,18 @@ def data_health():
 @admin_bp.route('/overview')
 def overview():
     # 1. Busca todas as temporadas para as abas (Histórico completo)
-    all_seasons = Season.query.order_by(Season.id.desc()).all()
+    all_active_seasons = Season.query.filter_by(ativa=True).order_by(Season.id.desc()).all()
     
     # 2. Define a temporada ativa (Selecionada ou a mais recente)
     selected_season_id = request.args.get('s', type=int)
     season_ativa = None
     
     if selected_season_id:
-        season_ativa = next((s for s in all_seasons if s.id == selected_season_id), None)
+        season_ativa = next((s for s in all_active_seasons if s.id == selected_season_id), None)
     
     if not season_ativa:
         # Tenta a mais recente ativa, senão a mais recente de todas
-        season_ativa = next((s for s in all_seasons if s.ativa), None)
-        if not season_ativa and all_seasons:
-            season_ativa = all_seasons[0]
+        season_ativa = all_active_seasons[0] if all_active_seasons else None
     
     # 3. Identifica os Grids (Dinâmico)
     grid_configs = []
@@ -393,7 +391,7 @@ def overview():
                            overview_json=overview_json,
                            season=season_ativa,
                            season_ativa=season_ativa,
-                           all_active_seasons=all_seasons,
+                           all_active_seasons=all_active_seasons,
                            grid_configs=grid_configs)
 
 
