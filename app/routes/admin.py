@@ -341,14 +341,29 @@ def overview():
             }
             
             # constructors standings
+            PONTOS_PENALIDADE = {'LEVE': 3, 'MEDIA': 5, 'GRAVE': 10}
             team_points = {}
             results = RaceResult.query.join(Race).filter(Race.season_id == season_ativa.id, Race.grid_id == g_id).all()
+            
             for rr in results:
                 team = rr.team_snapshot if hasattr(rr, 'team_snapshot') else rr.team
                 if not team: continue
+
+                # Calcula os pontos líquidos para este resultado de corrida específico
+                raw_points = float(rr.pontos_ganhos or 0)
+                
+                # Busca punições do tribunal para este piloto nesta corrida
+                deductions = 0
+                pilot_penalties = punicoes_by_pilot.get(rr.pilot_id, [])
+                for penalty in pilot_penalties:
+                    if penalty.etapa_id == rr.race_id:
+                        deductions += PONTOS_PENALIDADE.get(penalty.veredito_final, 0)
+                
+                net_points = raw_points - deductions
+
                 if team.id not in team_points:
                     team_points[team.id] = {'team': team, 'points': 0.0}
-                team_points[team.id]['points'] += float(rr.pontos_ganhos or 0)
+                team_points[team.id]['points'] += net_points
             dados_grids[g_id]['constructors'] = sorted(team_points.values(), key=lambda x: x['points'], reverse=True)
             
             # pending protests
