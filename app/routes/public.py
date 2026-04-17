@@ -116,49 +116,6 @@ def home():
     # Passo 3: Refatoração para usar StandingsService com Cache
     data = StandingsService.get_home_data(season_ativa.id)
 
-    # --- INÍCIO DA CORREÇÃO PONTUAL PARA CONSTRUTORES NA HOME ---
-    # A lógica abaixo recalcula a pontuação dos construtores para corrigir a inconsistência,
-    # aplicando as deduções de penalidades que o StandingsService pode não estar considerando.
-    # Esta é a mesma lógica usada no painel /admin/overview.
-
-    # 1. Coleta todas as punições da temporada para eficiência
-    punicoes_temporada = Protesto.query.join(Race).filter(
-        Protesto.status == 'CONCLUIDO',
-        Race.season_id == season_ativa.id
-    ).all()
-    punicoes_by_pilot = {}
-    for prot in punicoes_temporada:
-        if prot.acusado_id not in punicoes_by_pilot:
-            punicoes_by_pilot[prot.acusado_id] = []
-        punicoes_by_pilot[prot.acusado_id].append(prot)
-
-    PONTOS_PENALIDADE = {'LEVE': 3, 'MEDIA': 5, 'GRAVE': 10}
-    new_constructors_data = {}
-
-    # 2. Itera sobre os grids da temporada ativa
-    grid_configs = data.get('grid_configs', [])
-    for g_cfg in grid_configs:
-        g_id = g_cfg['id'] if isinstance(g_cfg, dict) else getattr(g_cfg, 'id', None)
-        team_points = {}
-        
-        results = RaceResult.query.join(Race).filter(Race.season_id == season_ativa.id, Race.grid_id == g_id).all()
-        
-        for rr in results:
-            team = rr.team_snapshot if hasattr(rr, 'team_snapshot') else rr.team
-            if not team: continue
-
-            raw_points = float(rr.pontos_ganhos or 0)
-            deductions = sum(PONTOS_PENALIDADE.get(p.veredito_final, 0) for p in punicoes_by_pilot.get(rr.pilot_id, []) if p.etapa_id == rr.race_id)
-            net_points = raw_points - deductions
-
-            team_points.setdefault(team.id, {'equipe': team, 'points': 0.0})['points'] += net_points
-            
-        new_constructors_data[g_id] = sorted(team_points.values(), key=lambda x: x['points'], reverse=True)
-
-    if 'constructors' in data:
-        data['constructors'] = new_constructors_data
-    # --- FIM DA CORREÇÃO PONTUAL ---
-
     return render_template('home.html', season_ativa=season_ativa, all_seasons=all_active_seasons, **data)
 
 @public_bp.route('/login', methods=['GET', 'POST'])

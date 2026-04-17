@@ -13,6 +13,7 @@ from app.services.seletiva_service import SeletivaService
 from app.services.race_result_service import RaceResultService
 from app.services.stats_service import StatsService
 from app.services.domain_rules import validate_unique_membership_per_grid
+from app.services.team_context import build_team_context
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -241,6 +242,12 @@ def overview():
                 punicoes_by_pilot[prot.acusado_id] = []
             punicoes_by_pilot[prot.acusado_id].append(prot)
 
+        # Build team context and calculate constructors points once
+        team_ctx = build_team_context(season_ativa.id)
+        raw_constructors = ScoringService.build_constructors_for_home(
+            season_ativa.id, grid_configs, team_ctx["canonical_teams"], team_ctx["alias_ids_by_key"]
+        )
+
         pilotos = PilotProfile.query.join(User).all()
         all_season_teams = Team.query.filter_by(season_id=season_ativa.id).all()
         
@@ -342,30 +349,14 @@ def overview():
             }
             
             # constructors standings
-            PONTOS_PENALIDADE = {'LEVE': 3, 'MEDIA': 5, 'GRAVE': 10}
-            team_points = {}
-            results = RaceResult.query.join(Race).filter(Race.season_id == season_ativa.id, Race.grid_id == g_id).all()
-            
-            for rr in results:
-                team = rr.team_snapshot if hasattr(rr, 'team_snapshot') else rr.team
-                if not team: continue
-
-                # Calcula os pontos líquidos para este resultado de corrida específico
-                raw_points = float(rr.pontos_ganhos or 0)
-                
-                # Busca punições do tribunal para este piloto nesta corrida
-                deductions = 0
-                pilot_penalties = punicoes_by_pilot.get(rr.pilot_id, [])
-                for penalty in pilot_penalties:
-                    if penalty.etapa_id == rr.race_id:
-                        deductions += PONTOS_PENALIDADE.get(penalty.veredito_final, 0)
-                
-                net_points = raw_points - deductions
-
-                if team.id not in team_points:
-                    team_points[team.id] = {'team': team, 'points': 0.0}
-                team_points[team.id]['points'] += net_points
-            dados_grids[g_id]['constructors'] = sorted(team_points.values(), key=lambda x: x['points'], reverse=True)
+            constructors_data = raw_constructors.get(g_id, [])
+            adapted_constructors = []
+            for item in constructors_data:
+                adapted_constructors.append({
+                    'team': item['equipe'],
+                    'points': item['pontos'],
+                })
+            dados_grids[g_id]['constructors'] = adapted_constructors
             
             # pending protests
             dados_grids[g_id]['pending_protests'] = Protesto.query.join(Race).filter(

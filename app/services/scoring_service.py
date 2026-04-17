@@ -2,6 +2,7 @@ from sqlalchemy import func, case
 from app.models import db, RaceResult, Race, Protesto, PilotProfile, Team
 from app.utils import calcular_perda
 from app.services.team_context import normalize_team_name
+from collections import defaultdict
 
 class ScoringService:
     @staticmethod
@@ -40,27 +41,45 @@ class ScoringService:
 
     @staticmethod
     def get_team_result_stats(season_id):
-        """Return stats by team_id from race_result for a season."""
-        stats_query = (
-            RaceResult.query.with_entities(
-                RaceResult.team_id,
-                func.sum(RaceResult.pontos_ganhos).label("total_pontos"),
-                func.sum(
-                    case((((RaceResult.posicao == 1) & (RaceResult.dsq == False)), 1), else_=0)
-                ).label("total_vitorias"),
-            )
-            .join(Race)
-            .filter(Race.season_id == season_id, RaceResult.team_id.is_not(None))
-            .group_by(RaceResult.team_id)
-            .all()
-        )
-        return {
-            row.team_id: {
-                "pontos": float(row.total_pontos or 0.0),
-                "vitorias": int(row.total_vitorias or 0),
-            }
-            for row in stats_query
-        }
+        """
+        Return stats by team_id from race_result for a season, with penalties deducted.
+        This logic is now the single source of truth for constructor points.
+        """
+        # 1. Get all race results for the season
+        results = RaceResult.query.join(Race).filter(Race.season_id == season_id).all()
+
+        # 2. Get all concluded penalties for the season
+        penalties = Protesto.query.join(Race).filter(
+            Race.season_id == season_id,
+            Protesto.status == 'CONCLUIDO'
+        ).all()
+
+        # 3. Group penalties by race and pilot for quick lookup
+        penalties_by_race_pilot = defaultdict(float)
+        for p in penalties:
+            key = (p.etapa_id, p.acusado_id)
+            penalties_by_race_pilot[key] += calcular_perda(p.veredito_final)
+
+        # 4. Calculate net points per team
+        team_stats = defaultdict(lambda: {'pontos': 0.0, 'vitorias': 0})
+
+        for rr in results:
+            if not rr.team_id:
+                continue
+
+            # Calculate net points for this result
+            raw_points = float(rr.pontos_ganhos or 0)
+            penalty_key = (rr.race_id, rr.pilot_id)
+            deductions = penalties_by_race_pilot.get(penalty_key, 0)
+            net_points = raw_points - deductions
+
+            team_stats[rr.team_id]['pontos'] += net_points
+
+            # Count wins
+            if rr.posicao == 1 and not rr.dsq:
+                team_stats[rr.team_id]['vitorias'] += 1
+        
+        return dict(team_stats)
 
     @staticmethod
     def build_constructors_for_home(season_id, grid_configs, canonical_teams, alias_ids_by_key):
