@@ -180,6 +180,7 @@ def dashboard():
 
 @admin_bp.route('/data-health')
 def data_health():
+    all_seasons = Season.query.order_by(Season.id.desc()).all()
     all_active_seasons = Season.query.filter_by(ativa=True).order_by(Season.id.desc()).all()
     selected_season_id = request.args.get('s', type=int)
     season_ativa = None

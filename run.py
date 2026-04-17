@@ -18,6 +18,10 @@ app.config.from_object(Config)
 # Inicialização do Banco de Dados
 db.init_app(app)
 
+UPLOAD_FOLDER = app.config.get('UPLOAD_FOLDER')
+if UPLOAD_FOLDER:
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
 # Habilita o CORS para permitir que o App acesse a API
 CORS(app)
 
