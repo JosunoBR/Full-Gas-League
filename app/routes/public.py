@@ -1,4 +1,5 @@
 import os
+# UTF-8 without BOM: this file must import cleanly on PythonAnywhere
 from datetime import datetime, timedelta
 from flask import Blueprint, render_template, request, flash, redirect, url_for, current_app
 from flask_login import login_required, current_user, login_user, logout_user
