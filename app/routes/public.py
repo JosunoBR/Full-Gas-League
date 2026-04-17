@@ -151,7 +151,7 @@ def home():
             deductions = sum(PONTOS_PENALIDADE.get(p.veredito_final, 0) for p in punicoes_by_pilot.get(rr.pilot_id, []) if p.etapa_id == rr.race_id)
             net_points = raw_points - deductions
 
-            team_points.setdefault(team.id, {'team': team, 'points': 0.0})['points'] += net_points
+            team_points.setdefault(team.id, {'equipe': team, 'points': 0.0})['points'] += net_points
             
         new_constructors_data[g_id] = sorted(team_points.values(), key=lambda x: x['points'], reverse=True)
 
