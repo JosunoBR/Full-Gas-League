@@ -1143,8 +1143,13 @@ def list_pilots():
     # Mostra todos os pilotos, inclusive ADMs, para gestão de Grid/CNH
     pilots = PilotProfile.query.join(User).order_by(PilotProfile.nickname).all()
 
-    # Carrega grids configurados (todas as temporadas) para obter o mapeamento ID -> Nome
-    configs = GridConfig.query.order_by(GridConfig.season_id, GridConfig.ordem).all()
+    # Carrega grids configurados APENAS das temporadas ativas para as abas
+    active_seasons = Season.query.filter_by(ativa=True).all()
+    active_season_ids = [s.id for s in active_seasons]
+    configs = []
+    if active_season_ids:
+        configs = GridConfig.query.filter(GridConfig.season_id.in_(active_season_ids)).order_by(GridConfig.season_id, GridConfig.ordem).all()
+
     id_to_name = {str(c.id): c.nome for c in configs}
 
     # Abas na ordem das configs + especiais no final

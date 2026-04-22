@@ -9,7 +9,9 @@ class ScoringService:
     def calculate_pilot_total_points(pilot_id, season_id, grid_id):
         """
         Calcula os pontos totais de um piloto em uma temporada/grid específico.
-        Desconta punições do tribunal E penalidade manual.
+        Desconta APENAS punições do tribunal vinculadas ao grid.
+        A penalidade administrativa (penalidade_campeonato) foi desvinculada para que
+        toda punição originada seja espelhada para o mesmo grid que originou.
         """
         # Busca todos os resultados do piloto nesta temporada/grid
         resultados = RaceResult.query.join(Race).filter(
@@ -30,12 +32,8 @@ class ScoringService:
         ).all()
         total_punicoes_tribunal = sum(calcular_perda(p.veredito_final) for p in punicoes_tribunal)
         
-        # Penalidade manual do campeonato
-        piloto = PilotProfile.query.get(pilot_id)
-        penalidade_manual = float(piloto.penalidade_campeonato or 0) if piloto else 0.0
-        
         # Cálculo final
-        pontos_totais = pontos_corridas - total_punicoes_tribunal - penalidade_manual
+        pontos_totais = pontos_corridas - total_punicoes_tribunal
         
         return round(pontos_totais, 1)
 
@@ -152,42 +150,61 @@ class ScoringService:
         Source of truth for public team profile stats:
         - totals and pilot breakdown from race_result.team_id only
         - includes ex-drivers and reserves that raced for the team
+        - DEDUCTS tribunal penalties that happened while racing for this team.
         """
         alias_ids = ScoringService.get_team_alias_ids(team, season_id)
         if not alias_ids:
             return {"total_pontos": 0.0, "total_vitorias": 0, "stats_pilotos": []}
 
-        query = db.session.query(
-            RaceResult.pilot_id,
-            func.sum(RaceResult.pontos_ganhos).label("pontos"),
-            func.sum(case((((RaceResult.posicao == 1) & (RaceResult.dsq == False)), 1), else_=0)).label("vitorias"),
-        ).join(Race).filter(
+        # 1. Punições do Tribunal para todo o campeonato
+        penalties = Protesto.query.join(Race).filter(
+            Race.season_id == season_id,
+            Protesto.status == 'CONCLUIDO'
+        ).all()
+        penalties_by_race_pilot = defaultdict(float)
+        for p in penalties:
+            penalties_by_race_pilot[(p.etapa_id, p.acusado_id)] += calcular_perda(p.veredito_final)
+
+        # 2. Busca os resultados puros dessa equipe (considerando os alias)
+        query = RaceResult.query.join(Race).filter(
             Race.season_id == season_id,
             RaceResult.team_id.in_(alias_ids),
         )
         if team.grid_id:
             query = query.filter(Race.grid_id == team.grid_id)
 
-        rows = query.group_by(RaceResult.pilot_id).all()
-        if not rows:
+        results = query.all()
+        if not results:
             return {"total_pontos": 0.0, "total_vitorias": 0, "stats_pilotos": []}
 
-        pilot_ids = [r.pilot_id for r in rows]
+        # 3. Calcula pontos e vitórias que cada piloto contribuiu para ESSA equipe (já com deduções)
+        pilot_stats = defaultdict(lambda: {"pontos": 0.0, "vitorias": 0})
+        total_pontos = 0.0
+        total_vitorias = 0
+
+        for rr in results:
+            raw_points = float(rr.pontos_ganhos or 0)
+            deductions = penalties_by_race_pilot.get((rr.race_id, rr.pilot_id), 0)
+            net_points = raw_points - deductions
+            
+            pilot_stats[rr.pilot_id]["pontos"] += net_points
+            total_pontos += net_points
+            
+            if rr.posicao == 1 and not rr.dsq:
+                pilot_stats[rr.pilot_id]["vitorias"] += 1
+                total_vitorias += 1
+
+        # 4. Buscas os models dos pilotos para o frontend
+        pilot_ids = list(pilot_stats.keys())
         pilots = PilotProfile.query.filter(PilotProfile.id.in_(pilot_ids)).all()
         pilot_by_id = {p.id: p for p in pilots}
 
         stats_pilotos = []
-        total_pontos = 0.0
-        total_vitorias = 0
-        for r in rows:
-            p = pilot_by_id.get(r.pilot_id)
+        for pid, stats in pilot_stats.items():
+            p = pilot_by_id.get(pid)
             if not p:
                 continue
-            pontos = float(r.pontos or 0.0)
-            vitorias = int(r.vitorias or 0)
-            total_pontos += pontos
-            total_vitorias += vitorias
-            stats_pilotos.append({"piloto": p, "pontos": pontos, "vitorias": vitorias})
+            stats_pilotos.append({"piloto": p, "pontos": round(stats["pontos"], 1), "vitorias": int(stats["vitorias"])})
 
         stats_pilotos.sort(key=lambda x: (x["pontos"], x["vitorias"]), reverse=True)
         return {
