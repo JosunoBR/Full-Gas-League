@@ -69,6 +69,7 @@ class StandingsService:
         # 2. Configurações de Grid
         grid_configs = GridConfig.query.filter_by(season_id=season_id).order_by(GridConfig.ordem).all()
         grid_configs_json = [{'id': g.id, 'nome': g.nome, 'vagas': g.vagas, 'exibir_lastro': g.exibir_lastro} for g in grid_configs]
+        grid_configs_map = {g.id: g for g in grid_configs}
         
         # 3. Contexto de Equipes e Construtores
         team_ctx = build_team_context(season_id)
@@ -93,49 +94,69 @@ class StandingsService:
         pilots_by_grid = { g.id: [] for g in grid_configs }
         
         points_cache = {}
+        all_pilots = PilotProfile.query.options(
+            joinedload(PilotProfile.race_results).joinedload(RaceResult.race),
+            joinedload(PilotProfile.teams),
+            joinedload(PilotProfile.reserve_teams)
+        ).all()
 
-        for g in grid_configs:
-            for item in team_ctx["participants_by_grid"].get(g.id, []):
-                p = item["pilot"]
-                team_ref = item["team"]
-                key_pg = (p.id, g.id)
-                
-                if key_pg not in points_cache:
-                    points_cache[key_pg] = ScoringService.calculate_pilot_total_points(p.id, season_id, g.id)
-                
-                res_no_grid = [r for r in p.race_results if r.race.season_id == season_id and grid_matches(r.race, g)]
-                vitorias = ScoringService.get_pilot_wins(res_no_grid)
+        for p in all_pilots:
+            grids_participados_ids = set()
+            if p.grid and p.grid != 'SEM_GRID':
+                grid_tokens = [token.strip() for token in p.grid.split(',') if token.strip().isdigit()]
+                grids_participados_ids.update(int(token) for token in grid_tokens)
 
-                quali_ban = DisciplineService.is_quali_banned(p.id, g.id)
+            for g_id in grids_participados_ids:
+                if g_id in grid_configs_map:
+                    g = grid_configs_map[g_id]
+                    
+                    # Determina a equipe e o status (titular/reserva) para este grid específico
+                    pilot_teams = team_ctx["teams_by_pilot_id"].get(p.id, [])
+                    team_ref = next((t for t in pilot_teams if t.grid_id == g_id), None)
+                    is_reserve = False
+                    if team_ref:
+                        is_titular = any(pilot.id == p.id for pilot in team_ref.pilots)
+                        if not is_titular:
+                            is_reserve = any(pilot.id == p.id for pilot in team_ref.reserves)
 
-                foto_final = PresentationService.get_pilot_photo_for_grid(p, g.id)
+                    key_pg = (p.id, g.id)
+                    if key_pg not in points_cache:
+                        points_cache[key_pg] = ScoringService.calculate_pilot_total_points(p.id, season_id, g.id)
+                    
+                    res_no_grid = [r for r in p.race_results if r.race.season_id == season_id and grid_matches(r.race, g)]
+                    vitorias = ScoringService.get_pilot_wins(res_no_grid)
+                    quali_ban = DisciplineService.is_quali_banned(p.id, g.id)
+                    foto_final = PresentationService.get_pilot_photo_for_grid(p, g.id)
 
-                full_row = {
-                    "piloto": {'id': p.id, 'nome_real': p.nome_real, 'nickname': p.nickname},
-                    "pilot": {'id': p.id, 'nome_real': p.nome_real, 'nickname': p.nickname},
-                    "pontos": points_cache[key_pg],
-                    "vitorias": vitorias,
-                    "carro": "",
-                    "quali_ban": quali_ban,
-                    "foto_url": foto_final,
-                    "team_name": team_ref.nome if team_ref else "Sem Equipe",
-                    "is_reserve": item["is_reserve"],
-                    "evolucao": [], # OTIMIZAÇÃO: Dados de gráfico removidos da carga inicial. Buscados via API.
-                }
-                standings[g.id].append(full_row)
-
-                if not any(x["data"]["id"] == p.id for x in pilots_by_grid[g.id]):
-                    pilots_by_grid[g.id].append({
-                        "data": {'id': p.id, 'nickname': p.nickname},
-                        "foto_url": foto_final,
-                        "team": team_ref.to_dict() if team_ref else None,
+                    full_row = {
+                        "piloto": {'id': p.id, 'nome_real': p.nome_real, 'nickname': p.nickname},
+                        "pilot": {'id': p.id, 'nome_real': p.nome_real, 'nickname': p.nickname},
+                        "pontos": points_cache[key_pg],
+                        "vitorias": vitorias,
+                        "carro": "",
                         "quali_ban": quali_ban,
-                        "is_reserve": item["is_reserve"],
-                    })
+                        "foto_url": foto_final,
+                        "team_name": team_ref.nome if team_ref else "Sem Equipe",
+                        "is_reserve": is_reserve,
+                        "evolucao": [],
+                    }
+                    standings[g.id].append(full_row)
 
-            # Ordenação e Lastro
-            standings[g.id].sort(key=lambda x: (x["pontos"], x["vitorias"]), reverse=True)
-            PresentationService.assign_ballast(standings[g.id], g)
+                    if not any(x["data"]["id"] == p.id for x in pilots_by_grid[g.id]):
+                        pilots_by_grid[g.id].append({
+                            "data": {'id': p.id, 'nickname': p.nickname},
+                            "foto_url": foto_final,
+                            "team": team_ref.to_dict() if team_ref else None,
+                            "quali_ban": quali_ban,
+                            "is_reserve": is_reserve,
+                        })
+
+        # Ordenação e Lastro
+        for g_id in standings:
+            g_cfg = grid_configs_map.get(g_id)
+            if g_cfg:
+                standings[g_id].sort(key=lambda x: (x["pontos"], x["vitorias"]), reverse=True)
+                PresentationService.assign_ballast(standings[g_id], g_cfg)
 
         # 5. Calendário e Últimas Corridas
         calendar, all_races_db = CalendarService.build_season_calendar(season_id, grid_configs_json)
