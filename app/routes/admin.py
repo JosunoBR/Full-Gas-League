@@ -254,18 +254,16 @@ def overview():
         for p in pilotos:
             resultados_season = [r for r in p.race_results if r.race.season_id == season_ativa.id]
             grids_participados_ids = set()
-            
-            # 1. Identifica Grids via Equipe Titular (ID-only)
+
+            # Estas listas são usadas posteriormente para determinar se o piloto é titular ou reserva
             teams_season = [t for t in all_season_teams if any(pilot.id == p.id for pilot in t.pilots)]
-            for t in teams_season:
-                g_id = t.grid_id
-                if g_id: grids_participados_ids.add(g_id)
-            
-            # 2. Identifica Grids via Equipe Reserva (ID-only)
             reserves_season = [t for t in all_season_teams if any(pilot.id == p.id for pilot in t.reserves)]
-            for t in reserves_season:
-                g_id = t.grid_id
-                if g_id: grids_participados_ids.add(g_id)
+
+            # Fonte única de verdade para a participação de um piloto em um grid:
+            # O campo 'grid' no perfil do piloto, que contém os IDs dos grids atribuídos.
+            if p.grid and p.grid != 'SEM_GRID':
+                grid_tokens = [token.strip() for token in p.grid.split(',') if token.strip().isdigit()]
+                grids_participados_ids.update(int(token) for token in grid_tokens)
 
             for g_id in grids_participados_ids:
                 if g_id in dados_grids:
