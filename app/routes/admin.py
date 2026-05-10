@@ -81,8 +81,8 @@ PISTAS_F1 = [
     {"nome": "Circuito de Jeddah-Corniche", "gp": "GP da Arábia Saudita"},
     {"nome": "Circuito de Albert Park", "gp": "GP da Austrália"},
     {"nome": "Circuito de Suzuka", "gp": "GP do Japão"},
-    {"nome": "Circuito Internacional de Xangai", "gp": "GP da China", "type": "SPRINT"},
-    {"nome": "Autódromo Internacional de Miami", "gp": "GP de Miami", "type": "SPRINT"},
+    {"nome": "Circuito Internacional de Xangai", "gp": "GP da China", "tipo_etapa": "SPRINT"},
+    {"nome": "Autódromo Internacional de Miami", "gp": "GP de Miami", "tipo_etapa": "SPRINT"},
     {"nome": "Autódromo Enzo e Dino Ferrari - Imola", "gp": "GP da Emilia-Romagna"},
     {"nome": "Circuito de Mônaco", "gp": "GP de Mônaco"},
     {"nome": "Circuito de Barcelona-Catalunha", "gp": "GP da Espanha"},
@@ -91,16 +91,16 @@ PISTAS_F1 = [
     {"nome": "Red Bull Ring", "gp": "GP da Áustria"},
     {"nome": "Circuito de Silverstone", "gp": "GP da Grã-Bretanha"},
     {"nome": "Hungaroring", "gp": "GP da Hungria"},
-    {"nome": "Circuito de Spa-Francorchamps", "gp": "GP da Bélgica", "type": "SPRINT"},
+    {"nome": "Circuito de Spa-Francorchamps", "gp": "GP da Bélgica", "tipo_etapa": "SPRINT"},
     {"nome": "Circuito de Zandvoort", "gp": "GP da Holanda"},
     {"nome": "Autódromo Nacional de Monza", "gp": "GP da Itália"},
     {"nome": "Circuito Urbano de Baku", "gp": "GP do Azerbaijão"},
     {"nome": "Circuito de Marina Bay", "gp": "GP de Singapura"},
-    {"nome": "Circuito das Américas (COTA) - Áustin", "gp": "GP dos Estados Unidos", "type": "SPRINT"},
+    {"nome": "Circuito das Américas (COTA) - Áustin", "gp": "GP dos Estados Unidos", "tipo_etapa": "SPRINT"},
     {"nome": "Autódromo Hermanos Rodríguez", "gp": "GP da Cidade do México"},
-    {"nome": "Autódromo José Carlos Pace", "gp": "GP de São Paulo", "type": "SPRINT"},
+    {"nome": "Autódromo José Carlos Pace", "gp": "GP de São Paulo", "tipo_etapa": "SPRINT"},
     {"nome": "Las Vegas Strip Circuit", "gp": "GP de Las Vegas"},
-    {"nome": "Circuito Internacional de Lusail", "gp": "GP do Catar", "type": "SPRINT"},
+    {"nome": "Circuito Internacional de Lusail", "gp": "GP do Catar", "tipo_etapa": "SPRINT"},
     {"nome": "Circuito de Yas Marina", "gp": "GP de Abu Dhabi"},
     {"nome": "Autódromo Internacional do Algarve", "gp": "GP de Portugal"},
     {"nome": "Circuito Paul Ricard", "gp": "GP da França"}
@@ -829,7 +829,8 @@ def close_season(season_id):
                 champ_img = f"champ_{season.id}_{grid_name}_{i+1}_{secrets.token_hex(4)}.{ext}"
                 try:
                     shutil.copy(os.path.join(upload_folder, pilot.foto_url), os.path.join(upload_folder, champ_img))
-                except:
+                except (OSError, FileNotFoundError) as e:
+                    print(f"WARN: Falha ao copiar foto do campeao {pilot.nickname}: {e}")
                     champ_img = None # Falha na cópia, fica sem foto
 
             db.session.add(SeasonChampion(
@@ -861,7 +862,8 @@ def close_season(season_id):
                 champ_logo = f"champ_team_{season.id}_{grid_name}_{secrets.token_hex(4)}.{ext}"
                 try:
                     shutil.copy(os.path.join(upload_folder, team.logo_url), os.path.join(upload_folder, champ_logo))
-                except:
+                except (OSError, FileNotFoundError) as e:
+                    print(f"WARN: Falha ao copiar logo da equipe campea {team.nome}: {e}")
                     champ_logo = None
 
             db.session.add(SeasonChampion(
@@ -1021,9 +1023,9 @@ def generate_grid_text(race_id):
         index_etapa = corridas_grid.index(race)
         numero_etapa = index_etapa + 1
         total_etapas = len(corridas_grid)
-    except:
+    except ValueError:
         numero_etapa = 1
-        total_etapas = 10
+        total_etapas = len(corridas_grid) if corridas_grid else 1
         
     usar_lastro = True
     if numero_etapa == 1 or numero_etapa == total_etapas:

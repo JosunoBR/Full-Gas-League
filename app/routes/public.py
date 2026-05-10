@@ -3,8 +3,8 @@ import os
 from datetime import datetime, timedelta
 from flask import Blueprint, render_template, request, flash, redirect, url_for, current_app
 from flask_login import login_required, current_user, login_user, logout_user
-from werkzeug.security import check_password_hash
-from sqlalchemy import or_
+from werkzeug.security import check_password_hash 
+from sqlalchemy import or_, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 from app.models import db, Season, Race, PilotProfile, Protesto, RaceResult, VotoComissario, Team, RaceRegistration, User, Invite, News, GridConfig, SeasonChampion, PilotGridPhoto
@@ -155,21 +155,11 @@ def register():
         return redirect(url_for('public.home'))
 
     if request.method == 'POST':
-        token_input = request.form.get('token')
         email = (request.form.get('email') or '').strip().lower()
         nickname = (request.form.get('nickname') or '')
         telefone = request.form.get('telefone')
         password = request.form.get('password')
         confirm_password = request.form.get('confirm_password')
-
-        if not token_input:
-            flash('O código de convite é obrigatório.', 'warning')
-            return redirect(url_for('public.register'))
-            
-        invite = Invite.query.filter_by(token=token_input, used=False).first()
-        if not invite:
-            flash('Código de convite inválido ou já utilizado.', 'danger')
-            return redirect(url_for('public.register'))
 
         if not nickname or nickname.strip() == "":
             flash('O campo Nickname é obrigatório.', 'danger')
@@ -197,7 +187,6 @@ def register():
             telefone=telefone[:20] if telefone else None
         )
         db.session.add(new_profile)
-        invite.used = True
         db.session.commit()
 
         flash('Conta criada com sucesso! Faça login para continuar.', 'success')
@@ -242,6 +231,154 @@ def news_detail(news_id):
 
 # --- PERFIL DO PILOTO ---
 
+def _discover_pilot_contexts(perfil, active_seasons):
+    """Descobre todas as combinações de (temporada, grid) em que um piloto está ativo."""
+    available_contexts = []
+    p_grids = [g.strip() for g in perfil.grid.split(',')] if perfil.grid else []
+    contexts_seen = set()
+
+    for s in active_seasons:
+        configs = GridConfig.query.filter_by(season_id=s.id).all()
+        cfg_by_id = {c.id: c for c in configs}
+        valid_names = {c.nome for c in configs}
+
+        # 1) Grids por vínculo de equipe (titular/reserva)
+        team_links = [t for t in perfil.teams if t.season_id == s.id] + [t for t in perfil.reserve_teams if t.season_id == s.id]
+        for t in team_links:
+            g_id = t.grid_id
+            g_name = cfg_by_id[g_id].nome if g_id in cfg_by_id else t.grid
+            if not g_name: continue
+            key = (s.id, g_name)
+            if key not in contexts_seen:
+                contexts_seen.add(key)
+                available_contexts.append({'season_id': s.id, 'season_nome': s.nome, 'grid': g_name, 'grid_id': g_id})
+
+        # 2) Grids por resultados (fallback/histórico)
+        races_res = db.session.query(Race).join(RaceResult).filter(RaceResult.pilot_id == perfil.id, Race.season_id == s.id).distinct().all()
+        for r in races_res:
+            g_name = r.grid_config.nome if r.grid_config else r.grid
+            key = (s.id, g_name)
+            if not g_name or key in contexts_seen: continue
+            contexts_seen.add(key)
+            available_contexts.append({'season_id': s.id, 'season_nome': s.nome, 'grid': g_name, 'grid_id': r.grid_id})
+
+        # 3) Grids do perfil (aceita ID ou nome)
+        for pg in p_grids:
+            g_name, g_id = None, None
+            if pg.isdigit():
+                g_id = int(pg)
+                if g_id in cfg_by_id: g_name = cfg_by_id[g_id].nome
+            else:
+                cfg = next((c for c in configs if c.nome.upper() == pg.upper()), None)
+                if cfg:
+                    g_name = cfg.nome
+                    g_id = cfg.id
+            if not g_name: continue
+            key = (s.id, g_name)
+            if key not in contexts_seen:
+                contexts_seen.add(key)
+                available_contexts.append({'season_id': s.id, 'season_nome': s.nome, 'grid': g_name, 'grid_id': g_id})
+    return available_contexts, p_grids
+
+def _get_context_dependent_data(perfil, current_context):
+    """Busca dados que dependem do contexto (temporada/grid) selecionado."""
+    data = {'quali_ban': False, 'current_team': None, 'meus_pontos_camp': 0, 'desempenho_temporada': []}
+    if not current_context: return data
+
+    grid_id_contexto = current_context.get('grid_id')
+    if grid_id_contexto:
+        grid_photo = next((gp for gp in perfil.grid_photos if hasattr(gp, 'grid_id') and gp.grid_id == grid_id_contexto), None)
+        if grid_photo: perfil.foto_url = grid_photo.foto_url
+
+    s_id, g_name, g_id = current_context['season_id'], current_context['grid'], current_context.get('grid_id')
+    
+    team_query = lambda teams: next((t for t in teams if t.season_id == s_id and (t.grid_id == g_id if g_id else (t.grid_config and t.grid_config.nome == g_name) or t.grid == g_name)), None)
+    data['current_team'] = team_query(perfil.teams) or team_query(perfil.reserve_teams)
+
+    cnh_info = DisciplineService.get_pilot_discipline_stats(perfil.id, s_id, g_id)
+    perfil.pontos_cnh, perfil.advertencias_acumuladas = cnh_info['cnh'], cnh_info['advertencias']
+    if g_id: data['quali_ban'] = DisciplineService.is_quali_banned(perfil.id, g_id)
+    if g_id: data['meus_pontos_camp'] = ScoringService.calculate_pilot_total_points(perfil.id, s_id, g_id)
+
+    all_races_season = Race.query.filter_by(season_id=s_id).order_by(Race.data_corrida).all()
+    corridas = [r for r in all_races_season if r.grid_id == g_id] if g_id else [r for r in all_races_season if (r.grid_config and r.grid_config.nome == g_name) or r.grid == g_name]
+    for race in corridas:
+        resultado = next((r for r in race.results if r.pilot_id == perfil.id), None)
+        data['desempenho_temporada'].append({'gp': race.nome_gp, 'data': race.data_corrida, 'status_corrida': race.status, 'participou': bool(resultado and resultado.status_presenca == 'OK'), 'posicao': resultado.posicao if resultado else 0, 'pontos': resultado.pontos_ganhos if resultado else 0, 'dnf': bool(resultado and resultado.dnf), 'dsq': bool(resultado and resultado.dsq)})
+    return data
+
+def _get_owner_specific_data(perfil, current_context):
+    """Busca dados visíveis apenas para o dono do perfil (check-in, protestos)."""
+    data = {'checkin_race': None, 'registro_atual': None, 'meus_protestos': [], 'defesas_pendentes': [], 'historico': [], 'total_punicoes': 0}
+    if perfil.esta_banido(): flash('ALERTA: Sua CNH está zerada ou negativa. Você está suspenso das atividades de pista.', 'danger')
+    
+    hoje = (datetime.utcnow() - timedelta(hours=3)).date()
+    if current_context:
+        ctx_grid_id, ctx_grid_name = current_context.get('grid_id'), (current_context.get('grid') or '').upper()
+        futuras_q = Race.query.filter(Race.season_id == current_context['season_id'], Race.status != 'Concluida', Race.data_corrida >= hoje)
+        if ctx_grid_id: futuras_q = futuras_q.filter(Race.grid_id == ctx_grid_id)
+        for r in futuras_q.order_by(Race.data_corrida, Race.id).all():
+            r_gname = (r.grid_config.nome if r.grid_config else r.grid or '').upper()
+            if not ((ctx_grid_id and r.grid_id == ctx_grid_id) or (not ctx_grid_id and r_gname == ctx_grid_name)): continue
+            if _can_interact_with_checkin(perfil, r, hoje):
+                reg = RaceRegistration.query.filter_by(race_id=r.id, pilot_id=perfil.id).first()
+                if not reg or reg.status not in ['CONFIRMADO', 'JUSTIFICADO']:
+                    data['checkin_race'], data['registro_atual'] = r, reg
+                    break
+    
+    data['meus_protestos'] = Protesto.query.filter_by(acusador_id=perfil.id).order_by(Protesto.data_criacao.desc()).all()
+    data['defesas_pendentes'] = Protesto.query.filter(Protesto.acusado_id == perfil.id, Protesto.status.in_(['AGUARDANDO_DEFESA', 'EM_VOTACAO']), Protesto.argumento_defesa == None).all()
+    data['historico'] = Protesto.query.filter(Protesto.acusado_id == perfil.id, Protesto.status != 'AGUARDANDO_DEFESA').order_by(Protesto.data_fechamento.desc()).all()
+    for h in data['historico']:
+        if h.veredito_final == 'LEVE': data['total_punicoes'] += 3
+        elif h.veredito_final == 'MEDIA': data['total_punicoes'] += 5
+        elif h.veredito_final == 'GRAVE': data['total_punicoes'] += 10
+    return data
+
+def _get_career_history(perfil):
+    """Busca o histórico de carreira em temporadas encerradas."""
+    seasons_fechadas = Season.query.filter_by(ativa=False).order_by(Season.id.desc()).all()
+    historico_carreira = []
+    for s in seasons_fechadas:
+        resultados_na_season = [r for r in perfil.race_results if r.race.season_id == s.id]
+        if resultados_na_season:
+            pts = sum(float(r.pontos_ganhos or 0.0) for r in resultados_na_season)
+            vitorias = sum(1 for r in resultados_na_season if r.posicao == 1 and not r.dsq)
+            grids_corridos = [(r.race.grid_config.nome if r.race.grid_config else r.race.grid) for r in resultados_na_season]
+            grid_predominante = max(set(grids_corridos), key=grids_corridos.count) if grids_corridos else "N/A"
+            historico_carreira.append({'season_nome': s.nome, 'grid': grid_predominante, 'pontos': pts, 'vitorias': vitorias})
+    return historico_carreira
+
+def _get_profile_page_data(perfil, is_owner=False):
+    """
+    Helper que consolida a lógica de busca de dados para as páginas de perfil.
+    Evita a duplicação massiva de código entre my_profile e public_profile.
+    """
+    # 1. Descobrir contextos e determinar o atual
+    active_seasons = Season.query.filter_by(ativa=True).order_by(Season.id.desc()).all()
+    available_contexts, p_grids = _discover_pilot_contexts(perfil, active_seasons)
+    
+    sel_season_id = request.args.get('s', type=int)
+    sel_grid = request.args.get('g')
+    current_context = None
+    if sel_season_id and sel_grid:
+        current_context = next((c for c in available_contexts if c['season_id'] == sel_season_id and c['grid'] == sel_grid), None)
+    if not current_context and available_contexts:
+        default_grid = p_grids[0] if p_grids else 'SEM_GRID'
+        current_context = next((c for c in available_contexts if c['grid'] == default_grid), available_contexts[0])
+
+    # 2. Coletar dados
+    context_data = _get_context_dependent_data(perfil, current_context)
+    owner_data = _get_owner_specific_data(perfil, current_context) if is_owner else {}
+    career_data = {'historico_carreira': _get_career_history(perfil)}
+
+    # 3. Montar o dicionário final para o template
+    final_data = {'perfil': perfil, 'is_owner': is_owner, 'available_contexts': available_contexts, 'current_context': current_context}
+    final_data.update(context_data)
+    final_data.update(owner_data)
+    final_data.update(career_data)
+    return final_data
+
 @public_bp.route('/piloto/<int:pilot_id>')
 def public_profile(pilot_id):
     perfil = PilotProfile.query.get_or_404(pilot_id)
@@ -249,175 +386,8 @@ def public_profile(pilot_id):
     if current_user.is_authenticated and current_user.pilot_profile and current_user.pilot_profile.id == perfil.id:
         return redirect(url_for('public.my_profile'))
 
-    active_seasons = Season.query.filter_by(ativa=True).order_by(Season.id.desc()).all()
-    available_contexts = []
-    p_grids = [g.strip() for g in perfil.grid.split(',')] if perfil.grid else []
-
-    for s in active_seasons:
-        configs = GridConfig.query.filter_by(season_id=s.id).all()
-        cfg_by_id = {c.id: c for c in configs}
-        valid_names = {c.nome for c in configs}
-        contexts_seen = set()
-
-        # 1) Grids por vínculo de equipe (titular/reserva) - fonte principal.
-        team_links = [t for t in perfil.teams if t.season_id == s.id] + [t for t in perfil.reserve_teams if t.season_id == s.id]
-        for t in team_links:
-            g_id = t.grid_id
-            g_name = t.grid_config.nome if t.grid_config else t.grid
-            if g_id in cfg_by_id:
-                g_name = cfg_by_id[g_id].nome
-            if not g_name:
-                continue
-            key = (s.id, g_name)
-            if key in contexts_seen:
-                continue
-            contexts_seen.add(key)
-            available_contexts.append({
-                'season_id': s.id,
-                'season_nome': s.nome,
-                'grid': g_name,
-                'grid_id': g_id
-            })
-
-        # 2) Grids por resultados (fallback/histórico).
-        races_res = db.session.query(Race).join(RaceResult).filter(
-            RaceResult.pilot_id == perfil.id,
-            Race.season_id == s.id
-        ).distinct().all()
-        for r in races_res:
-            g_name = r.grid_config.nome if r.grid_config else r.grid
-            key = (s.id, g_name)
-            if not g_name or key in contexts_seen:
-                continue
-            contexts_seen.add(key)
-            available_contexts.append({
-                'season_id': s.id,
-                'season_nome': s.nome,
-                'grid': g_name,
-                'grid_id': r.grid_id
-            })
-
-        # 3) Grids do perfil (aceita ID ou nome).
-        for pg in p_grids:
-            cfg = None
-            g_name = None
-            g_id = None
-
-            if pg.isdigit():
-                g_id = int(pg)
-                cfg = cfg_by_id.get(g_id)
-                if cfg:
-                    g_name = cfg.nome
-            else:
-                if pg in valid_names:
-                    g_name = pg
-                    cfg = next((c for c in configs if c.nome == pg), None)
-                    g_id = cfg.id if cfg else None
-
-            if not g_name:
-                continue
-            key = (s.id, g_name)
-            if key in contexts_seen:
-                continue
-            contexts_seen.add(key)
-            available_contexts.append({
-                'season_id': s.id,
-                'season_nome': s.nome,
-                'grid': g_name,
-                'grid_id': g_id
-            })
-
-    sel_season_id = request.args.get('s', type=int)
-    sel_grid = request.args.get('g')
-    
-    current_context = None
-    if sel_season_id and sel_grid:
-        current_context = next((c for c in available_contexts if c['season_id'] == sel_season_id and c['grid'] == sel_grid), None)
-    
-    if not current_context and available_contexts:
-        default_grid = p_grids[0] if p_grids else 'SEM_GRID'
-        current_context = next((c for c in available_contexts if c['grid'] == default_grid), available_contexts[0])
-    
-    quali_ban = False
-    # Lógica de Foto por Grid (baseada em ID)
-    if current_context:
-        grid_id_contexto = current_context.get('grid_id')
-        if grid_id_contexto:
-            grid_photo = next((gp for gp in perfil.grid_photos if hasattr(gp, 'grid_id') and gp.grid_id == grid_id_contexto), None)
-            if grid_photo:
-                perfil.foto_url = grid_photo.foto_url
-    
-    current_team = None
-    if current_context:
-        # Busca equipe usando ID se possível
-        current_team = next((t for t in perfil.teams if t.season_id == current_context['season_id'] and 
-                             ((t.grid_config and t.grid_config.nome == current_context['grid']) or t.grid == current_context['grid'])), None)
-        
-        if not current_team:
-            current_team = next((t for t in perfil.reserve_teams if t.season_id == current_context['season_id'] and 
-                                 ((t.grid_config and t.grid_config.nome == current_context['grid']) or t.grid == current_context['grid'])), None)
-    
-    if current_context:
-        cnh_info = DisciplineService.get_pilot_discipline_stats(perfil.id, current_context['season_id'], current_context['grid_id'])
-        perfil.pontos_cnh = cnh_info['cnh']
-        perfil.advertencias_acumuladas = cnh_info['advertencias']
-        
-        # Verificação de Quali Ban (100% via ID do Grid)
-        grid_id_contexto = current_context.get('grid_id')
-        if grid_id_contexto:
-            quali_ban = DisciplineService.is_quali_banned(perfil.id, grid_id_contexto)
-
-    meus_pontos_camp = 0
-    desempenho_temporada = []
-    if current_context:
-        s_id = current_context['season_id']
-        g_name = current_context['grid']
-        grid_id_calc = current_context.get('grid_id')
-        
-        # Usa a função centralizada para calcular pontos totais
-        if grid_id_calc:
-            meus_pontos_camp = ScoringService.calculate_pilot_total_points(perfil.id, s_id, grid_id_calc)
-        
-        all_races_season = Race.query.filter_by(season_id=s_id).order_by(Race.data_corrida).all()
-        corridas = [r for r in all_races_season if (r.grid_config and r.grid_config.nome == g_name) or r.grid == g_name]
-        
-        for race in corridas:
-            resultado = next((r for r in race.results if r.pilot_id == perfil.id), None)
-            desempenho_temporada.append({
-                'gp': race.nome_gp, 'data': race.data_corrida, 'status_corrida': race.status,
-                'participou': True if resultado and resultado.status_presenca == 'OK' else False,
-                'posicao': resultado.posicao if resultado else 0,
-                'pontos': resultado.pontos_ganhos if resultado else 0,
-                'dnf': resultado.dnf if resultado else False, 'dsq': resultado.dsq if resultado else False
-            })
-
-    seasons_fechadas = Season.query.filter_by(ativa=False).order_by(Season.id.desc()).all()
-    historico_carreira = []
-    for s in seasons_fechadas:
-        resultados_na_season = [r for r in perfil.race_results if r.race.season_id == s.id]
-        if resultados_na_season:
-            pts = sum(r.pontos_ganhos for r in resultados_na_season)
-            vitorias = sum(1 for r in resultados_na_season if r.posicao == 1 and not r.dsq)
-            grids_corridos = [(r.race.grid_config.nome if r.race.grid_config else r.race.grid) for r in resultados_na_season]
-            grid_predominante = max(set(grids_corridos), key=grids_corridos.count) if grids_corridos else "N/A"
-            historico_carreira.append({'season_nome': s.nome, 'grid': grid_predominante, 'pontos': pts, 'vitorias': vitorias})
-
-    return render_template('pilot/profile.html', 
-                           perfil=perfil, 
-                           is_owner=False,
-                           meus_pontos_camp=meus_pontos_camp, 
-                           desempenho_temporada=desempenho_temporada, 
-                           meus_protestos=[], 
-                           defesas_pendentes=[], 
-                           historico=[],
-                           total_punicoes=0,
-                           historico_carreira=historico_carreira,
-                           checkin_race=None,
-                           registro_atual=None,
-                           quali_ban=quali_ban,
-                           available_contexts=available_contexts,
-                           current_context=current_context,
-                           current_team=current_team)
+    profile_data = _get_profile_page_data(perfil, is_owner=False)
+    return render_template('pilot/profile.html', **profile_data)
 
 @public_bp.route('/meu-perfil')
 @login_required
@@ -432,231 +402,8 @@ def my_profile():
     else:
         return redirect(url_for('public.home'))
 
-    active_seasons = Season.query.filter_by(ativa=True).order_by(Season.id.desc()).all()
-    available_contexts = []
-    p_grids = [g.strip() for g in perfil.grid.split(',')] if perfil.grid else []
-
-    for s in active_seasons:
-        configs = GridConfig.query.filter_by(season_id=s.id).all()
-        cfg_by_id = {c.id: c for c in configs}
-        valid_names = {c.nome for c in configs}
-        contexts_seen = set()
-
-        # 1) Grids por vínculo de equipe (titular/reserva) - fonte principal.
-        team_links = [t for t in perfil.teams if t.season_id == s.id] + [t for t in perfil.reserve_teams if t.season_id == s.id]
-        for t in team_links:
-            g_id = t.grid_id
-            g_name = t.grid_config.nome if t.grid_config else t.grid
-            if g_id in cfg_by_id:
-                g_name = cfg_by_id[g_id].nome
-            if not g_name:
-                continue
-            key = (s.id, g_name)
-            if key in contexts_seen:
-                continue
-            contexts_seen.add(key)
-            available_contexts.append({
-                'season_id': s.id,
-                'season_nome': s.nome,
-                'grid': g_name,
-                'grid_id': g_id
-            })
-
-        # 2) Grids por resultados (fallback/histórico).
-        races_res = db.session.query(Race).join(RaceResult).filter(
-            RaceResult.pilot_id == perfil.id,
-            Race.season_id == s.id
-        ).distinct().all()
-        for r in races_res:
-            g_name = r.grid_config.nome if r.grid_config else r.grid
-            key = (s.id, g_name)
-            if not g_name or key in contexts_seen:
-                continue
-            contexts_seen.add(key)
-            available_contexts.append({
-                'season_id': s.id,
-                'season_nome': s.nome,
-                'grid': g_name,
-                'grid_id': r.grid_id
-            })
-
-        # 3) Grids do perfil (aceita ID ou nome).
-        for pg in p_grids:
-            cfg = None
-            g_name = None
-            g_id = None
-
-            if pg.isdigit():
-                g_id = int(pg)
-                cfg = cfg_by_id.get(g_id)
-                if cfg:
-                    g_name = cfg.nome
-            else:
-                if pg in valid_names:
-                    g_name = pg
-                    cfg = next((c for c in configs if c.nome == pg), None)
-                    g_id = cfg.id if cfg else None
-
-            if not g_name:
-                continue
-            key = (s.id, g_name)
-            if key in contexts_seen:
-                continue
-            contexts_seen.add(key)
-            available_contexts.append({
-                'season_id': s.id,
-                'season_nome': s.nome,
-                'grid': g_name,
-                'grid_id': g_id
-            })
-
-    sel_season_id = request.args.get('s', type=int)
-    sel_grid = request.args.get('g')
-    
-    current_context = None
-    if sel_season_id and sel_grid:
-        current_context = next((c for c in available_contexts if c['season_id'] == sel_season_id and c['grid'] == sel_grid), None)
-    
-    if not current_context and available_contexts:
-        default_grid = p_grids[0] if p_grids else 'SEM_GRID'
-        current_context = next((c for c in available_contexts if c['grid'] == default_grid), available_contexts[0])
-    
-    quali_ban = False
-    # Lógica de Foto por Grid (baseada em ID)
-    if current_context:
-        grid_id_contexto = current_context.get('grid_id')
-        if grid_id_contexto:
-            grid_photo = next((gp for gp in perfil.grid_photos if hasattr(gp, 'grid_id') and gp.grid_id == grid_id_contexto), None)
-            if grid_photo:
-                perfil.foto_url = grid_photo.foto_url
-    
-    current_team = None
-    if current_context:
-        ctx_grid_id = current_context.get('grid_id')
-        if ctx_grid_id:
-            current_team = next((t for t in perfil.teams if t.season_id == current_context['season_id'] and t.grid_id == ctx_grid_id), None)
-        else:
-            current_team = next((t for t in perfil.teams if t.season_id == current_context['season_id'] and 
-                                 ((t.grid_config and t.grid_config.nome == current_context['grid']) or t.grid == current_context['grid'])), None)
-
-        if not current_team:
-            if ctx_grid_id:
-                current_team = next((t for t in perfil.reserve_teams if t.season_id == current_context['season_id'] and t.grid_id == ctx_grid_id), None)
-            else:
-                current_team = next((t for t in perfil.reserve_teams if t.season_id == current_context['season_id'] and 
-                                     ((t.grid_config and t.grid_config.nome == current_context['grid']) or t.grid == current_context['grid'])), None)
-
-    if current_context:
-        cnh_info = DisciplineService.get_pilot_discipline_stats(perfil.id, current_context['season_id'], current_context['grid_id'])
-        perfil.pontos_cnh = cnh_info['cnh']
-        perfil.advertencias_acumuladas = cnh_info['advertencias']
-        
-        # Verificação de Quali Ban (100% via ID do Grid)
-        grid_id_contexto = current_context.get('grid_id')
-        if grid_id_contexto:
-            quali_ban = DisciplineService.is_quali_banned(perfil.id, grid_id_contexto)
-
-    if perfil.esta_banido():
-        flash('ALERTA: Sua CNH está zerada ou negativa. Você está suspenso das atividades de pista.', 'danger')
-    
-    checkin_race = None
-    registro_atual = None
-    
-    hoje = (datetime.utcnow() - timedelta(hours=3)).date()
-    if current_context:
-        ctx_grid_id = current_context.get('grid_id')
-        ctx_grid_name = (current_context.get('grid') or '').upper()
-        futuras_q = Race.query.filter(
-            Race.season_id == current_context['season_id'],
-            Race.status != 'Concluida',
-            Race.data_corrida >= hoje
-        )
-        if ctx_grid_id:
-            futuras_q = futuras_q.filter(Race.grid_id == ctx_grid_id)
-        futuras = futuras_q.order_by(Race.data_corrida, Race.id).all()
-
-        for r in futuras:
-            r_gname = (r.grid_config.nome if r.grid_config else r.grid or '').upper()
-            same_context_grid = (ctx_grid_id and r.grid_id == ctx_grid_id) or (not ctx_grid_id and r_gname == ctx_grid_name)
-            if not same_context_grid:
-                continue
-            if _can_interact_with_checkin(perfil, r, hoje):
-                reg = RaceRegistration.query.filter_by(race_id=r.id, pilot_id=perfil.id).first()
-                if not reg or reg.status not in ['CONFIRMADO', 'JUSTIFICADO']:
-                    checkin_race = r
-                    registro_atual = reg
-                    break
-
-    meus_pontos_camp = 0
-    desempenho_temporada = []
-    if current_context:
-        s_id = current_context['season_id']
-        g_name = current_context['grid']
-        grid_id_calc = current_context.get('grid_id')
-        
-        # Usa a função centralizada para calcular pontos totais
-        if grid_id_calc:
-            meus_pontos_camp = ScoringService.calculate_pilot_total_points(perfil.id, s_id, grid_id_calc)
-        
-        all_races_season = Race.query.filter_by(season_id=s_id).order_by(Race.data_corrida).all()
-        if grid_id_calc:
-            corridas = [r for r in all_races_season if r.grid_id == grid_id_calc]
-        else:
-            corridas = [r for r in all_races_season if (r.grid_config and r.grid_config.nome == g_name) or r.grid == g_name]
-        
-        for race in corridas:
-            resultado = next((r for r in race.results if r.pilot_id == perfil.id), None)
-            desempenho_temporada.append({
-                'gp': race.nome_gp, 'data': race.data_corrida, 'status_corrida': race.status,
-                'participou': True if resultado and resultado.status_presenca == 'OK' else False,
-                'posicao': resultado.posicao if resultado else 0,
-                'pontos': resultado.pontos_ganhos if resultado else 0,
-                'dnf': resultado.dnf if resultado else False, 'dsq': resultado.dsq if resultado else False
-            })
-
-    meus_protestos = Protesto.query.filter_by(acusador_id=perfil.id).order_by(Protesto.data_criacao.desc()).all()
-    
-    defesas_pendentes = Protesto.query.filter(
-        Protesto.acusado_id == perfil.id,
-        Protesto.status.in_(['AGUARDANDO_DEFESA', 'EM_VOTACAO']),
-        Protesto.argumento_defesa == None
-    ).all()
-    
-    historico_punicoes = Protesto.query.filter(Protesto.acusado_id == perfil.id, Protesto.status != 'AGUARDANDO_DEFESA').order_by(Protesto.data_fechamento.desc()).all()
-    
-    total_punicoes = 0
-    for h in historico_punicoes:
-        if h.veredito_final == 'LEVE': total_punicoes += 3
-        elif h.veredito_final == 'MEDIA': total_punicoes += 5
-        elif h.veredito_final == 'GRAVE': total_punicoes += 10
-
-    seasons_fechadas = Season.query.filter_by(ativa=False).order_by(Season.id.desc()).all()
-    historico_carreira = []
-    for s in seasons_fechadas:
-        resultados_na_season = [r for r in perfil.race_results if r.race.season_id == s.id]
-        if resultados_na_season:
-            pts = sum(r.pontos_ganhos for r in resultados_na_season)
-            vitorias = sum(1 for r in resultados_na_season if r.posicao == 1 and not r.dsq)
-            grids_corridos = [(r.race.grid_config.nome if r.race.grid_config else r.race.grid) for r in resultados_na_season]
-            grid_predominante = max(set(grids_corridos), key=grids_corridos.count) if grids_corridos else "N/A"
-            historico_carreira.append({'season_nome': s.nome, 'grid': grid_predominante, 'pontos': pts, 'vitorias': vitorias})
-
-    return render_template('pilot/profile.html', 
-                           perfil=perfil,
-                           is_owner=True,
-                           meus_pontos_camp=meus_pontos_camp, 
-                           desempenho_temporada=desempenho_temporada, 
-                           meus_protestos=meus_protestos, 
-                           defesas_pendentes=defesas_pendentes, 
-                           historico=historico_punicoes,
-                           total_punicoes=total_punicoes,
-                           historico_carreira=historico_carreira,
-                           checkin_race=checkin_race,
-                           registro_atual=registro_atual,
-                           quali_ban=quali_ban,
-                           available_contexts=available_contexts,
-                           current_context=current_context,
-                           current_team=current_team)
+    profile_data = _get_profile_page_data(perfil, is_owner=True)
+    return render_template('pilot/profile.html', **profile_data)
 
 # --- AÇÕES DE CHECK-IN ---
 
@@ -878,7 +625,7 @@ def update_profile():
         if grid_photo_target_raw.isdigit():
             grid_photo_target_id = int(grid_photo_target_raw)
         else:
-            grid_cfg = GridConfig.query.filter_by(nome=grid_photo_target_raw).first()
+            grid_cfg = GridConfig.query.filter(func.upper(GridConfig.nome) == grid_photo_target_raw.upper()).first()
             if grid_cfg:
                 grid_photo_target_id = grid_cfg.id
 
