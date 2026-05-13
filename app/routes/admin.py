@@ -1223,7 +1223,16 @@ def list_pilots():
             pilots_by_grid[gname].append(p)
 
     # Remove abas vazias, exceto 'SEM_GRID'
-    grid_tabs = [tab for tab in grid_tabs if pilots_by_grid.get(tab) or tab == 'SEM_GRID']
+    # Apenas remove abas que não têm pilotos e não são 'SEM_GRID'
+    # Isso garante que 'SEM_GRID' sempre apareça se for uma aba válida.
+    grid_tabs = [
+        tab for tab in grid_tabs
+        if pilots_by_grid.get(tab) or tab == 'SEM_GRID'
+    ]
+    # Se 'SEM_GRID' não foi adicionado por ter pilotos, mas está na lista de abas,
+    # garante que ele seja mantido.
+    if 'SEM_GRID' not in grid_tabs and 'SEM_GRID' in grid_tabs_set:
+        grid_tabs.append('SEM_GRID')
 
     # Garante que 'SEM_GRID' esteja no final, se existir
     if 'SEM_GRID' in grid_tabs:
@@ -1231,8 +1240,17 @@ def list_pilots():
         grid_tabs.append('SEM_GRID')
 
     # Helper para o template exibir os nomes dos grids do piloto
-    def get_pilot_grids_display(pilot_profile):
-        return _get_pilot_grid_names_from_ids(pilot_profile.grid, grid_id_to_name_map)
+    def get_pilot_grids_display(pilot_profile_obj):
+        pilot_grid_str = pilot_profile_obj.grid
+        if not pilot_grid_str or pilot_grid_str == 'SEM_GRID':
+            return 'SEM_GRID'
+        names = []
+        for token in [x.strip() for x in pilot_grid_str.split(',') if x.strip()]:
+            if token.isdigit():
+                names.append(grid_id_to_name_map.get(int(token), token)) # Usa nome do mapa, fallback para ID se não encontrado
+            else:
+                names.append(token) # Tokens especiais como 'RESERVA'
+        return ", ".join(names)
 
     return render_template('admin/pilots.html', 
                            pilots_by_grid=pilots_by_grid,
