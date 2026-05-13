@@ -1159,13 +1159,10 @@ def race_results(race_id):
                            reservas_que_correram=reservas_que_correram)
 # --- GESTÃO DE PILOTOS E CONVITES ---
 
-def get_grid_names_helper(grid_str):
-    if not grid_str or grid_str == 'SEM_GRID':
-        return 'SEM_GRID'
-    names = []
-    for tid in [x.strip() for x in grid_str.split(',') if x.strip()]:
-        names.append(id_to_name.get(tid, tid))
-    return ", ".join(names)
+# A função _get_pilot_grid_names_from_ids (que causava o erro) foi removida
+# e sua lógica foi integrada diretamente nos helpers locais de list_pilots.
+# def _get_pilot_grid_names_from_ids(pilot_grid_str, grid_configs_map):
+#     ... (código anterior) ...
 
 @admin_bp.route('/pilots')
 def list_pilots():
@@ -1201,11 +1198,21 @@ def list_pilots():
     pilots_by_grid = {name: [] for name in grid_tabs}
 
     for p in pilots:
-        # Converte os IDs do perfil para nomes para agrupar nas abas
-        grid_names_for_pilot = _get_pilot_grid_names_from_ids(p.grid, grid_id_to_name_map).split(', ')
+        # Helper local para converter IDs de grid para nomes para agrupamento nas abas
+        def _get_grid_names_for_grouping(pilot_grid_str, grid_map):
+            if not pilot_grid_str or pilot_grid_str == 'SEM_GRID':
+                return ['SEM_GRID']
+            names = []
+            for token in [x.strip() for x in pilot_grid_str.split(',') if x.strip()]:
+                if token.isdigit():
+                    names.append(grid_map.get(int(token), token)) # Usa nome do mapa, fallback para ID se não encontrado
+                else:
+                    names.append(token) # Tokens especiais como 'RESERVA'
+            return names
+        grid_names_for_pilot = _get_grid_names_for_grouping(p.grid, grid_id_to_name_map)
         
         # Se o piloto não tem grids definidos, vai para 'SEM_GRID'
-        if not grid_names_for_pilot or grid_names_for_pilot == ['SEM_GRID']:
+        if not grid_names_for_pilot or (len(grid_names_for_pilot) == 1 and grid_names_for_pilot[0] == 'SEM_GRID'):
             pilots_by_grid.setdefault('SEM_GRID', []).append(p)
             continue
         
