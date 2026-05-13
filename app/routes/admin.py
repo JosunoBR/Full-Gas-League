@@ -18,6 +18,24 @@ from app.services.team_context import build_team_context
 admin_bp = Blueprint('admin', __name__)
 
 
+def _get_season_context():
+    """
+    Determina a temporada de contexto com base no request.
+    Retorna (temporada_selecionada, todas_as_temporadas_ativas).
+    """
+    all_active_seasons = Season.query.filter_by(ativa=True).order_by(Season.id.desc()).all()
+
+    selected_season_id = request.args.get('s', type=int)
+    season_ativa = None
+    if selected_season_id:
+        season_ativa = next((s for s in all_active_seasons if s.id == selected_season_id), None)
+
+    if not season_ativa and all_active_seasons:
+        season_ativa = all_active_seasons[0]
+
+    return season_ativa, all_active_seasons
+
+
 def _cleanup_closed_season_profile_grids(season, grid_configs):
     closed_grid_ids = {str(cfg.id) for cfg in grid_configs if cfg and cfg.id}
     closed_grid_names = {
@@ -163,20 +181,29 @@ def converter_overview_para_json(dados_grids):
             })
     return resultado
 
+def _get_checkin_stats_for_race(race, grid_pilots_count):
+    """Calcula e retorna as estatísticas de check-in para uma corrida."""
+    if not race:
+        return {'confirmed': 0, 'absent': 0, 'pending': 0}
+
+    regs = RaceRegistration.query.filter_by(race_id=race.id).all()
+    confirmed = sum(1 for r in regs if r.status == 'CONFIRMADO')
+    absent = sum(1 for r in regs if r.status in ['AUSENTE', 'JUSTIFICADO'])
+    
+    # Correção: Pendentes são o total de pilotos do grid menos os que já responderam.
+    responded_count = len(regs)
+    pending = max(0, grid_pilots_count - responded_count)
+
+    return {'confirmed': confirmed, 'absent': absent, 'pending': pending}
+
 
 @admin_bp.route('/dashboard')
 def dashboard():
-    all_active_seasons = Season.query.filter_by(ativa=True).order_by(Season.id.desc()).all()
-    
-    selected_season_id = request.args.get('s', type=int)
-    season_ativa = None
-    if selected_season_id:
-        season_ativa = next((s for s in all_active_seasons if s.id == selected_season_id), None)
-    
-    if not season_ativa and all_active_seasons:
-        season_ativa = all_active_seasons[0]
-        
-    return render_template('admin/dashboard.html', season_ativa=season_ativa, all_active_seasons=all_active_seasons)
+    season_ativa, all_active_seasons = _get_season_context()
+    return render_template(
+        'admin/dashboard.html',
+        season_ativa=season_ativa, all_active_seasons=all_active_seasons
+    )
 
 
 @admin_bp.route('/data-health')
@@ -205,19 +232,7 @@ def data_health():
 
 @admin_bp.route('/overview')
 def overview():
-    # 1. Busca todas as temporadas para as abas (Histórico completo)
-    all_active_seasons = Season.query.filter_by(ativa=True).order_by(Season.id.desc()).all()
-    
-    # 2. Define a temporada ativa (Selecionada ou a mais recente)
-    selected_season_id = request.args.get('s', type=int)
-    season_ativa = None
-    
-    if selected_season_id:
-        season_ativa = next((s for s in all_active_seasons if s.id == selected_season_id), None)
-    
-    if not season_ativa:
-        # Tenta a mais recente ativa, senão a mais recente de todas
-        season_ativa = all_active_seasons[0] if all_active_seasons else None
+    season_ativa, all_active_seasons = _get_season_context()
     
     # 3. Identifica os Grids (Dinâmico)
     grid_configs = []
@@ -333,18 +348,10 @@ def overview():
             dados_grids[g_id]['past_races'] = past_races[-3:]
 
             # check‑in statistics for the upcoming race
-            if next_race:
-                regs = RaceRegistration.query.filter_by(race_id=next_race.id).all()
-                confirmed = sum(1 for r in regs if r.status == 'CONFIRMADO')
-                absent = sum(1 for r in regs if r.status == 'AUSENTE')
-                pending = max(0, len(regs) - confirmed - absent)
-            else:
-                confirmed = absent = pending = 0
-            dados_grids[g_id]['checkin'] = {
-                'confirmed': confirmed,
-                'absent': absent,
-                'pending': pending
-            }
+            total_pilotos_no_grid = dados_grids[g_id]['stats']['total_pilotos']
+            dados_grids[g_id]['checkin'] = _get_checkin_stats_for_race(
+                next_race, total_pilotos_no_grid
+            )
             
             # constructors standings
             constructors_data = raw_constructors.get(g_id, [])
@@ -1089,28 +1096,44 @@ def race_results(race_id):
             flash(f'Ocorreu um erro inesperado: {e}', 'danger')
             return redirect(url_for('admin.manage_season', season_id=race.season_id))
 
-    # --- GET: Preparar dados ---
+    # --- GET: Preparar dados para o formulário de resultados ---
     
-    # 1. Titulares: Apenas do GRID da corrida, COM EQUIPE (Inclui ADMs se tiverem equipe)
-    # FIX: Filtragem exata via Python para evitar falsos positivos com nomes de grid parecidos
-    # Com M2M, verificamos se o piloto tem alguma equipe associada
+    # 1. Busca todos os pilotos
     all_pilots = PilotProfile.query.join(User).order_by(PilotProfile.nickname).all()
     
-    titulares = [] # Será uma lista de dicionários: {'piloto': obj, 'team': obj}
-    titulares_ids = set()
+    # 2. Filtra pilotos que são elegíveis para o grid desta corrida (via PilotProfile.grid)
+    #    Este é o filtro primário para quais pilotos devem aparecer na página.
+    eligible_pilots_in_profile = []
+    race_grid_id_str = str(race.grid_id) if race.grid_id else None
 
     for p in all_pilots:
-        # Verifica se o piloto pertence ao grid via equipe (ID-only)
-        has_team_in_grid = any(t.grid_id == race.grid_id for t in p.teams)
-        if has_team_in_grid:
-            team = next((t for t in p.teams if t.grid_id == race.grid_id), None)
-            titulares.append({'piloto': p, 'team': team})
-            titulares_ids.add(p.id)
+        grid_tokens = [token.strip() for token in (p.grid or '').split(',') if token.strip()]
+        
+        # Um piloto é elegível se o ID do grid da corrida estiver em seu perfil,
+        # ou se ele tiver 'RESERVA' em seu perfil (reserva geral).
+        if (race_grid_id_str and race_grid_id_str in grid_tokens) or ('RESERVA' in grid_tokens):
+            eligible_pilots_in_profile.append(p)
     
-    # 2. Reservas: QUALQUER piloto SEM EQUIPE (Inclui ADMs para correrem de reserva)
-    # Reservas são aqueles que não têm equipe NO GRID DA CORRIDA (ou nenhuma equipe)
-    # Mas simplificando: Qualquer um que não seja titular neste grid
-    reservas_disponiveis = [p for p in all_pilots if p.id not in titulares_ids]
+    # 3. Separa os pilotos elegíveis em Titulares e Reservas
+    titulares = [] # Lista de dicionários: {'piloto': obj, 'team': obj}
+    titulares_ids = set()
+    reservas_disponiveis = [] # Lista de objetos PilotProfile
+
+    for p in eligible_pilots_in_profile:
+        # Um piloto é titular se ele está vinculado a uma equipe que corresponde ao grid e temporada da corrida.
+        team_for_this_grid = next(
+            (t for t in p.teams if t.grid_id == race.grid_id and t.season_id == race.season_id),
+            None
+        )
+        if team_for_this_grid:
+            titulares.append({'piloto': p, 'team': team_for_this_grid})
+            titulares_ids.add(p.id)
+        else:
+            # Se não é titular para este grid, mas é elegível, ele é um reserva disponível.
+            reservas_disponiveis.append(p)
+    
+    # Ordena reservas por nickname para facilitar a seleção no template
+    reservas_disponiveis.sort(key=lambda p: p.nickname)
     
     # 3. Equipes Ativas (para selecionar onde o reserva correu)
     equipes = Team.query.filter_by(ativa=True, grid_id=race.grid_id).all()
@@ -1124,7 +1147,6 @@ def race_results(race_id):
     results_map = { r.pilot_id: r for r in resultados_existentes }
     
     # Identificar reservas que correram (não são titulares do grid)
-    titulares_ids = [t['piloto'].id for t in titulares]
     reservas_que_correram = [r for r in resultados_existentes if r.pilot_id not in titulares_ids]
     
     return render_template('admin/race_results.html', 
@@ -1135,70 +1157,86 @@ def race_results(race_id):
                            checkin_map=checkin_map,
                            results_map=results_map,
                            reservas_que_correram=reservas_que_correram)
-
 # --- GESTÃO DE PILOTOS E CONVITES ---
+
+def _get_pilot_grid_names_from_ids(pilot_grid_str, grid_configs_map):
+    """Helper para converter a string de IDs de grid do piloto para nomes legíveis."""
+    if not pilot_grid_str or pilot_grid_str == 'SEM_GRID':
+        return 'SEM_GRID'
+    names = []
+    for token in [x.strip() for x in pilot_grid_str.split(',') if x.strip()]:
+        if token.isdigit():
+            names.append(grid_configs_map.get(int(token), token)) # Use name from map, fallback to ID if not found
+        else:
+            names.append(token) # Special tokens like 'RESERVA'
+    return ", ".join(names)
 
 @admin_bp.route('/pilots')
 def list_pilots():
     # Mostra todos os pilotos, inclusive ADMs, para gestão de Grid/CNH
     pilots = PilotProfile.query.join(User).order_by(PilotProfile.nickname).all()
 
-    # Carrega grids configurados APENAS das temporadas ativas para as abas
+    # Carrega grids configurados de TODAS as temporadas para mapeamento de IDs para nomes
+    # e para as abas, priorizando os da temporada ativa.
     active_seasons = Season.query.filter_by(ativa=True).all()
     active_season_ids = [s.id for s in active_seasons]
-    configs = []
-    if active_season_ids:
-        configs = GridConfig.query.filter(GridConfig.season_id.in_(active_season_ids)).order_by(GridConfig.season_id, GridConfig.ordem).all()
+    
+    all_grid_configs = GridConfig.query.order_by(GridConfig.season_id.desc(), GridConfig.ordem).all()
+    grid_id_to_name_map = {cfg.id: cfg.nome for cfg in all_grid_configs}
 
-    id_to_name = {str(c.id): c.nome for c in configs}
-
-    # Abas na ordem das configs + especiais no final
-    base_tabs = [c.nome for c in configs]
-    specials = ['RESERVA', 'SEM_GRID']
-    grid_tabs = []
-    # Evita duplicatas mantendo ordem de aparição das configs
-    for name in base_tabs:
-        if name not in grid_tabs:
-            grid_tabs.append(name)
-    for sp in specials:
-        if sp not in grid_tabs:
-            grid_tabs.append(sp)
+    # Grids para as abas: prioriza os da temporada ativa, depois outros grids existentes, e especiais.
+    grid_tabs_set = set()
+    for cfg in all_grid_configs:
+        if cfg.season_id in active_season_ids:
+            grid_tabs_set.add(cfg.nome)
+    for cfg in all_grid_configs: # Add others not in active seasons
+        grid_tabs_set.add(cfg.nome)
+    grid_tabs_set.add('RESERVA')
+    grid_tabs_set.add('SEM_GRID')
+    
+    # Ordena as abas: primeiro as da temporada ativa, depois as outras por nome, depois especiais
+    grid_tabs = sorted(list(grid_tabs_set), key=lambda x: (
+        0 if x in [cfg.nome for cfg in all_grid_configs if cfg.season_id in active_season_ids] else 1,
+        2 if x == 'RESERVA' else 3 if x == 'SEM_GRID' else 1,
+        x
+    ))
 
     # Organiza pilotos por NOME de grid (um piloto pode aparecer em vários)
     pilots_by_grid = {name: [] for name in grid_tabs}
 
     for p in pilots:
-        tokens = [x.strip() for x in (p.grid or '').split(',') if x.strip()]
-        if not tokens:
+        # Converte os IDs do perfil para nomes para agrupar nas abas
+        grid_names_for_pilot = _get_pilot_grid_names_from_ids(p.grid, grid_id_to_name_map).split(', ')
+        
+        # Se o piloto não tem grids definidos, vai para 'SEM_GRID'
+        if not grid_names_for_pilot or grid_names_for_pilot == ['SEM_GRID']:
             pilots_by_grid.setdefault('SEM_GRID', []).append(p)
             continue
-        for t in tokens:
-            gname = None
-            if t.isdigit() and t in id_to_name:
-                gname = id_to_name[t]
-            elif t in specials:
-                gname = t
-            # Ignora tokens legados não mapeados
-            if not gname:
-                continue
+        
+        # Adiciona o piloto a todas as abas de grid correspondentes
+        for gname in grid_names_for_pilot:
             if gname not in pilots_by_grid:
-                pilots_by_grid[gname] = []
+                pilots_by_grid[gname] = [] # Should not happen if grid_tabs is comprehensive
             pilots_by_grid[gname].append(p)
 
-    def get_grid_names_helper(grid_str):
-        if not grid_str or grid_str == 'SEM_GRID':
-            return 'SEM_GRID'
-        names = []
-        for tid in [x.strip() for x in grid_str.split(',') if x.strip()]:
-            names.append(id_to_name.get(tid, tid))
-        return ", ".join(names)
+    # Remove abas vazias, exceto 'SEM_GRID'
+    grid_tabs = [tab for tab in grid_tabs if pilots_by_grid.get(tab) or tab == 'SEM_GRID']
+
+    # Garante que 'SEM_GRID' esteja no final, se existir
+    if 'SEM_GRID' in grid_tabs:
+        grid_tabs.remove('SEM_GRID')
+        grid_tabs.append('SEM_GRID')
+
+    # Helper para o template exibir os nomes dos grids do piloto
+    def get_pilot_grids_display(pilot_profile):
+        return _get_pilot_grid_names_from_ids(pilot_profile.grid, grid_id_to_name_map)
 
     return render_template('admin/pilots.html', 
                            pilots_by_grid=pilots_by_grid,
                            total_count=len(pilots),
                            all_pilots=pilots,
                            grid_tabs=grid_tabs,
-                           get_grid_names=get_grid_names_helper)
+                           get_grid_names=get_pilot_grids_display)
 
 @admin_bp.route('/pilots/edit/<int:pilot_id>', methods=['GET', 'POST'])
 def edit_pilot(pilot_id):
