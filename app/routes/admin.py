@@ -1257,7 +1257,7 @@ def list_pilots():
                            total_count=len(pilots),
                            all_pilots=pilots,
                            grid_tabs=grid_tabs,
-                           get_grid_names=get_pilot_grids_display)
+                           get_pilot_grids_display=get_pilot_grids_display)
 
 @admin_bp.route('/pilots/edit/<int:pilot_id>', methods=['GET', 'POST'])
 def edit_pilot(pilot_id):

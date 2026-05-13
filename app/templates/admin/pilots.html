@@ -42,7 +42,7 @@
                             <tr>
                                 <td class="ps-4 fw-bold text-white">{{ p.nickname }}</td>
                                 <td>
-                                    {% for g in get_grid_names(p.grid).split(',') %}
+                                    {% for g in get_pilot_grids_display(p).split(',') %}
                                         <span class="badge bg-secondary">{{ g.strip() }}</span>
                                     {% endfor %}
                                 </td>
