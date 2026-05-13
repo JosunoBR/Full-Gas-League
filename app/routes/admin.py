@@ -1159,16 +1159,12 @@ def race_results(race_id):
                            reservas_que_correram=reservas_que_correram)
 # --- GESTÃO DE PILOTOS E CONVITES ---
 
-def _get_pilot_grid_names_from_ids(pilot_grid_str, grid_configs_map):
-    """Helper para converter a string de IDs de grid do piloto para nomes legíveis."""
-    if not pilot_grid_str or pilot_grid_str == 'SEM_GRID':
+def get_grid_names_helper(grid_str):
+    if not grid_str or grid_str == 'SEM_GRID':
         return 'SEM_GRID'
     names = []
-    for token in [x.strip() for x in pilot_grid_str.split(',') if x.strip()]:
-        if token.isdigit():
-            names.append(grid_configs_map.get(int(token), token)) # Use name from map, fallback to ID if not found
-        else:
-            names.append(token) # Special tokens like 'RESERVA'
+    for tid in [x.strip() for x in grid_str.split(',') if x.strip()]:
+        names.append(id_to_name.get(tid, tid))
     return ", ".join(names)
 
 @admin_bp.route('/pilots')
