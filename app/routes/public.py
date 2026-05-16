@@ -45,7 +45,7 @@ def _pilot_has_membership_for_race(pilot, race):
     grid_ids, grid_names = _parse_profile_grids(pilot.grid)
     if race.grid_id and race.grid_id in grid_ids:
         return True
-    race_grid_name = (race.grid_config.nome if race.grid_config else race.grid or "").upper()
+    race_grid_name = (get_grid_name(race) or "").upper()
     if race_grid_name and race_grid_name in grid_names:
         return True
     if "RESERVA" in grid_names:
@@ -132,6 +132,10 @@ def login():
         password = request.form.get('password')
         remember = True if request.form.get('remember') else False
 
+        if not email or not password:
+            flash('E-mail e senha são obrigatórios.', 'danger')
+            return redirect(url_for('public.login'))
+
         user = User.query.filter_by(email=email).first()
 
         if not user or not check_password_hash(user.password_hash, password):
@@ -156,22 +160,39 @@ def register():
 
     if request.method == 'POST':
         email = (request.form.get('email') or '').strip().lower()
-        nickname = (request.form.get('nickname') or '')
+        nickname = (request.form.get('nickname') or '').strip()
+        nome_real = (request.form.get('nome_real') or '').strip()
         telefone = request.form.get('telefone')
         password = request.form.get('password')
         confirm_password = request.form.get('confirm_password')
 
-        if not nickname or nickname.strip() == "":
+        if not email:
+            flash('O campo E-mail é obrigatório.', 'danger')
+            return redirect(url_for('public.register'))
+
+        if not nickname:
             flash('O campo Nickname é obrigatório.', 'danger')
+            return redirect(url_for('public.register'))
+
+        if not nome_real:
+            flash('O campo Nome Real é obrigatório.', 'danger')
+            return redirect(url_for('public.register'))
+
+        if nickname.lower() == nome_real.lower():
+            flash('O Nickname (nome de piloto) não pode ser igual ao seu Nome Real.', 'danger')
             return redirect(url_for('public.register'))
 
         if password != confirm_password:
             flash('As senhas não conferem.', 'danger')
             return redirect(url_for('public.register'))
 
-        user_exists = User.query.filter_by(email=email).first()
+        # Verifica se email ou nickname já existem para evitar erro de banco de dados
+        user_exists = User.query.filter(or_(User.email == email, User.username == nickname)).first()
         if user_exists:
-            flash('Este e-mail já está cadastrado.', 'warning')
+            if user_exists.email == email:
+                flash('Este e-mail já está cadastrado.', 'warning')
+            else:
+                flash('Este nickname já está em uso. Por favor, escolha outro.', 'warning')
             return redirect(url_for('public.register'))
         
         new_user = User(email=email, username=nickname[:50], role='PILOTO')
@@ -181,8 +202,8 @@ def register():
 
         new_profile = PilotProfile(
             user_id=new_user.id, 
-            nickname=nickname[:50], 
-            nome_real=nickname[:100], 
+            nickname=nickname[:50],
+            nome_real=nome_real[:100],
             grid='SEM_GRID',
             telefone=telefone[:20] if telefone else None
         )
@@ -301,7 +322,7 @@ def _get_context_dependent_data(perfil, current_context):
     if g_id: data['meus_pontos_camp'] = ScoringService.calculate_pilot_total_points(perfil.id, s_id, g_id)
 
     all_races_season = Race.query.filter_by(season_id=s_id).order_by(Race.data_corrida).all()
-    corridas = [r for r in all_races_season if r.grid_id == g_id] if g_id else [r for r in all_races_season if (r.grid_config and r.grid_config.nome == g_name) or r.grid == g_name]
+    corridas = [r for r in all_races_season if grid_matches(r, g_id or g_name)]
     for race in corridas:
         resultado = next((r for r in race.results if r.pilot_id == perfil.id), None)
         data['desempenho_temporada'].append({'gp': race.nome_gp, 'data': race.data_corrida, 'status_corrida': race.status, 'participou': bool(resultado and resultado.status_presenca == 'OK'), 'posicao': resultado.posicao if resultado else 0, 'pontos': resultado.pontos_ganhos if resultado else 0, 'dnf': bool(resultado and resultado.dnf), 'dsq': bool(resultado and resultado.dsq)})
@@ -344,7 +365,7 @@ def _get_career_history(perfil):
         if resultados_na_season:
             pts = sum(float(r.pontos_ganhos or 0.0) for r in resultados_na_season)
             vitorias = sum(1 for r in resultados_na_season if r.posicao == 1 and not r.dsq)
-            grids_corridos = [(r.race.grid_config.nome if r.race.grid_config else r.race.grid) for r in resultados_na_season]
+            grids_corridos = [get_grid_name(r.race) for r in resultados_na_season]
             grid_predominante = max(set(grids_corridos), key=grids_corridos.count) if grids_corridos else "N/A"
             historico_carreira.append({'season_nome': s.nome, 'grid': grid_predominante, 'pontos': pts, 'vitorias': vitorias})
     return historico_carreira

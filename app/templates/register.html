@@ -21,6 +21,14 @@
                     </div>
 
                     <div class="mb-3">
+                        <label for="nome_real" class="form-label text-white-50 small fw-bold">NOME REAL (COMPLETO)</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-dark border-secondary text-white-50"><i class="fa-solid fa-user"></i></span>
+                            <input type="text" class="form-control bg-dark text-white border-secondary" id="nome_real" name="nome_real" placeholder="Seu nome completo" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
                         <label for="telefone" class="form-label text-white-50 small fw-bold">TELEFONE (WHATSAPP)</label>
                         <div class="input-group">
                             <span class="input-group-text bg-dark border-secondary text-white-50"><i class="fa-solid fa-phone"></i></span>
@@ -58,4 +66,18 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+    /**
+     * Aplica uma máscara de telefone no formato (00) 00000-0000.
+     */
+    function maskPhone(input) {
+        let value = input.value.replace(/\D/g, '');
+        value = value.replace(/^(\d{2})(\d)/g, '($1) $2');
+        value = value.replace(/(\d{5})(\d)/, '$1-$2');
+        input.value = value;
+    }
+</script>
 {% endblock %}
