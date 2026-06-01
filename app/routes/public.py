@@ -14,10 +14,26 @@ from app.services.standings_service import StandingsService
 from app.services.scoring_service import ScoringService
 from app.services.discipline_service import DisciplineService
 from app.services.notification_service import NotificationService
+from app.services.auth_service import AuthService
 
 public_bp = Blueprint('public', __name__)
 
 # --- FUNÇÕES AUXILIARES ---
+
+def validate_required_fields(fields):
+    """
+    Recebe um dicionário {nome: valor}. Retorna (True, None) se todos preenchidos,
+    ou (False, nome_do_campo) se algum estiver vazio.
+    """
+    for name, value in fields.items():
+        if not value:
+            return False, name
+    return True, None
+
+def flash_and_redirect(message, category, endpoint):
+    flash(message, category)
+    return redirect(url_for(endpoint))
+
 
 def _parse_profile_grids(profile_grid_value):
     tokens = [g.strip() for g in (profile_grid_value or "").split(",") if g.strip()]
@@ -73,13 +89,7 @@ def _get_active_protest_scope(profile):
     has_active_team = False
     my_team_grid_ids = set()
 
-    for team in profile.teams:
-        if team.season_id in active_seasons_ids:
-            has_active_team = True
-            if team.grid_id:
-                my_team_grid_ids.add(team.grid_id)
-
-    for team in profile.reserve_teams:
+    for team in profile.teams + profile.reserve_teams:
         if team.season_id in active_seasons_ids:
             has_active_team = True
             if team.grid_id:
@@ -166,49 +176,17 @@ def register():
         password = request.form.get('password')
         confirm_password = request.form.get('confirm_password')
 
-        if not email:
-            flash('O campo E-mail é obrigatório.', 'danger')
-            return redirect(url_for('public.register'))
-
-        if not nickname:
-            flash('O campo Nickname é obrigatório.', 'danger')
-            return redirect(url_for('public.register'))
-
-        if not nome_real:
-            flash('O campo Nome Real é obrigatório.', 'danger')
-            return redirect(url_for('public.register'))
-
-        if nickname.lower() == nome_real.lower():
-            flash('O Nickname (nome de piloto) não pode ser igual ao seu Nome Real.', 'danger')
-            return redirect(url_for('public.register'))
-
-        if password != confirm_password:
-            flash('As senhas não conferem.', 'danger')
-            return redirect(url_for('public.register'))
-
-        # Verifica se email ou nickname já existem para evitar erro de banco de dados
-        user_exists = User.query.filter(or_(User.email == email, User.username == nickname)).first()
-        if user_exists:
-            if user_exists.email == email:
-                flash('Este e-mail já está cadastrado.', 'warning')
-            else:
-                flash('Este nickname já está em uso. Por favor, escolha outro.', 'warning')
-            return redirect(url_for('public.register'))
-        
-        new_user = User(email=email, username=nickname[:50], role='PILOTO')
-        new_user.set_password(password)
-        db.session.add(new_user)
-        db.session.flush()
-
-        new_profile = PilotProfile(
-            user_id=new_user.id, 
-            nickname=nickname[:50],
-            nome_real=nome_real[:100],
-            grid='SEM_GRID',
-            telefone=telefone[:20] if telefone else None
+        success, message = AuthService.register_pilot(
+            email=email,
+            nickname=nickname,
+            nome_real=nome_real,
+            telefone=telefone,
+            password=password,
+            confirm_password=confirm_password
         )
-        db.session.add(new_profile)
-        db.session.commit()
+
+        if not success:
+            return flash_and_redirect(message, 'danger', 'public.register')
 
         flash('Conta criada com sucesso! Faça login para continuar.', 'success')
         return redirect(url_for('public.login'))
@@ -416,7 +394,11 @@ def my_profile():
     if current_user.pilot_profile:
         perfil = current_user.pilot_profile
     elif current_user.role in ['ADM', 'SUPER_ADM']:
-        perfil = PilotProfile(user_id=current_user.id, nickname=current_user.username[:50], nome_real=current_user.username[:100], grid='SEM_GRID')
+        perfil = PilotProfile()
+        perfil.user_id = current_user.id
+        perfil.nickname = current_user.username[:50]
+        perfil.nome_real = current_user.username[:100]
+        perfil.grid = 'SEM_GRID'
         db.session.add(perfil)
         db.session.commit()
         flash('Perfil de piloto ativado para Administrador.', 'success')
@@ -428,13 +410,11 @@ def my_profile():
 
 # --- AÇÕES DE CHECK-IN ---
 
-@public_bp.route('/checkin/confirm/<int:race_id>', methods=['POST'])
-@login_required
-def checkin_confirm(race_id):
+def _handle_checkin(race_id, is_confirm, justificativa=None):
     if not current_user.pilot_profile: return redirect(url_for('public.home'))
     race = Race.query.get_or_404(race_id)
     
-    if current_user.pilot_profile.esta_banido():
+    if is_confirm and current_user.pilot_profile.esta_banido():
         flash('Você está com a CNH Suspensa/Banida e não pode correr.', 'danger')
         return redirect(url_for('public.my_profile'))
         
@@ -443,78 +423,74 @@ def checkin_confirm(race_id):
         flash('Check-in indisponivel para esta corrida no seu contexto atual.', 'warning')
         return redirect(url_for('public.my_profile'))
 
-    # Busca corridas candidatas no mesmo dia/grid/temporada.
-    same_day_candidates = Race.query.filter(
-        Race.season_id == race.season_id,
-        Race.grid_id == race.grid_id,
-        Race.data_corrida == race.data_corrida,
-        Race.status != 'Concluida',
-    ).all()
+    same_day_races = [race]
+    if is_confirm:
+        # Busca corridas candidatas no mesmo dia/grid/temporada.
+        same_day_candidates = Race.query.filter(
+            Race.season_id == race.season_id,
+            Race.grid_id == race.grid_id,
+            Race.data_corrida == race.data_corrida,
+            Race.status != 'Concluida',
+        ).all()
 
-    # Sincroniza apenas corridas do mesmo evento (mesmo GP ou mesma pista),
-    # evitando confirmar GPs diferentes que por acaso estejam na mesma data.
-    same_day_races = [
-        r for r in same_day_candidates
-        if (r.nome_gp == race.nome_gp) or (r.pista == race.pista)
-    ]
-    if not same_day_races:
-        same_day_races = [race]
+        # Sincroniza apenas corridas do mesmo evento (mesmo GP ou mesma pista),
+        # evitando confirmar GPs diferentes que por acaso estejam na mesma data.
+        same_day_races = [
+            r for r in same_day_candidates
+            if (r.nome_gp == race.nome_gp) or (r.pista == race.pista)
+        ]
+        if not same_day_races:
+            same_day_races = [race]
 
     for r in same_day_races:
         registro = RaceRegistration.query.filter_by(
             race_id=r.id, pilot_id=current_user.pilot_profile.id
         ).first()
         if not registro:
-            registro = RaceRegistration(race_id=r.id, pilot_id=current_user.pilot_profile.id)
+            registro = RaceRegistration()
+            registro.race_id = r.id
+            registro.pilot_id = current_user.pilot_profile.id
             db.session.add(registro)
 
-        registro.status = 'CONFIRMADO'
-        registro.justificativa = None
+        if is_confirm:
+            registro.status = 'CONFIRMADO'
+            registro.justificativa = None
+        else:
+            registro.status = 'JUSTIFICADO'
+            registro.justificativa = justificativa
         registro.data_resposta = datetime.utcnow()
 
     try:
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
-        flash('Nao foi possivel confirmar o check-in. Tente novamente.', 'danger')
+        acao = "confirmar o check-in" if is_confirm else "registrar a ausencia"
+        flash(f'Nao foi possivel {acao}. Tente novamente.', 'danger')
         return redirect(url_for('public.my_profile'))
-    if len(same_day_races) > 1:
-        flash('Presença confirmada para todas as corridas do mesmo dia neste grid.', 'success')
+        
+    if is_confirm:
+        if len(same_day_races) > 1:
+            flash('Presença confirmada para todas as corridas do mesmo dia neste grid.', 'success')
+        else:
+            flash('Presença confirmada! Boa corrida!', 'success')
     else:
-        flash('Presença confirmada! Boa corrida!', 'success')
+        flash('Ausência registrada. Agradecemos o aviso.', 'info')
+        
     return redirect(url_for('public.my_profile'))
+
+@public_bp.route('/checkin/confirm/<int:race_id>', methods=['POST'])
+@login_required
+def checkin_confirm(race_id):
+    return _handle_checkin(race_id, is_confirm=True)
 
 @public_bp.route('/checkin/absent/<int:race_id>', methods=['POST'])
 @login_required
 def checkin_absent(race_id):
-    if not current_user.pilot_profile: return redirect(url_for('public.home'))
-    race = Race.query.get_or_404(race_id)
     motivo = (request.form.get('justificativa') or '').strip()
     if not motivo:
         flash('E obrigatorio informar o motivo da ausencia.', 'warning')
         return redirect(url_for('public.my_profile'))
-
-    today = (datetime.utcnow() - timedelta(hours=3)).date()
-    if not _can_interact_with_checkin(current_user.pilot_profile, race, today):
-        flash('Check-in indisponivel para esta corrida no seu contexto atual.', 'warning')
-        return redirect(url_for('public.my_profile'))
-
-    registro = RaceRegistration.query.filter_by(race_id=race_id, pilot_id=current_user.pilot_profile.id).first()
-    if not registro:
-        registro = RaceRegistration(race_id=race_id, pilot_id=current_user.pilot_profile.id)
-        db.session.add(registro)
-    
-    registro.status = 'JUSTIFICADO'
-    registro.justificativa = motivo
-    registro.data_resposta = datetime.utcnow()
-    try:
-        db.session.commit()
-    except IntegrityError:
-        db.session.rollback()
-        flash('Nao foi possivel registrar a ausencia. Tente novamente.', 'danger')
-        return redirect(url_for('public.my_profile'))
-    flash('Ausência registrada. Agradecemos o aviso.', 'info')
-    return redirect(url_for('public.my_profile'))
+    return _handle_checkin(race_id, is_confirm=False, justificativa=motivo)
 
 # --- PÁGINAS DE EQUIPE E OUTRAS ---
 
@@ -676,7 +652,10 @@ def update_profile():
             g_file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], nome_gp))
             
             # Salva a nova foto com o grid_id
-            new_gp = PilotGridPhoto(pilot_id=current_user.pilot_profile.id, grid_id=grid_photo_target_id, foto_url=nome_gp)
+            new_gp = PilotGridPhoto()
+            new_gp.pilot_id = current_user.pilot_profile.id
+            new_gp.grid_id = grid_photo_target_id
+            new_gp.foto_url = nome_gp
             db.session.add(new_gp)
 
     delete_gp_id = request.form.get('delete_grid_photo_id', type=int)
@@ -738,17 +717,16 @@ def open_protest():
             flash('O piloto acusado nao pertence ao grid desta corrida.', 'warning')
             return redirect(url_for('public.open_protest'))
 
-        novo = Protesto(
-            etapa_id=etapa_id,
-            grid_id=race.grid_id,
-            acusador_id=user_profile.id,
-            acusado_id=acusado.id,
-            video_link=request.form.get('video'),
-            minuto=request.form.get('minuto'),
-            descricao=request.form.get('descricao'),
-            status='AGUARDANDO_DEFESA',
-            data_criacao=datetime.utcnow()
-        )
+        novo = Protesto()
+        novo.etapa_id = etapa_id
+        novo.grid_id = race.grid_id
+        novo.acusador_id = user_profile.id
+        novo.acusado_id = acusado.id
+        novo.video_link = request.form.get('video')
+        novo.minuto = request.form.get('minuto')
+        novo.descricao = request.form.get('descricao')
+        novo.status = 'AGUARDANDO_DEFESA'
+        novo.data_criacao = datetime.utcnow()
         db.session.add(novo)
         db.session.commit()
 

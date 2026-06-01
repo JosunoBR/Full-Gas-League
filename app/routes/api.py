@@ -220,20 +220,37 @@ def perform_checkin():
     if race.grid_id not in pilot_grid_ids:
         return jsonify({"msg": "Piloto não pertence ao grid desta corrida"}), 403
 
-    registration = RaceRegistration.query.filter_by(race_id=race.id, pilot_id=pilot.id).first()
-    if registration:
+    same_day_candidates = Race.query.filter(
+        Race.season_id == race.season_id,
+        Race.grid_id == race.grid_id,
+        Race.data_corrida == race.data_corrida,
+        Race.status != 'Concluida',
+    ).all()
+
+    same_day_races = [
+        r for r in same_day_candidates
+        if (r.nome_gp == race.nome_gp) or (r.pista == race.pista)
+    ]
+    if not same_day_races:
+        same_day_races = [race]
+
+    for r in same_day_races:
+        registration = RaceRegistration.query.filter_by(race_id=r.id, pilot_id=pilot.id).first()
+        if not registration:
+            registration = RaceRegistration()
+            registration.race_id = r.id
+            registration.pilot_id = pilot.id
+            db.session.add(registration)
+        
         registration.status = status
+        registration.justificativa = "Feito via App" if status == "AUSENTE" else None
         registration.data_resposta = datetime.utcnow()
-    else:
-        registration = RaceRegistration(
-            race_id=race.id,
-            pilot_id=pilot.id,
-            status=status,
-            data_resposta=datetime.utcnow()
-        )
-        db.session.add(registration)
-    
-    db.session.commit()
+
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"msg": "Erro interno ao salvar check-in"}), 500
 
     return jsonify({
         "msg": f"Check-in para '{race.nome_gp}' atualizado para '{status}'",
