@@ -60,9 +60,11 @@
                             
                             <td class="text-center">
                                 {% if status_inicial == 'CONFIRMADO' %}
-                                    <span class="badge bg-success" title="Confirmou Presença"><i class="fa-solid fa-check"></i></span>
+                                    <span class="badge bg-success" data-bs-toggle="tooltip" title="Confirmou em: {{ registro.data_resposta|format_datetime if registro.data_resposta else 'Sem data registrada' }}">
+                                        <i class="fa-solid fa-check"></i>
+                                    </span>
                                 {% elif status_inicial == 'JUSTIFICADO' %}
-                                    <span class="badge bg-warning text-dark" data-bs-toggle="tooltip" title="Motivo: {{ registro.justificativa }}">
+                                    <span class="badge bg-warning text-dark" data-bs-toggle="tooltip" title="Justificou em: {{ registro.data_resposta|format_datetime if registro.data_resposta else 'Sem data registrada' }} - Motivo: {{ registro.justificativa }}">
                                         <i class="fa-solid fa-comment-dots"></i> Justificou
                                     </span>
                                 {% else %}

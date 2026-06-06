@@ -1,4 +1,4 @@
-﻿import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image, ActivityIndicator, Alert, ScrollView } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
 import api, { SERVER_BASE_URL } from '../services/api';
@@ -152,6 +152,12 @@ export default function Home() {
       </View>
 
       <View style={styles.statsContainer}>
+        <View style={styles.statBox}>
+          <Text style={[styles.statValue, { color: '#28a745' }]}>
+            {profile?.campeonato_pontos !== undefined ? profile.campeonato_pontos : 0}
+          </Text>
+          <Text style={styles.statLabel}>Pts Campeonato</Text>
+        </View>
         <View style={styles.statBox}>
           <Text style={[styles.statValue, { color: profile?.cnh_pontos <= 0 ? '#E60000' : '#FFF' }]}>
             {profile?.cnh_pontos}
