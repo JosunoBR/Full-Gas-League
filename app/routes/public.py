@@ -137,11 +137,7 @@ def home():
     # 2. Itera sobre os grids da temporada ativa
     grid_configs = data.get('grid_configs', [])
     for g_cfg in grid_configs:
-<<<<<<< HEAD
         g_id = g_cfg['id'] if isinstance(g_cfg, dict) else g_cfg.id
-=======
-        g_id = g_cfg['id']
->>>>>>> 6e1fb7a91e8eea401bb4da257fa7315d6ae70c5e
         team_points = {}
         
         results = RaceResult.query.join(Race).filter(Race.season_id == season_ativa.id, Race.grid_id == g_id).all()
