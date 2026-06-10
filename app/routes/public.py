@@ -44,7 +44,7 @@ def _pilot_has_membership_for_race(pilot, race):
     grid_ids, grid_names = _parse_profile_grids(pilot.grid)
     if race.grid_id and race.grid_id in grid_ids:
         return True
-    race_grid_name = (race.grid_config.nome if race.grid_config else race.grid or "").upper()
+    race_grid_name = (get_grid_name(race) or "").upper()
     if race_grid_name and race_grid_name in grid_names:
         return True
     if "RESERVA" in grid_names:
@@ -400,12 +400,10 @@ def public_profile(pilot_id):
     current_team = None
     if current_context:
         # Busca equipe usando ID se possível
-        current_team = next((t for t in perfil.teams if t.season_id == current_context['season_id'] and 
-                             ((t.grid_config and t.grid_config.nome == current_context['grid']) or t.grid == current_context['grid'])), None)
+        current_team = next((t for t in perfil.teams if t.season_id == current_context['season_id'] and get_grid_name(t) == current_context['grid']), None)
         
         if not current_team:
-            current_team = next((t for t in perfil.reserve_teams if t.season_id == current_context['season_id'] and 
-                                 ((t.grid_config and t.grid_config.nome == current_context['grid']) or t.grid == current_context['grid'])), None)
+            current_team = next((t for t in perfil.reserve_teams if t.season_id == current_context['season_id'] and get_grid_name(t) == current_context['grid']), None)
     
     if current_context:
         cnh_info = DisciplineService.get_pilot_discipline_stats(perfil.id, current_context['season_id'], current_context['grid_id'])
@@ -429,7 +427,7 @@ def public_profile(pilot_id):
             meus_pontos_camp = ScoringService.calculate_pilot_total_points(perfil.id, s_id, grid_id_calc)
         
         all_races_season = Race.query.filter_by(season_id=s_id).order_by(Race.data_corrida).all()
-        corridas = [r for r in all_races_season if (r.grid_config and r.grid_config.nome == g_name) or r.grid == g_name]
+        corridas = [r for r in all_races_season if get_grid_name(r) == g_name]
         
         for race in corridas:
             resultado = next((r for r in race.results if r.pilot_id == perfil.id), None)
@@ -448,7 +446,7 @@ def public_profile(pilot_id):
         if resultados_na_season:
             pts = sum(r.pontos_ganhos for r in resultados_na_season)
             vitorias = sum(1 for r in resultados_na_season if r.posicao == 1 and not r.dsq)
-            grids_corridos = [(r.race.grid_config.nome if r.race.grid_config else r.race.grid) for r in resultados_na_season]
+            grids_corridos = [get_grid_name(r.race) for r in resultados_na_season]
             grid_predominante = max(set(grids_corridos), key=grids_corridos.count) if grids_corridos else "N/A"
             historico_carreira.append({'season_nome': s.nome, 'grid': grid_predominante, 'pontos': pts, 'vitorias': vitorias})
 
@@ -496,7 +494,7 @@ def my_profile():
         team_links = [t for t in perfil.teams if t.season_id == s.id] + [t for t in perfil.reserve_teams if t.season_id == s.id]
         for t in team_links:
             g_id = t.grid_id
-            g_name = t.grid_config.nome if t.grid_config else t.grid
+            g_name = get_grid_name(t)
             if g_id in cfg_by_id:
                 g_name = cfg_by_id[g_id].nome
             if not g_name:
@@ -518,7 +516,7 @@ def my_profile():
             Race.season_id == s.id
         ).distinct().all()
         for r in races_res:
-            g_name = r.grid_config.nome if r.grid_config else r.grid
+            g_name = get_grid_name(r)
             key = (s.id, g_name)
             if not g_name or key in contexts_seen:
                 continue
@@ -586,15 +584,13 @@ def my_profile():
         if ctx_grid_id:
             current_team = next((t for t in perfil.teams if t.season_id == current_context['season_id'] and t.grid_id == ctx_grid_id), None)
         else:
-            current_team = next((t for t in perfil.teams if t.season_id == current_context['season_id'] and 
-                                 ((t.grid_config and t.grid_config.nome == current_context['grid']) or t.grid == current_context['grid'])), None)
+            current_team = next((t for t in perfil.teams if t.season_id == current_context['season_id'] and get_grid_name(t) == current_context['grid']), None)
 
         if not current_team:
             if ctx_grid_id:
                 current_team = next((t for t in perfil.reserve_teams if t.season_id == current_context['season_id'] and t.grid_id == ctx_grid_id), None)
             else:
-                current_team = next((t for t in perfil.reserve_teams if t.season_id == current_context['season_id'] and 
-                                     ((t.grid_config and t.grid_config.nome == current_context['grid']) or t.grid == current_context['grid'])), None)
+                current_team = next((t for t in perfil.reserve_teams if t.season_id == current_context['season_id'] and get_grid_name(t) == current_context['grid']), None)
 
     if current_context:
         cnh_info = DisciplineService.get_pilot_discipline_stats(perfil.id, current_context['season_id'], current_context['grid_id'])
@@ -626,7 +622,7 @@ def my_profile():
         futuras = futuras_q.order_by(Race.data_corrida, Race.id).all()
 
         for r in futuras:
-            r_gname = (r.grid_config.nome if r.grid_config else r.grid or '').upper()
+            r_gname = (get_grid_name(r) or '').upper()
             same_context_grid = (ctx_grid_id and r.grid_id == ctx_grid_id) or (not ctx_grid_id and r_gname == ctx_grid_name)
             if not same_context_grid:
                 continue
@@ -652,7 +648,7 @@ def my_profile():
         if grid_id_calc:
             corridas = [r for r in all_races_season if r.grid_id == grid_id_calc]
         else:
-            corridas = [r for r in all_races_season if (r.grid_config and r.grid_config.nome == g_name) or r.grid == g_name]
+            corridas = [r for r in all_races_season if get_grid_name(r) == g_name]
         
         for race in corridas:
             resultado = next((r for r in race.results if r.pilot_id == perfil.id), None)
@@ -687,7 +683,7 @@ def my_profile():
         if resultados_na_season:
             pts = sum(r.pontos_ganhos for r in resultados_na_season)
             vitorias = sum(1 for r in resultados_na_season if r.posicao == 1 and not r.dsq)
-            grids_corridos = [(r.race.grid_config.nome if r.race.grid_config else r.race.grid) for r in resultados_na_season]
+            grids_corridos = [get_grid_name(r.race) for r in resultados_na_season]
             grid_predominante = max(set(grids_corridos), key=grids_corridos.count) if grids_corridos else "N/A"
             historico_carreira.append({'season_nome': s.nome, 'grid': grid_predominante, 'pontos': pts, 'vitorias': vitorias})
 
