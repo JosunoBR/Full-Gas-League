@@ -537,6 +537,7 @@ def historic():
             'piloto_do_dia': piloto_dia,
             'race_id':       race.id,
             'total_pilotos': total_participantes,
+            'tipo_etapa':    race.tipo_etapa,
         }
 
         circuito = race.pista

@@ -185,6 +185,17 @@ HISTORIC_HTML_CONTENT = """{% extends "base.html" %}
     color: rgba(255,255,255,.6);
     white-space: nowrap;
   }
+  .sprint-badge {
+    font-size: .6rem;
+    font-weight: 700;
+    padding: .1rem .4rem;
+    border-radius: 4px;
+    background: rgba(255,255,255,.1);
+    color: rgba(255,255,255,.7);
+    margin-left: .5rem;
+    vertical-align: middle;
+    text-transform: uppercase;
+  }
 
   /* edit btn */
   .btn-edit-race {
@@ -344,7 +355,12 @@ HISTORIC_HTML_CONTENT = """{% extends "base.html" %}
     <div class="race-card">
       <!-- Topo: nome + data + badges -->
       <div class="race-top">
-        <div class="race-gp">{{ h.nome_gp }}</div>
+        <div class="race-gp">
+          {{ h.nome_gp }}
+          {% if h.tipo_etapa and h.tipo_etapa != 'NORMAL' %}
+            <span class="sprint-badge">{{ h.tipo_etapa }}</span>
+          {% endif %}
+        </div>
         <span class="race-date">
           <i class="fa-regular fa-calendar me-1"></i>
           {{ h.data.strftime('%d/%m/%Y') if h.data else '—' }}
