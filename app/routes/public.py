@@ -124,7 +124,15 @@ def home():
         return render_template('home.html', season_ativa=None, all_seasons=all_active_seasons, noticias=[], grid_configs=[], standings={}, constructors={}, calendar={}, last_races={}, pilots_by_grid={})
 
     # Passo 3: Refatoração para usar StandingsService com Cache
-    data = StandingsService.get_home_data(season_ativa.id)
+    import traceback as _tb
+    try:
+        data = StandingsService.get_home_data(season_ativa.id)
+    except Exception as e:
+        print("=" * 60)
+        print("ERRO REAL NA HOME - TRACEBACK COMPLETO:")
+        _tb.print_exc()
+        print("=" * 60)
+        raise
 
     return render_template('home.html', season_ativa=season_ativa, all_seasons=all_active_seasons, **data)
 

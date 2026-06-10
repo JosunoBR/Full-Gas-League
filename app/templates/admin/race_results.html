@@ -7,6 +7,38 @@
 </div>
 
 <form method="POST">
+    <div class="card bg-dark border-silver shadow mb-4">
+        <div class="card-header border-secondary">
+            <h5 class="text-white fw-bold mb-0"><i class="fa-solid fa-stopwatch-20 text-danger me-2"></i> Registro de Pole Position</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label for="pole_pilot_id" class="form-label text-white">Piloto da Pole</label>
+                    <select id="pole_pilot_id" name="pole_pilot_id" class="form-select bg-dark text-white border-secondary">
+                        <option value="">-- Nenhum --</option>
+                        <optgroup label="Titulares">
+                        {% for item in titulares %}
+                        {% set p = item.piloto %}
+                        <option value="{{ p.id }}" {% if race.pole_pilot_id == p.id %}selected{% endif %}>{{ p.nickname }} ({{ item.team.nome }})</option>
+                        {% endfor %}
+                        </optgroup>
+                        {% if reservas %}
+                        <optgroup label="Reservas">
+                        {% for p in reservas %}
+                        <option value="{{ p.id }}" {% if race.pole_pilot_id == p.id %}selected{% endif %}>{{ p.nickname }}</option>
+                        {% endfor %}
+                        </optgroup>
+                        {% endif %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label for="pole_time" class="form-label text-white">Tempo da Pole</label>
+                    <input type="text" id="pole_time" name="pole_time" class="form-control bg-dark text-white border-secondary" value="{{ race.pole_time or '' }}" placeholder="Ex: 1:28.450" style="--bs-secondary-color: rgba(255,255,255,0.5);">
+                </div>
+            </div>
+        </div>
+    </div>
     
     <div class="card shadow border-secondary mb-5">
         <div class="card-header bg-dark border-secondary">
@@ -287,6 +319,9 @@
     </div>
 </template>
 
+<style>
+    .bg-dark::placeholder { color: rgba(255, 255, 255, 0.5) !important; }
+</style>
 <script>
     function toggleRow(pid, enable) {
         const posInput = document.getElementById('pos_' + pid);

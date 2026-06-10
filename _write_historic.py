@@ -1,0 +1,233 @@
+"""Reescreve historic.html com layout corrigido: botão editar inline e pole exibida apenas quando disponível."""
+import os
+
+TARGET = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                      'app', 'templates', 'admin', 'historic.html')
+
+NEW_CONTENT = r"""{% extends "base.html" %}
+
+{% block content %}
+<style>
+  :root { --red:#e10600; --gold:#f5c518; --silver:#a8a9ad; --bronze:#cd7f32; --card-bg:#111318; --border:rgba(255,255,255,0.08); }
+
+  .hist-hero { background:linear-gradient(135deg,#0d0d0d 0%,#1a0a0a 50%,#0d0d0d 100%); border-bottom:2px solid var(--red); padding:2rem 0 1.5rem; margin-bottom:2rem; }
+  .hist-hero h1 { font-family:'Cinzel',serif; font-size:2rem; letter-spacing:3px; color:#fff; margin:0; }
+  .stat-pill { background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:50px; padding:.35rem 1rem; font-size:.8rem; color:rgba(255,255,255,0.6); }
+  .stat-pill strong { color:#fff; }
+
+  #search-input { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.15); color:#fff; border-radius:50px; padding:.55rem 1.25rem; width:100%; max-width:420px; transition:border-color .2s; }
+  #search-input::placeholder { color:rgba(255,255,255,0.4); }
+  #search-input:focus { outline:none; border-color:var(--red); }
+
+  .circuit-block { margin-bottom:1.25rem; border-radius:12px; overflow:hidden; border:1px solid var(--border); background:var(--card-bg); transition:border-color .25s; }
+  .circuit-block:hover { border-color:rgba(225,6,0,.35); }
+
+  .circuit-header { display:flex; align-items:center; gap:.85rem; padding:.9rem 1.25rem; cursor:pointer; user-select:none; background:linear-gradient(90deg,rgba(225,6,0,.12) 0%,transparent 55%); border-bottom:1px solid var(--border); transition:background .2s; }
+  .circuit-header:hover { background:linear-gradient(90deg,rgba(225,6,0,.22) 0%,transparent 55%); }
+
+  .circ-icon { width:42px; height:42px; background:rgba(225,6,0,.15); border:1px solid rgba(225,6,0,.3); border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:1rem; color:var(--red); }
+  .circ-name { font-family:'Cinzel',serif; font-size:.92rem; font-weight:700; color:#fff; letter-spacing:1px; }
+  .circ-meta { font-size:.72rem; color:rgba(255,255,255,.4); margin-top:2px; }
+
+  .badge-races { background:var(--red); color:#fff; font-size:.68rem; font-weight:700; padding:.22rem .65rem; border-radius:50px; white-space:nowrap; }
+  .chevron { color:rgba(255,255,255,.4); transition:transform .3s; font-size:.78rem; }
+  .circuit-block.open .chevron { transform:rotate(180deg); }
+
+  .circ-stats { display:flex; gap:1.5rem; padding:.55rem 1.25rem; background:rgba(0,0,0,.3); border-bottom:1px solid var(--border); flex-wrap:wrap; }
+  .cs-item { font-size:.73rem; color:rgba(255,255,255,.45); }
+  .cs-item strong { color:rgba(255,255,255,.8); }
+
+  .race-list { display:none; padding:.75rem 1rem 1rem 2rem; }
+  .circuit-block.open .race-list { display:block; }
+
+  .race-card { background:rgba(255,255,255,.03); border:1px solid var(--border); border-radius:10px; margin-bottom:.6rem; padding:.9rem 1.1rem; position:relative; transition:background .2s,border-color .2s; }
+  .race-card:hover { background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.13); }
+  .race-card:last-child { margin-bottom:0; }
+  .race-card::before { content:''; position:absolute; left:-1.05rem; top:50%; transform:translateY(-50%); width:8px; height:8px; background:var(--red); border-radius:50%; box-shadow:0 0 7px rgba(225,6,0,.55); }
+
+  /* topo: linha única com GP name + badges + botão editar */
+  .race-top { display:flex; align-items:center; flex-wrap:wrap; gap:.4rem; margin-bottom:.6rem; }
+  .race-gp { font-weight:700; font-size:.93rem; color:#fff; flex:1; min-width:140px; }
+  .race-date { font-size:.73rem; color:rgba(255,255,255,.4); white-space:nowrap; }
+  .race-badge { font-size:.67rem; padding:.13rem .52rem; border-radius:50px; background:rgba(255,255,255,.07); color:rgba(255,255,255,.55); white-space:nowrap; }
+
+  /* botão editar inline */
+  .btn-edit { display:inline-flex; align-items:center; gap:.25rem; background:rgba(255,255,255,.06); border:1px solid var(--border); color:rgba(255,255,255,.45); border-radius:6px; padding:.18rem .55rem; font-size:.7rem; text-decoration:none; transition:background .2s,color .2s; white-space:nowrap; flex-shrink:0; }
+  .btn-edit:hover { background:rgba(225,6,0,.18); color:var(--red); border-color:var(--red); }
+
+  /* pódio */
+  .podium-row { display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:.5rem; }
+  .podium-item { display:flex; align-items:center; gap:.38rem; background:rgba(255,255,255,.05); border-radius:7px; padding:.28rem .65rem; font-size:.77rem; min-width:105px; }
+  .podium-item .pilot-name { color:#fff; font-weight:600; }
+  .podium-item .pilot-name.empty { color:rgba(255,255,255,.22); font-weight:400; }
+  .p1 { border-left:3px solid var(--gold); }
+  .p2 { border-left:3px solid var(--silver); }
+  .p3 { border-left:3px solid var(--bronze); }
+
+  /* extras */
+  .extras-row { display:flex; gap:.4rem; flex-wrap:wrap; }
+  .extra-chip { display:flex; align-items:center; gap:.32rem; font-size:.71rem; color:rgba(255,255,255,.45); background:rgba(255,255,255,.04); border:1px solid var(--border); border-radius:6px; padding:.18rem .55rem; }
+  .extra-chip span { color:rgba(255,255,255,.78); }
+
+  .empty-state { text-align:center; padding:4rem 1rem; color:rgba(255,255,255,.3); }
+  #no-result-msg { display:none; text-align:center; padding:2rem; color:rgba(255,255,255,.3); font-size:.88rem; }
+</style>
+
+{# ── Hero ── #}
+<div class="hist-hero">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+    <div>
+      <h1><i class="fa-solid fa-clock-rotate-left text-danger me-3"></i>HISTÓRICO DE CIRCUITOS</h1>
+      <p class="text-white-50 mb-0 small mt-1">Resultados de todas as corridas da liga, agrupados por circuito.</p>
+    </div>
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+      <span class="stat-pill"><strong>{{ total_circuitos }}</strong> circuito{{ 's' if total_circuitos != 1 else '' }}</span>
+      <span class="stat-pill"><strong>{{ total_corridas_geral }}</strong> corrida{{ 's' if total_corridas_geral != 1 else '' }}</span>
+      <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="fa-solid fa-arrow-left me-1"></i> Painel
+      </a>
+    </div>
+  </div>
+</div>
+
+{% if historico %}
+{# ── Pesquisa ── #}
+<div class="mb-4">
+  <input id="search-input" type="text" placeholder="&#xf002;  Buscar circuito..." autocomplete="off">
+</div>
+
+<div id="circuit-list">
+{% for circuito, dados in historico.items() %}
+{% set stats    = dados.stats %}
+{% set corridas = dados.corridas %}
+
+<div class="circuit-block" data-circuit="{{ circuito | lower }}">
+
+  <div class="circuit-header" onclick="toggleCircuit(this)">
+    <div class="circ-icon"><i class="fa-solid fa-road"></i></div>
+    <div style="flex:1; min-width:0;">
+      <div class="circ-name">{{ circuito }}</div>
+      <div class="circ-meta">Última corrida: {{ stats.ultima_data.strftime('%d/%m/%Y') if stats.ultima_data else '—' }}</div>
+    </div>
+    <span class="badge-races">{{ stats.total_corridas }} corrida{{ 's' if stats.total_corridas != 1 else '' }}</span>
+    <i class="fa-solid fa-chevron-down chevron ms-2"></i>
+  </div>
+
+  <div class="circ-stats">
+    {% if stats.maior_vencedor %}
+    <div class="cs-item">
+      <i class="fa-solid fa-trophy me-1" style="color:var(--gold);"></i>
+      Maior vencedor: <strong>{{ stats.maior_vencedor }}</strong>
+      {% if stats.vitorias_lider > 1 %}<span style="opacity:.45;">({{ stats.vitorias_lider }}×)</span>{% endif %}
+    </div>
+    {% endif %}
+    {% if stats.maior_pole %}
+    <div class="cs-item">
+      <i class="fa-solid fa-flag-checkered me-1" style="color:#a78bfa;"></i>
+      Mais poles: <strong>{{ stats.maior_pole }}</strong>
+      {% if stats.poles_lider > 1 %}<span style="opacity:.45;">({{ stats.poles_lider }}×)</span>{% endif %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="race-list">
+    {% for h in corridas %}
+    <div class="race-card">
+
+      {# ── Linha do topo: GP | data | badges | botão editar ── #}
+      <div class="race-top">
+        <span class="race-gp">{{ h.nome_gp }}</span>
+        <span class="race-date"><i class="fa-regular fa-calendar me-1"></i>{{ h.data.strftime('%d/%m/%Y') if h.data else '—' }}</span>
+        <span class="race-badge"><i class="fa-solid fa-flag me-1"></i>{{ h.season_name }}</span>
+        <span class="race-badge"><i class="fa-solid fa-grip me-1"></i>{{ h.grid_name }}</span>
+        {% if h.total_pilotos %}<span class="race-badge"><i class="fa-solid fa-users me-1"></i>{{ h.total_pilotos }} pilotos</span>{% endif %}
+        <a href="{{ url_for('admin.race_results', race_id=h.race_id) }}" class="btn-edit">
+          <i class="fa-solid fa-pen-to-square"></i> Editar
+        </a>
+      </div>
+
+      {# ── Pódio ── #}
+      <div class="podium-row">
+        <div class="podium-item p1"><span>🏆</span><span class="pilot-name {% if not h.primeiro %}empty{% endif %}">{{ h.primeiro.nickname if h.primeiro else '—' }}</span></div>
+        <div class="podium-item p2"><span>🥈</span><span class="pilot-name {% if not h.segundo %}empty{% endif %}">{{ h.segundo.nickname if h.segundo else '—' }}</span></div>
+        <div class="podium-item p3"><span>🥉</span><span class="pilot-name {% if not h.terceiro %}empty{% endif %}">{{ h.terceiro.nickname if h.terceiro else '—' }}</span></div>
+      </div>
+
+      {# ── Extras: pole, VR, DOTD ── #}
+      {% if h.pole_sitter or h.volta_rapida or h.piloto_do_dia %}
+      <div class="extras-row">
+        {% if h.pole_sitter %}
+        <div class="extra-chip">
+          <i class="fa-solid fa-flag-checkered" style="color:#a78bfa;"></i>
+          Pole: <span>{{ h.pole_sitter.nickname }}{% if h.pole_time %} — {{ h.pole_time }}{% endif %}</span>
+        </div>
+        {% endif %}
+        {% if h.volta_rapida %}
+        <div class="extra-chip">
+          <i class="fa-solid fa-stopwatch" style="color:#60a5fa;"></i>
+          VR: <span>{{ h.volta_rapida.nickname }}</span>
+        </div>
+        {% endif %}
+        {% if h.piloto_do_dia %}
+        <div class="extra-chip">
+          <i class="fa-solid fa-star" style="color:var(--gold);"></i>
+          Piloto do Dia: <span>{{ h.piloto_do_dia.nickname }}</span>
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
+
+    </div>
+    {% endfor %}
+  </div>
+
+</div>
+{% endfor %}
+</div>
+
+<div id="no-result-msg">
+  <i class="fa-solid fa-magnifying-glass fa-2x mb-2 d-block opacity-25"></i>
+  Nenhum circuito encontrado para "<span id="search-term"></span>".
+</div>
+
+{% else %}
+<div class="empty-state">
+  <i class="fa-solid fa-inbox fa-3x mb-3 d-block"></i>
+  <h5 class="text-white">Nenhum resultado encontrado</h5>
+  <p>Ainda não há corridas com resultados lançados no banco de dados.</p>
+</div>
+{% endif %}
+
+<script>
+function toggleCircuit(header) {
+  header.closest('.circuit-block').classList.toggle('open');
+}
+const si = document.getElementById('search-input');
+if (si) {
+  si.addEventListener('input', function() {
+    const q = this.value.trim().toLowerCase();
+    let visible = 0;
+    document.querySelectorAll('.circuit-block').forEach(b => {
+      const match = !q || (b.dataset.circuit||'').includes(q);
+      b.style.display = match ? '' : 'none';
+      if (match) visible++;
+    });
+    const nr = document.getElementById('no-result-msg');
+    const st = document.getElementById('search-term');
+    if (nr) nr.style.display = (!visible && q) ? 'block' : 'none';
+    if (st) st.textContent = this.value.trim();
+  });
+}
+</script>
+{% endblock %}
+"""
+
+print(f"Escrevendo em: {TARGET}")
+os.makedirs(os.path.dirname(TARGET), exist_ok=True)
+with open(TARGET, 'w', encoding='utf-8') as f:
+    f.write(NEW_CONTENT)
+
+with open(TARGET, 'r', encoding='utf-8') as f:
+    lines = f.readlines()
+print(f"OK! {len(lines)} linhas escritas.")
+print("Reinicie o servidor e recarregue a página.")

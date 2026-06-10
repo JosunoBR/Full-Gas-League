@@ -5,7 +5,7 @@ from datetime import datetime
 from flask import Blueprint, render_template, request, flash, redirect, url_for, current_app, abort
 from flask_login import login_required, current_user
 from sqlalchemy import func, case
-from app.models import db, User, PilotProfile, Season, Race, RaceResult, Invite, Protesto, VotoComissario, Team, RaceRegistration, SeletivaEntry, News, GridConfig, SeasonChampion, PilotGridPhoto, HomeCache
+from app.models import db, User, PilotProfile, Season, Race, RaceResult, Invite, Protesto, VotoComissario, Team, RaceRegistration, SeletivaEntry, News, GridConfig, SeasonChampion, PilotGridPhoto, HomeCache, CircuitHistory
 from app.utils import allowed_file, get_embed_url, PONTUACAO_20, PONTUACAO_22, ORDEM_CARROS, calcular_perda, get_grid_name, find_grid_config, grid_matches
 from app.services.scoring_service import ScoringService
 from app.services.diagnostics import build_data_health_report
@@ -480,6 +480,114 @@ def export_classification():
     output = si.getvalue()
     return current_app.response_class(output, mimetype='text/csv',
                                        headers={'Content-Disposition':f'attachment;filename=classificacao_grid_{grid_id}_season_{season_id}.csv'})
+
+@admin_bp.route('/historic')
+@login_required
+def historic():
+    """
+    Lê todas as corridas com resultados, agrupa por circuito e calcula
+    estatísticas por pista (vencedor mais frequente, total de corridas, etc.).
+    """
+    def parse_time_str(time_str):
+        if not time_str:
+            return float('inf')
+        s = time_str.strip()
+        if not s:
+            return float('inf')
+        try:
+            if ':' in s:
+                parts = s.split(':')
+                if len(parts) == 2:
+                    return float(parts[0]) * 60 + float(parts[1])
+                elif len(parts) == 3:
+                    return float(parts[0]) * 60 + float(parts[1]) + float(parts[2]) / 1000.0
+            return float(s)
+        except Exception:
+            return float('inf')
+
+    corridas_com_resultados = Race.query.join(RaceResult).distinct().order_by(
+        Race.pista.asc(), Race.data_corrida.desc()
+    ).all()
+
+    historico_por_circuito = {}
+
+    for race in corridas_com_resultados:
+        resultados = RaceResult.query.filter_by(race_id=race.id).all()
+
+        primeiro = next((r.pilot for r in resultados if r.posicao == 1 and not r.dsq), None)
+        segundo  = next((r.pilot for r in resultados if r.posicao == 2 and not r.dsq), None)
+        terceiro = next((r.pilot for r in resultados if r.posicao == 3 and not r.dsq), None)
+        piloto_dia   = next((r.pilot for r in resultados if r.piloto_do_dia), None)
+        volta_rapida = next((r.pilot for r in resultados if r.volta_rapida), None)
+
+        dados_corrida = {
+            'nome_gp':    race.nome_gp,
+            'data':       race.data_corrida,
+            'season_name': race.season.nome,
+            'grid_name':  race.grid_config.nome if race.grid_config else race.grid,
+            'pole_sitter': race.pole_sitter,
+            'pole_time':  race.pole_time,
+            'primeiro':   primeiro,
+            'segundo':    segundo,
+            'terceiro':   terceiro,
+            'volta_rapida': volta_rapida,
+            'piloto_do_dia': piloto_dia,
+            'race_id':    race.id,
+            'total_pilotos': len(resultados),
+        }
+
+        circuito = race.pista
+        if circuito not in historico_por_circuito:
+            historico_por_circuito[circuito] = {'corridas': [], 'stats': {}}
+        historico_por_circuito[circuito]['corridas'].append(dados_corrida)
+
+    # Calcula estatísticas por circuito
+    for circuito, dados in historico_por_circuito.items():
+        corridas = dados['corridas']
+        vitorias = {}
+        poles    = {}
+        
+        record_pilot = None
+        record_time = None
+        min_seconds = float('inf')
+        
+        for c in corridas:
+            if c['primeiro']:
+                nick = c['primeiro'].nickname
+                vitorias[nick] = vitorias.get(nick, 0) + 1
+            if c['pole_sitter']:
+                nick = c['pole_sitter'].nickname
+                poles[nick] = poles.get(nick, 0) + 1
+                
+                if c['pole_time']:
+                    t_sec = parse_time_str(c['pole_time'])
+                    if t_sec < min_seconds:
+                        min_seconds = t_sec
+                        record_pilot = nick
+                        record_time = c['pole_time']
+
+        maior_vencedor = max(vitorias, key=vitorias.get) if vitorias else None
+        maior_pole     = max(poles,    key=poles.get)    if poles    else None
+
+        dados['stats'] = {
+            'total_corridas':  len(corridas),
+            'maior_vencedor':  maior_vencedor,
+            'vitorias_lider':  vitorias.get(maior_vencedor, 0) if maior_vencedor else 0,
+            'maior_pole':      maior_pole,
+            'poles_lider':     poles.get(maior_pole, 0) if maior_pole else 0,
+            'record_pilot':    record_pilot,
+            'record_time':     record_time,
+            'ultima_data':     corridas[0]['data'],   # já vem desc por data
+        }
+
+    total_corridas_geral = sum(d['stats']['total_corridas'] for d in historico_por_circuito.values())
+
+    return render_template(
+        'admin/historic.html',
+        historico=historico_por_circuito,
+        total_circuitos=len(historico_por_circuito),
+        total_corridas_geral=total_corridas_geral,
+    )
 
 @admin_bp.route('/manual')
 def manual():
@@ -1083,6 +1191,10 @@ def generate_grid_text(race_id):
 def race_results(race_id):
     race = Race.query.get_or_404(race_id)
     if request.method == 'POST':
+        # Salva os dados de pole position junto com os resultados
+        race.pole_pilot_id = request.form.get('pole_pilot_id', type=int) or None
+        race.pole_time = request.form.get('pole_time', '').strip() or None
+
         try:
             RaceResultService.save_race_results(race.id, request.form)
             flash('Resultados salvos com sucesso!', 'success')
@@ -1156,7 +1268,8 @@ def race_results(race_id):
                            equipes=equipes,
                            checkin_map=checkin_map,
                            results_map=results_map,
-                           reservas_que_correram=reservas_que_correram)
+                           reservas_que_correram=reservas_que_correram,
+                           eligible_pilots=eligible_pilots_in_profile)
 # --- GESTÃO DE PILOTOS E CONVITES ---
 
 # A função _get_pilot_grid_names_from_ids (que causava o erro) foi removida
