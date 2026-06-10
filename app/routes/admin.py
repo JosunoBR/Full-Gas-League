@@ -5,7 +5,7 @@ from datetime import datetime
 from flask import Blueprint, render_template, request, flash, redirect, url_for, current_app, abort
 from flask_login import login_required, current_user
 from sqlalchemy import func, case
-from app.models import db, User, PilotProfile, Season, Race, RaceResult, Invite, Protesto, VotoComissario, Team, RaceRegistration, SeletivaEntry, News, GridConfig, SeasonChampion, PilotGridPhoto, HomeCache, CircuitHistory
+from app.models import db, User, PilotProfile, Season, Race, RaceResult, Invite, Protesto, VotoComissario, Team, RaceRegistration, SeletivaEntry, News, GridConfig, SeasonChampion, PilotGridPhoto, HomeCache
 from app.utils import allowed_file, get_embed_url, PONTUACAO_20, PONTUACAO_22, ORDEM_CARROS, calcular_perda, get_grid_name, find_grid_config, grid_matches
 from app.services.scoring_service import ScoringService
 from app.services.diagnostics import build_data_health_report
@@ -586,58 +586,6 @@ def historic():
         total_circuitos=len(historico_por_circuito),
         total_corridas_geral=total_corridas_geral,
     )
-@admin_bp.route('/historic/add', methods=['GET', 'POST'])
-@login_required
-def create_historic():
-    if request.method == 'POST':
-        from datetime import datetime as dt
-        circuito = request.form.get('circuito', '').strip()
-        data_str = request.form.get('data', '').strip()
-        pole_id = request.form.get('pole_position_id', type=int)
-        tempo_pole = request.form.get('tempo_pole', '').strip() or None
-        primeiro_id = request.form.get('primeiro_id', type=int)
-        segundo_id = request.form.get('segundo_id', type=int)
-        terceiro_id = request.form.get('terceiro_id', type=int)
-        melhor_tempo = request.form.get('melhor_tempo_pista', '').strip() or None
-        piloto_dia_id = request.form.get('piloto_do_dia_id', type=int)
-
-        if not circuito or not data_str:
-            flash('Circuito e Data são obrigatórios.', 'danger')
-            return redirect(url_for('admin.historic'))
-
-        try:
-            data_corrida = dt.strptime(data_str, '%Y-%m-%d').date()
-        except ValueError:
-            flash('Data inválida.', 'danger')
-            return redirect(url_for('admin.historic'))
-
-        novo = CircuitHistory(
-            circuito=circuito,
-            data=data_corrida,
-            pole_position_id=pole_id or None,
-            tempo_pole=tempo_pole,
-            primeiro_id=primeiro_id or None,
-            segundo_id=segundo_id or None,
-            terceiro_id=terceiro_id or None,
-            melhor_tempo_pista=melhor_tempo,
-            piloto_do_dia_id=piloto_dia_id or None
-        )
-        db.session.add(novo)
-        db.session.commit()
-        flash(f'Histórico do {circuito} adicionado com sucesso!', 'success')
-        return redirect(url_for('admin.historic'))
-
-    pilotos = PilotProfile.query.order_by(PilotProfile.nickname).all()
-    return render_template('admin/historic.html', historico=CircuitHistory.query.order_by(CircuitHistory.data.desc()).all(), pilotos=pilotos, show_form=True)
-
-@admin_bp.route('/historic/delete/<int:item_id>', methods=['POST'])
-@login_required
-def delete_historic(item_id):
-    item = CircuitHistory.query.get_or_404(item_id)
-    db.session.delete(item)
-    db.session.commit()
-    flash(f'Registro do {item.circuito} removido.', 'warning')
-    return redirect(url_for('admin.historic'))
 
 @admin_bp.route('/manual')
 def manual():
