@@ -514,6 +514,9 @@ def historic():
     for race in corridas_com_resultados:
         resultados = RaceResult.query.filter_by(race_id=race.id).all()
 
+        # Conta apenas pilotos que efetivamente participaram (têm posição > 0, DNF ou DSQ) e não estão marcados como ausentes.
+        total_participantes = sum(1 for r in resultados if r.status_presenca == 'OK' and (r.posicao > 0 or r.dnf or r.dsq))
+
         primeiro     = next((r.pilot for r in resultados if r.posicao == 1 and not r.dsq), None)
         segundo      = next((r.pilot for r in resultados if r.posicao == 2 and not r.dsq), None)
         terceiro     = next((r.pilot for r in resultados if r.posicao == 3 and not r.dsq), None)
@@ -533,7 +536,7 @@ def historic():
             'volta_rapida':  volta_rapida,
             'piloto_do_dia': piloto_dia,
             'race_id':       race.id,
-            'total_pilotos': len(resultados),
+            'total_pilotos': total_participantes,
         }
 
         circuito = race.pista
