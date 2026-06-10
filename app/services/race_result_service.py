@@ -12,10 +12,6 @@ class RaceResultService:
         if not race.season.ativa:
             raise ValueError('Temporada encerrada.')
 
-        # Salva os dados de pole position junto com os resultados
-        race.pole_pilot_id = form_data.get('pole_pilot_id', type=int) or None
-        race.pole_time = form_data.get('pole_time', '').strip() or None
-
         # Estornar resultados anteriores para evitar duplicidade
         team_snapshot = {r.pilot_id: r.team_id for r in RaceResult.query.filter_by(race_id=race.id).all()}
         RaceResult.query.filter_by(race_id=race.id).delete()

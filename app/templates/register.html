@@ -13,18 +13,19 @@
                 <form method="POST" action="{{ url_for('public.register') }}">
                     
                     <div class="mb-3">
-                        <label for="nickname" class="form-label text-white-50 small fw-bold">NICKNAME (ID NO JOGO)</label>
+                        <label for="token" class="form-label text-white-50 small fw-bold">CÓDIGO DE CONVITE (TOKEN)</label>
                         <div class="input-group">
-                            <span class="input-group-text bg-dark border-secondary text-white-50"><i class="fa-solid fa-helmet-safety"></i></span>
-                            <input type="text" class="form-control bg-dark text-white border-secondary" id="nickname" name="nickname" placeholder="Seu nome na pista" required>
+                            <span class="input-group-text bg-dark border-secondary text-white-50"><i class="fa-solid fa-key"></i></span>
+                            <input type="text" class="form-control bg-dark text-white border-secondary" id="token" name="token" placeholder="Ex: A1B2C3" required>
                         </div>
+                        <div class="form-text text-white-50 small">Solicite seu token à administração.</div>
                     </div>
 
                     <div class="mb-3">
-                        <label for="nome_real" class="form-label text-white-50 small fw-bold">NOME REAL (NOME E SOBRENOME)</label>
+                        <label for="nickname" class="form-label text-white-50 small fw-bold">NICKNAME (PILOTO)</label>
                         <div class="input-group">
-                            <span class="input-group-text bg-dark border-secondary text-white-50"><i class="fa-solid fa-user"></i></span>
-                            <input type="text" class="form-control bg-dark text-white border-secondary" id="nome_real" name="nome_real" placeholder="Seu nome completo" required>
+                            <span class="input-group-text bg-dark border-secondary text-white-50"><i class="fa-solid fa-helmet-safety"></i></span>
+                            <input type="text" class="form-control bg-dark text-white border-secondary" id="nickname" name="nickname" placeholder="Seu nome na pista" required>
                         </div>
                     </div>
 
@@ -66,18 +67,4 @@
         </div>
     </div>
 </div>
-{% endblock %}
-
-{% block page_scripts %}
-<script>
-    /**
-     * Aplica uma máscara de telefone no formato (00) 00000-0000.
-     */
-    function maskPhone(input) {
-        let value = input.value.replace(/\D/g, '');
-        value = value.replace(/^(\d{2})(\d)/g, '($1) $2');
-        value = value.replace(/(\d{5})(\d)/, '$1-$2');
-        input.value = value;
-    }
-</script>
 {% endblock %}

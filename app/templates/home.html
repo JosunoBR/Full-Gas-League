@@ -201,8 +201,8 @@
                             <div class="card-body p-2">
                                 {% for row in constructors[grid.id][:3] %}
                                 <div class="d-flex justify-content-between align-items-center px-2 py-1 border-bottom border-secondary-subtle">
-                                    <span class="text-white"><strong class="me-2">{{ loop.index }}.</strong>{{ row['equipe']['nome'] }}</span>
-                                    <span class="text-info fw-bold">{{ '%g' | format(row['pontos']|float) }}</span>
+                                    <span class="text-white"><strong class="me-2">{{ loop.index }}.</strong>{{ row.equipe.nome }}</span>
+                                    <span class="text-info fw-bold">{{ '%g' | format(row.pontos|float) }}</span>
                                 </div>
                                 {% else %}
                                     <div class="px-2 py-2 text-white-50 small">Sem dados de construtores.</div>
@@ -373,12 +373,12 @@
                                 <div class="f1-constructors-row">
                                     <span class="fw-bold text-secondary">{{ loop.index }}</span>
                                     <span class="d-flex align-items-center gap-2">
-                                        {% if row['equipe'].logo %}
-                                            <img src="{{ url_for('static', filename='uploads/' + row['equipe'].logo) }}" class="rounded-circle" width="22" height="22" style="object-fit: cover;">
+                                        {% if row.equipe.logo_url %}
+                                            <img src="{{ url_for('static', filename='uploads/' + row.equipe.logo_url) }}" class="rounded-circle" width="22" height="22" style="object-fit: cover;">
                                         {% endif %}
-                                        <a href="{{ url_for('public.team_profile', team_id=row['equipe'].id) }}" class="text-white text-decoration-none small fw-bold">{{ row['equipe'].nome }}</a>
+                                        <a href="{{ url_for('public.team_profile', team_id=row.equipe.id) }}" class="text-white text-decoration-none small fw-bold">{{ row.equipe.nome }}</a>
                                     </span>
-                                    <span class="text-end fw-bold text-info">{{ '%g' | format(row['pontos']|float) }}</span>
+                                    <span class="text-end fw-bold text-info">{{ '%g' | format(row.pontos|float) }}</span>
                                 </div>
                                 {% else %}
                                 <div class="f1-constructors-row">

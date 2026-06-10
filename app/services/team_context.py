@@ -93,14 +93,6 @@ def build_team_context(season_id):
     for grid_id in participants_by_grid:
         participants_by_grid[grid_id].sort(key=lambda x: (x["pilot"].nickname or "").upper())
 
-    # Novo: teams_by_pilot_id
-    teams_by_pilot_id = defaultdict(list)
-    for team in raw_teams:
-        for pilot in team.pilots:
-            teams_by_pilot_id[pilot.id].append(team)
-        for pilot in team.reserves:
-            teams_by_pilot_id[pilot.id].append(team)
-
     return {
         "raw_teams": raw_teams,
         "canonical_teams": canonical_teams,
@@ -109,5 +101,4 @@ def build_team_context(season_id):
         "titular_team_by_pilot_grid": titular_team_by_pilot_grid,
         "reserve_team_by_pilot_grid": reserve_team_by_pilot_grid,
         "participants_by_grid": dict(participants_by_grid),
-        "teams_by_pilot_id": dict(teams_by_pilot_id),
     }

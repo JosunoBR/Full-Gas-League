@@ -1,37 +1,32 @@
+import firebase_admin
+from firebase_admin import credentials, messaging
 import os
 
 # --- INICIALIZAÇÃO DO FIREBASE ADMIN SDK ---
 # O SDK precisa de credenciais para autenticar com os serviços do Firebase.
 # Ele irá procurar por um arquivo 'firebase-credentials.json' na raiz do projeto.
-#
-# Import condicional: o firebase_admin pode não estar instalado (ex: Python 3.14).
-# Nesse caso o serviço opera em modo simulado (sem envio real de notificações).
+# Certifique-se de que este arquivo existe e foi baixado do seu console do Firebase.
+# 
+# A inicialização só deve ocorrer uma vez durante a vida da aplicação.
+# O bloco 'try/except' garante que não tentaremos inicializar múltiplas vezes,
+# o que causaria um erro.
 
 try:
-    import firebase_admin
-    from firebase_admin import credentials, messaging
-    _firebase_available = True
-except ImportError:
-    print("AVISO: Módulo 'firebase_admin' não instalado. Notificações push desabilitadas.")
-    _firebase_available = False
+    # Obtém o caminho absoluto para o diretório raiz do projeto
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+    cred_path = os.path.join(base_dir, 'firebase-credentials.json')
 
-_firebase_app = None
+    if not os.path.exists(cred_path):
+        print("AVISO: Arquivo 'firebase-credentials.json' não encontrado. As notificações push não funcionarão.")
+        # Define uma variável para que o resto do código saiba que o serviço não está disponível
+        _firebase_app = None
+    else:
+        cred = credentials.Certificate(cred_path)
+        _firebase_app = firebase_admin.initialize_app(cred)
 
-if _firebase_available:
-    try:
-        # Obtém o caminho absoluto para o diretório raiz do projeto
-        base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-        cred_path = os.path.join(base_dir, 'firebase-credentials.json')
-
-        if not os.path.exists(cred_path):
-            print("AVISO: Arquivo 'firebase-credentials.json' não encontrado. As notificações push não funcionarão.")
-        else:
-            cred = credentials.Certificate(cred_path)
-            _firebase_app = firebase_admin.initialize_app(cred)
-
-    except ValueError:
-        # O app já foi inicializado, o que é esperado em recarregamentos (reload).
-        _firebase_app = firebase_admin.get_app()
+except ValueError:
+    # O app já foi inicializado, o que é esperado em recarregamentos (reload).
+    _firebase_app = firebase_admin.get_app()
 
 
 class NotificationService:

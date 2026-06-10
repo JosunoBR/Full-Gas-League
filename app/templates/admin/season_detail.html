@@ -3,7 +3,7 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h2 class="text-white fw-bold mb-0">{{ season.nome }}</h2>
+        <h2 class="text-white mb-0">{{ season.nome }}</h2>
         <small class="text-white-50">Gerenciamento de Calendário</small>
         {% if not season.ativa %}
             <span class="badge bg-danger ms-2">ARQUIVADA</span>
@@ -14,9 +14,9 @@
         <a href="{{ url_for('admin.seasons') }}" class="btn btn-outline-light">Voltar</a>
         
         {% if season.ativa %}
-        <form method="POST" action="{{ url_for('admin.close_season', season_id=season.id) }}" onsubmit="return confirm('ATENÇÃO: Isso encerrará o campeonato atual, arquivará os resultados e RESETARÁ a CNH de todos os pilotos para 25 pontos.\n\nDeseja confirmar?');" class="d-inline">
-            <button type="submit" class="btn btn-red fw-bold">
-                <i class="fa-solid fa-flag-checkered me-1"></i> ENCERRAR TEMPORADA
+        <form method="POST" action="{{ url_for('admin.close_season', season_id=season.id) }}" onsubmit="return confirm('ATENÇÃO: Isso encerrará o campeonato atual, arquivará os resultados e RESETARÁ a CNH de todos os pilotos para 25 pontos.\n\nDeseja confirmar?');">
+            <button type="submit" class="btn btn-danger fw-bold">
+                <i class="fa-solid fa-flag-checkered"></i> ENCERRAR TEMPORADA
             </button>
         </form>
         {% endif %}
@@ -28,7 +28,7 @@
     <div class="col-md-12 mb-5">
         <div class="card shadow border-secondary">
             <div class="card-header bg-dark border-secondary">
-                <h5 class="text-white fw-bold mb-0"><i class="fa-solid fa-calendar-plus text-success me-2"></i> Agendar Nova Corrida</h5>
+                <h5 class="mb-0 text-white"><i class="fa-solid fa-calendar-plus text-success"></i> Agendar Nova Corrida</h5>
             </div>
             <div class="card-body bg-dark text-white">
                 <form method="POST" class="row g-3 align-items-end">
@@ -40,7 +40,9 @@
                                 <option value="{{ config.id }}">{{ config.nome }}</option>
                             {% endfor %}
                             {% if not grid_configs %}
-                                <option value="" disabled selected>Nenhum grid cadastrado</option>
+                                <option value="ELITE">Elite</option>
+                                <option value="ADVANCED">Advanced</option>
+                                <option value="INITIAL">Initial</option>
                             {% endif %}
                         </select>
                     </div>
@@ -94,30 +96,35 @@
 </div>
 {% endif %}
 
-{% if grid_configs %}
 <ul class="nav nav-pills mb-3" id="pills-tab" role="tablist">
     {% for config in grid_configs %}
     <li class="nav-item" role="presentation">
         <button class="nav-link {% if loop.first %}active{% endif %} fw-bold" id="pills-{{ config.id or config.nome|lower }}-tab" data-bs-toggle="pill" data-bs-target="#pills-{{ config.id or config.nome|lower }}" type="button" role="tab">GRID {{ config.nome }}</button>
     </li>
     {% endfor %}
+    {% if not grid_configs %}
+        {% for grid_name in ['ELITE', 'ADVANCED', 'INITIAL'] %}
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if loop.first %}active{% endif %} fw-bold" id="pills-{{ grid_name|lower }}-tab" data-bs-toggle="pill" data-bs-target="#pills-{{ grid_name|lower }}" type="button" role="tab">GRID {{ grid_name }}</button>
+        </li>
+        {% endfor %}
+    {% endif %}
 </ul>
-{% endif %}
 
 <div class="tab-content" id="pills-tabContent">
-    {% if grid_configs %}
-    {% for g_item in grid_configs %}
+    {% set loop_grids = grid_configs if grid_configs else [{'id': 0, 'nome': 'ELITE'}, {'id': 0, 'nome': 'ADVANCED'}, {'id': 0, 'nome': 'INITIAL'}] %}
+    {% for g_item in loop_grids %}
     <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="pills-{{ g_item.id or g_item.nome|lower }}" role="tabpanel">
         
         <div class="card shadow border-secondary">
             <div class="card-header bg-dark border-secondary">
-                <h5 class="text-white fw-bold mb-0"><i class="fa-solid fa-calendar-days text-info me-2"></i> Calendário {{ g_item.nome }}</h5>
+                <strong class="text-white">Calendário {{ g_item.nome }}</strong>
             </div>
             <div class="card-body bg-dark p-0">
                 <div class="table-responsive">
                     <table class="table table-dark table-hover mb-0 align-middle">
                         <thead>
-                            <tr class="small text-white-50">
+                            <tr>
                                 <th class="ps-4">Data</th>
                                 <th>GP</th>
                                 <th>Tipo</th>
@@ -158,31 +165,31 @@
                                 <td class="text-end pe-4">
                                     <div class="d-flex justify-content-end gap-2">
                                         {% if season.ativa %}
-                                            <a href="{{ url_for('admin.generate_grid_text', race_id=race.id) }}"
-                                               class="btn btn-sm btn-outline-info"
+                                            <a href="{{ url_for('admin.generate_grid_text', race_id=race.id) }}" 
+                                               class="btn btn-sm btn-outline-info" 
                                                title="Gerar Lista de Carros (WhatsApp)">
-                                                <i class="fa-solid fa-list me-1"></i> Gerar Grid
+                                                <i class="fa-solid fa-list"></i> Grid
                                             </a>
 
-                                            <a href="{{ url_for('admin.race_results', race_id=race.id) }}"
-                                               class="btn btn-sm {{ 'btn-success' if race.status == 'Concluida' else 'btn-light' }} fw-bold"
+                                            <a href="{{ url_for('admin.race_results', race_id=race.id) }}" 
+                                               class="btn btn-sm {{ 'btn-outline-success' if race.status == 'Concluida' else 'btn-outline-light' }}"
                                                title="Lançar/Ver Resultados">
-                                                <i class="fa-solid fa-list-ol me-1"></i> Resultados
+                                                <i class="fa-solid fa-list-ol"></i> 
                                             </a>
 
                                             <a href="{{ url_for('admin.edit_race', race_id=race.id) }}" class="btn btn-sm btn-outline-warning" title="Editar">
-                                                <i class="fa-solid fa-pen-to-square me-1"></i> Editar
+                                                <i class="fa-solid fa-pen-to-square"></i>
                                             </a>
 
-                                            <form method="POST" action="{{ url_for('admin.delete_race', race_id=race.id) }}" onsubmit="return confirm('Excluir corrida?');" class="d-inline">
+                                            <form method="POST" action="{{ url_for('admin.delete_race', race_id=race.id) }}" onsubmit="return confirm('Excluir corrida?');">
                                                 <button type="submit" class="btn btn-sm btn-outline-danger" title="Excluir">
-                                                    <i class="fa-solid fa-trash me-1"></i> Excluir
+                                                    <i class="fa-solid fa-trash"></i>
                                                 </button>
                                             </form>
                                         {% else %}
                                             {% if race.status == 'Concluida' %}
-                                                <a href="{{ url_for('admin.race_results', race_id=race.id) }}" class="btn btn-sm btn-outline-secondary" title="Ver Súmula da Corrida">
-                                                    <i class="fa-solid fa-eye me-1"></i> Ver Súmula
+                                                <a href="{{ url_for('admin.race_results', race_id=race.id) }}" class="btn btn-sm btn-outline-secondary">
+                                                    <i class="fa-solid fa-eye"></i> Ver Resultados
                                                 </a>
                                             {% endif %}
                                         {% endif %}
@@ -204,11 +211,6 @@
 
     </div>
     {% endfor %}
-    {% else %}
-        <div class="alert alert-warning text-center fw-bold">
-            <i class="fa-solid fa-triangle-exclamation"></i> NENHUM GRID CONFIGURADO PARA ESTA TEMPORADA. CADASTRE OS GRIDS AO CRIAR UMA NOVA TEMPORADA.
-        </div>
-    {% endif %}
 </div>
 
 <script>

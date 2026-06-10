@@ -162,10 +162,6 @@ class Race(db.Model):
     grid_id = db.Column(db.Integer, db.ForeignKey('grid_config.id'), nullable=True)
     status = db.Column(db.String(20), default='Agendada')
     tipo_etapa = db.Column(db.String(20), default='NORMAL')
-
-    # Campos para dados de Pole Position
-    pole_pilot_id = db.Column(db.Integer, db.ForeignKey('pilot_profile.id'), nullable=True)
-    pole_time = db.Column(db.String(20), nullable=True)
     
     results = db.relationship('RaceResult', backref='race', lazy=True, cascade="all, delete-orphan")
     
@@ -174,7 +170,6 @@ class Race(db.Model):
     protestos = db.relationship('Protesto', back_populates='etapa', lazy=True, cascade="all, delete-orphan")
 
     grid_config = db.relationship('GridConfig', backref='races')
-    pole_sitter = db.relationship('PilotProfile', foreign_keys=[pole_pilot_id])
 
     def to_dict(self):
         return {
@@ -337,26 +332,3 @@ class HomeCache(db.Model):
     last_updated = db.Column(db.DateTime, default=datetime.utcnow)
 
     season = db.relationship('Season', backref=db.backref('home_cache', uselist=False))
-
-class CircuitHistory(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    circuito = db.Column(db.String(100), nullable=False)
-    data = db.Column(db.Date, nullable=False)
-    
-    # Relações com Pilotos
-    pole_position_id = db.Column(db.Integer, db.ForeignKey('pilot_profile.id'))
-    primeiro_id = db.Column(db.Integer, db.ForeignKey('pilot_profile.id'))
-    segundo_id = db.Column(db.Integer, db.ForeignKey('pilot_profile.id'))
-    terceiro_id = db.Column(db.Integer, db.ForeignKey('pilot_profile.id'))
-    piloto_do_dia_id = db.Column(db.Integer, db.ForeignKey('pilot_profile.id'))
-    
-    # Tempos Específicos
-    tempo_pole = db.Column(db.String(20), nullable=True) # Ex: 1:32.450
-    melhor_tempo_pista = db.Column(db.String(20), nullable=True) # Ex: 1:34.120
-    
-    # Relações para facilitar carregamento no template
-    pole_position = db.relationship('PilotProfile', foreign_keys=[pole_position_id])
-    primeiro = db.relationship('PilotProfile', foreign_keys=[primeiro_id])
-    segundo = db.relationship('PilotProfile', foreign_keys=[segundo_id])
-    terceiro = db.relationship('PilotProfile', foreign_keys=[terceiro_id])
-    piloto_do_dia = db.relationship('PilotProfile', foreign_keys=[piloto_do_dia_id])

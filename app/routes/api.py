@@ -108,18 +108,6 @@ def get_profile():
     desempenho_temporada = []
     pilot_grid_ids = [int(g_id) for g_id in (pilot.grid or '').split(',') if g_id.isdigit()]
     
-    # --- CÁLCULO DA PONTUAÇÃO DO CAMPEONATO ---
-    campeonato_pontos = 0.0
-    if active_season:
-        if pilot_grid_ids:
-            p_grid_id = pilot_grid_ids[0]
-            campeonato_pontos = ScoringService.calculate_pilot_total_points(pilot.id, active_season.id, p_grid_id)
-        else:
-            pilot_teams_in_season = [t for t in pilot.teams if t.season_id == active_season.id]
-            if pilot_teams_in_season:
-                p_grid_id = pilot_teams_in_season[0].grid_id
-                campeonato_pontos = ScoringService.calculate_pilot_total_points(pilot.id, active_season.id, p_grid_id)
-
     if active_season:
         # Se o piloto tem grids definidos, filtra por eles
         if pilot_grid_ids:
@@ -160,7 +148,6 @@ def get_profile():
         "cnh_pontos": pilot.pontos_cnh,
         "cnh_status": cnh_status,
         "lastro_veiculo": lastro_veiculo,
-        "campeonato_pontos": campeonato_pontos,
         "desempenho_temporada": desempenho_temporada
     }
     
@@ -190,21 +177,20 @@ def get_next_race_for_checkin():
     ).order_by(Race.data_corrida.asc()).all()
 
     # Encontra a primeira corrida que o piloto ainda não confirmou ou justificou
-    # (igual à lógica do site em public.py), mas apenas se estiver a no máximo 2 dias de acontecer
+    # (igual à lógica do site em public.py)
     for race in future_races:
-        if (race.data_corrida - now).days <= 2:
-            registration = RaceRegistration.query.filter_by(race_id=race.id, pilot_id=pilot.id).first()
-            if not registration or registration.status not in ['CONFIRMADO', 'JUSTIFICADO']:
-                return jsonify({
-                    "race_id": race.id,
-                    "nome_gp": race.nome_gp,
-                    "pista": race.pista,
-                    "data_corrida": race.data_corrida.isoformat(),
-                    "grid_nome": race.grid_config.nome if race.grid_config else race.grid,
-                    "checkin_status": registration.status if registration else "PENDENTE"
-                }), 200
+        registration = RaceRegistration.query.filter_by(race_id=race.id, pilot_id=pilot.id).first()
+        if not registration or registration.status not in ['CONFIRMADO', 'JUSTIFICADO']:
+            return jsonify({
+                "race_id": race.id,
+                "nome_gp": race.nome_gp,
+                "pista": race.pista,
+                "data_corrida": race.data_corrida.isoformat(),
+                "grid_nome": race.grid_config.nome if race.grid_config else race.grid,
+                "checkin_status": registration.status if registration else "PENDENTE"
+            }), 200
 
-    # Se chegou aqui, nenhuma corrida qualificada ou todas já foram confirmadas/justificadas
+    # Se chegou aqui, todas as corridas futuras já foram confirmadas/justificadas
     return jsonify(None), 200
 
 @api_bp.route('/checkin', methods=['POST'])
@@ -230,46 +216,24 @@ def perform_checkin():
     if not race:
         return jsonify({"msg": "Corrida não encontrada"}), 404
 
-    now = datetime.utcnow().date()
-    days_to_race = (race.data_corrida - now).days
-    if days_to_race < 0 or days_to_race > 2:
-        return jsonify({"msg": "O check-in só é permitido nos 2 dias que antecedem a corrida ou no dia dela."}), 400
-
     pilot_grid_ids = [int(g_id) for g_id in (pilot.grid or '').split(',') if g_id.isdigit()]
     if race.grid_id not in pilot_grid_ids:
         return jsonify({"msg": "Piloto não pertence ao grid desta corrida"}), 403
 
-    same_day_candidates = Race.query.filter(
-        Race.season_id == race.season_id,
-        Race.grid_id == race.grid_id,
-        Race.data_corrida == race.data_corrida,
-        Race.status != 'Concluida',
-    ).all()
-
-    same_day_races = [
-        r for r in same_day_candidates
-        if (r.nome_gp == race.nome_gp) or (r.pista == race.pista)
-    ]
-    if not same_day_races:
-        same_day_races = [race]
-
-    for r in same_day_races:
-        registration = RaceRegistration.query.filter_by(race_id=r.id, pilot_id=pilot.id).first()
-        if not registration:
-            registration = RaceRegistration()
-            registration.race_id = r.id
-            registration.pilot_id = pilot.id
-            db.session.add(registration)
-        
+    registration = RaceRegistration.query.filter_by(race_id=race.id, pilot_id=pilot.id).first()
+    if registration:
         registration.status = status
-        registration.justificativa = "Feito via App" if status == "AUSENTE" else None
         registration.data_resposta = datetime.utcnow()
-
-    try:
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"msg": "Erro interno ao salvar check-in"}), 500
+    else:
+        registration = RaceRegistration(
+            race_id=race.id,
+            pilot_id=pilot.id,
+            status=status,
+            data_resposta=datetime.utcnow()
+        )
+        db.session.add(registration)
+    
+    db.session.commit()
 
     return jsonify({
         "msg": f"Check-in para '{race.nome_gp}' atualizado para '{status}'",

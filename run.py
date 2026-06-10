@@ -56,15 +56,6 @@ def inject_now():
         'contact_email': app.config.get('CONTACT_EMAIL')
     }
 
-@app.template_filter('format_datetime')
-def format_datetime(value, format="%d/%m/%Y às %H:%M"):
-    if value is None:
-        return ""
-    # Converte de UTC para horário de Brasília (UTC-3)
-    local_val = value - timedelta(hours=3)
-    return local_val.strftime(format)
-
-
 # Registro das Rotas (Blueprints)
 app.register_blueprint(public_bp)
 app.register_blueprint(admin_bp, url_prefix='/admin')
