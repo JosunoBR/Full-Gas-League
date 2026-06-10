@@ -1,4 +1,6 @@
-{% extends "base.html" %}
+import os
+
+HISTORIC_HTML_CONTENT = """{% extends "base.html" %}
 
 {% block content %}
 <style>
@@ -450,3 +452,249 @@
   }
 </script>
 {% endblock %}
+"""
+
+ADMIN_PY_ROUTE_CODE = """
+@admin_bp.route('/historic')
+@login_required
+def historic():
+    \"\"\"
+    Lê todas as corridas com resultados, agrupa por circuito e calcula
+    estatísticas por pista (vencedor mais frequente, total de corridas, etc.).
+    \"\"\"
+    def parse_time_str(time_str):
+        if not time_str:
+            return float('inf')
+        s = time_str.strip()
+        if not s:
+            return float('inf')
+        try:
+            if ':' in s:
+                parts = s.split(':')
+                if len(parts) == 2:
+                    return float(parts[0]) * 60 + float(parts[1])
+                elif len(parts) == 3:
+                    return float(parts[0]) * 60 + float(parts[1]) + float(parts[2]) / 1000.0
+            return float(s)
+        except Exception:
+            return float('inf')
+
+    corridas_com_resultados = Race.query.join(RaceResult).distinct().order_by(
+        Race.pista.asc(), Race.data_corrida.desc()
+    ).all()
+
+    historico_por_circuito = {}
+
+    for race in corridas_com_resultados:
+        resultados = RaceResult.query.filter_by(race_id=race.id).all()
+
+        primeiro = next((r.pilot for r in resultados if r.posicao == 1 and not r.dsq), None)
+        segundo  = next((r.pilot for r in resultados if r.posicao == 2 and not r.dsq), None)
+        terceiro = next((r.pilot for r in resultados if r.posicao == 3 and not r.dsq), None)
+        piloto_dia   = next((r.pilot for r in resultados if r.piloto_do_dia), None)
+        volta_rapida = next((r.pilot for r in resultados if r.volta_rapida), None)
+
+        dados_corrida = {
+            'nome_gp':    race.nome_gp,
+            'data':       race.data_corrida,
+            'season_name': race.season.nome,
+            'grid_name':  race.grid_config.nome if race.grid_config else race.grid,
+            'pole_sitter': race.pole_sitter,
+            'pole_time':  race.pole_time,
+            'primeiro':   primeiro,
+            'segundo':    segundo,
+            'terceiro':   terceiro,
+            'volta_rapida': volta_rapida,
+            'piloto_do_dia': piloto_dia,
+            'race_id':    race.id,
+            'total_pilotos': len(resultados),
+        }
+
+        circuito = race.pista
+        if circuito not in historico_por_circuito:
+            historico_por_circuito[circuito] = {'corridas': [], 'stats': {}}
+        historico_por_circuito[circuito]['corridas'].append(dados_corrida)
+
+    # Calcula estatísticas por circuito
+    for circuito, dados in historico_por_circuito.items():
+        corridas = dados['corridas']
+        vitorias = {}
+        poles    = {}
+        
+        record_pilot = None
+        record_time = None
+        min_seconds = float('inf')
+        
+        for c in corridas:
+            if c['primeiro']:
+                nick = c['primeiro'].nickname
+                vitorias[nick] = vitorias.get(nick, 0) + 1
+            if c['pole_sitter']:
+                nick = c['pole_sitter'].nickname
+                poles[nick] = poles.get(nick, 0) + 1
+                
+                if c['pole_time']:
+                    t_sec = parse_time_str(c['pole_time'])
+                    if t_sec < min_seconds:
+                        min_seconds = t_sec
+                        record_pilot = nick
+                        record_time = c['pole_time']
+
+        maior_vencedor = max(vitorias, key=vitorias.get) if vitorias else None
+        maior_pole     = max(poles,    key=poles.get)    if poles    else None
+
+        dados['stats'] = {
+            'total_corridas':  len(corridas),
+            'maior_vencedor':  maior_vencedor,
+            'vitorias_lider':  vitorias.get(maior_vencedor, 0) if maior_vencedor else 0,
+            'maior_pole':      maior_pole,
+            'poles_lider':     poles.get(maior_pole, 0) if maior_pole else 0,
+            'record_pilot':    record_pilot,
+            'record_time':     record_time,
+            'ultima_data':     corridas[0]['data'],   # já vem desc por data
+        }
+
+    total_corridas_geral = sum(d['stats']['total_corridas'] for d in historico_por_circuito.values())
+
+    return render_template(
+        'admin/historic.html',
+        historico=historico_por_circuito,
+        total_circuitos=len(historico_por_circuito),
+        total_corridas_geral=total_corridas_geral,
+    )
+"""
+
+def restore_dashboard_card():
+    path = os.path.join('app', 'templates', 'admin', 'dashboard.html')
+    if not os.path.exists(path):
+        print("Erro: dashboard.html não encontrado localmente.")
+        return False
+        
+    print("Atualizando dashboard.html...")
+    with open(path, 'r', encoding='utf-8') as f:
+        content = f.read()
+        
+    if 'admin.historic' in content:
+        print("-> Card do histórico já existe no dashboard.html.")
+        return True
+        
+    seasons_card_end = """                <div class="d-grid mt-3">
+                    <a href="{{ url_for('admin.seasons') }}" class="btn btn-outline-danger btn-sm text-white">CALENDÁRIO</a>
+                </div>
+            </div>
+        </div>
+    </div>"""
+
+    historic_card = """                <div class="d-grid mt-3">
+                    <a href="{{ url_for('admin.seasons') }}" class="btn btn-outline-danger btn-sm text-white">CALENDÁRIO</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4 col-lg-3">
+        <div class="card shadow border-silver h-100 bg-dark hover-effect">
+            <div class="card-body text-center p-4">
+                <i class="fa-solid fa-clock-rotate-left fa-3x text-danger mb-3"></i>
+                <h5 class="card-title text-white fw-bold">Histórico</h5>
+                <p class="card-text text-white-50 small">Histórico de circuitos, poles, vitórias e recordes.</p>
+                <div class="d-grid mt-3">
+                    <a href="{{ url_for('admin.historic') }}" class="btn btn-outline-danger btn-sm text-white fw-bold">VER HISTÓRICO</a>
+                </div>
+            </div>
+        </div>
+    </div>"""
+
+    if seasons_card_end in content:
+        content = content.replace(seasons_card_end, historic_card)
+        with open(path, 'w', encoding='utf-8') as f:
+            f.write(content)
+        print("-> Card de Histórico adicionado com sucesso no dashboard.html!")
+        return True
+    else:
+        print("-> [FALHA] Não foi possível encontrar a tag correta para injetar o card no dashboard.")
+        return False
+
+def restore_base_html_link():
+    path = os.path.join('app', 'templates', 'base.html')
+    if not os.path.exists(path):
+        print("Erro: base.html não encontrado localmente.")
+        return False
+        
+    print("Atualizando base.html...")
+    with open(path, 'r', encoding='utf-8') as f:
+        content = f.read()
+        
+    if 'admin.historic' in content:
+        print("-> Link do histórico já existe no base.html.")
+        return True
+        
+    target_menu_item = """<li><a class="dropdown-item" href="{{ url_for('admin.list_teams') }}">Equipes</a></li> <li><a class="dropdown-item" href="{{ url_for('admin.seasons') }}">Temporadas</a></li>"""
+    replacement_menu_item = """<li><a class="dropdown-item" href="{{ url_for('admin.list_teams') }}">Equipes</a></li> <li><a class="dropdown-item" href="{{ url_for('admin.seasons') }}">Temporadas</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('admin.historic') }}">Histórico de Corridas</a></li>"""
+                                
+    if target_menu_item in content:
+        content = content.replace(target_menu_item, replacement_menu_item)
+        with open(path, 'w', encoding='utf-8') as f:
+            f.write(content)
+        print("-> Link do Histórico adicionado com sucesso no menu superior de base.html!")
+        return True
+    else:
+        # Busca sem espaço
+        alt_target = """<li><a class="dropdown-item" href="{{ url_for('admin.list_teams') }}">Equipes</a></li><li><a class="dropdown-item" href="{{ url_for('admin.seasons') }}">Temporadas</a></li>"""
+        if alt_target in content:
+            content = content.replace(alt_target, replacement_menu_item)
+            with open(path, 'w', encoding='utf-8') as f:
+                f.write(content)
+            print("-> Link do Histórico adicionado no base.html usando fallback.")
+            return True
+        else:
+            print("-> [FALHA] Não foi possível encontrar o menu dropdown de gestão no base.html.")
+            return False
+
+def restore_admin_route():
+    path = os.path.join('app', 'routes', 'admin.py')
+    if not os.path.exists(path):
+        print("Erro: admin.py não encontrado localmente.")
+        return False
+        
+    print("Atualizando admin.py...")
+    with open(path, 'r', encoding='utf-8') as f:
+        content = f.read()
+        
+    if 'def historic()' in content:
+        print("-> Rota historic() já existe no admin.py.")
+        return True
+        
+    target_marker = "@admin_bp.route('/manual')"
+    if target_marker in content:
+        replacement = ADMIN_PY_ROUTE_CODE + "\n" + target_marker
+        content = content.replace(target_marker, replacement, 1)
+        with open(path, 'w', encoding='utf-8') as f:
+            f.write(content)
+        print("-> Rota /historic injetada com sucesso em admin.py!")
+        return True
+    else:
+        print("-> [FALHA] Não foi possível encontrar '@admin_bp.route('/manual')' em admin.py.")
+        return False
+
+def write_historic_html():
+    path = os.path.join('app', 'templates', 'admin', 'historic.html')
+    print(f"Escrevendo template em {path}...")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, 'w', encoding='utf-8') as f:
+        f.write(HISTORIC_HTML_CONTENT)
+    print("-> historic.html escrito com sucesso!")
+    return True
+
+if __name__ == '__main__':
+    write_historic_html()
+    ok_dash = restore_dashboard_card()
+    ok_base = restore_base_html_link()
+    ok_route = restore_admin_route()
+    
+    if ok_dash and ok_base and ok_route:
+        print("\n=== TODOS OS ARQUIVOS FORAM RESTAURADOS COM SUCESSO NO PC LOCAL! ===")
+        print("Agora você pode commitar, enviar para o GitHub e atualizar no servidor.")
+    else:
+        print("\n=== ALERTA: Alguns arquivos não puderam ser restaurados automaticamente ===")
