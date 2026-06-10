@@ -334,7 +334,7 @@ HISTORIC_HTML_CONTENT = """{% extends "base.html" %}
     {% endif %}
     <div class="cs-item ms-auto">
       <i class="fa-solid fa-users cs-icon"></i>
-      {{ stats.total_corridas }} edição{{ 'ões' if stats.total_corridas != 1 else '' }} nesta pista
+      {{ stats.total_corridas }} ediç{{ 'ão' if stats.total_corridas == 1 else 'ões' }} nesta pista
     </div>
   </div>
 
