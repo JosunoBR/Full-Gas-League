@@ -56,6 +56,15 @@ def inject_now():
         'contact_email': app.config.get('CONTACT_EMAIL')
     }
 
+@app.template_filter('format_datetime')
+def format_datetime(value, format="%d/%m/%Y às %H:%M"):
+    if value is None:
+        return ""
+    # Converte de UTC para horário de Brasília (UTC-3)
+    local_val = value - timedelta(hours=3)
+    return local_val.strftime(format)
+
+
 # Registro das Rotas (Blueprints)
 app.register_blueprint(public_bp)
 app.register_blueprint(admin_bp, url_prefix='/admin')
@@ -82,8 +91,6 @@ if __name__ == '__main__':
             perfil_admin = PilotProfile(user_id=admin_user.id, nickname='Direção de Prova', nome_real='Admin', grid='SEM_GRID')
             db.session.add(perfil_admin)
         
-        # Força a senha padrão para garantir o acesso em ambiente de teste
-        # admin_user.set_password('admin123') 
         db.session.commit()
         print("Acesso Admin garantido: admin@fullgas.com / admin123")
 

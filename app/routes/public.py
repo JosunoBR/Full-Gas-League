@@ -137,7 +137,11 @@ def home():
     # 2. Itera sobre os grids da temporada ativa
     grid_configs = data.get('grid_configs', [])
     for g_cfg in grid_configs:
+<<<<<<< HEAD
         g_id = g_cfg['id'] if isinstance(g_cfg, dict) else g_cfg.id
+=======
+        g_id = g_cfg['id']
+>>>>>>> 6e1fb7a91e8eea401bb4da257fa7315d6ae70c5e
         team_points = {}
         
         results = RaceResult.query.join(Race).filter(Race.season_id == season_ativa.id, Race.grid_id == g_id).all()
@@ -150,9 +154,17 @@ def home():
             deductions = sum(PONTOS_PENALIDADE.get(p.veredito_final, 0) for p in punicoes_by_pilot.get(rr.pilot_id, []) if p.etapa_id == rr.race_id)
             net_points = raw_points - deductions
 
-            team_points.setdefault(team.id, {'team': team, 'points': 0.0})['points'] += net_points
+            if team.id not in team_points:
+                team_points[team.id] = {
+                    'equipe': team.to_dict() if hasattr(team, 'to_dict') else {'id': team.id, 'nome': getattr(team, 'nome', 'N/A'), 'logo': getattr(team, 'logo', None)},
+                    'pontos': 0.0,
+                    'vitorias': 0
+                }
+            team_points[team.id]['pontos'] += net_points
+            if getattr(rr, 'posicao', None) == 1 and not getattr(rr, 'dsq', False):
+                team_points[team.id]['vitorias'] += 1
             
-        new_constructors_data[g_id] = sorted(team_points.values(), key=lambda x: x['points'], reverse=True)
+        new_constructors_data[g_id] = sorted(team_points.values(), key=lambda x: x['pontos'], reverse=True)
 
     if 'constructors' in data:
         data['constructors'] = new_constructors_data
