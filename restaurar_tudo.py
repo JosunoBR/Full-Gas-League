@@ -474,10 +474,7 @@ ADMIN_PY_ROUTE_CODE = """
 @admin_bp.route('/historic')
 @login_required
 def historic():
-    \"\"\"
-    Lê todas as corridas com resultados, agrupa por circuito e calcula
-    estatísticas por pista (vencedor mais frequente, total de corridas, etc.).
-    \"\"\"
+
     def parse_time_str(time_str):
         if not time_str:
             return float('inf')
@@ -494,6 +491,13 @@ def historic():
             return float(s)
         except Exception:
             return float('inf')
+    \"\"\"
+    Lê todas as corridas com resultados, agrupa por circuito e calcula
+    estatísticas por pista (vencedor mais frequente, total de corridas, etc.).
+    \"\"\"
+    def parse_time_str(time_str):
+        if not time_str:
+            return float('inf')
 
     corridas_com_resultados = Race.query.join(RaceResult).distinct().order_by(
         Race.pista.asc(), Race.data_corrida.desc()
@@ -504,6 +508,9 @@ def historic():
     for race in corridas_com_resultados:
         resultados = RaceResult.query.filter_by(race_id=race.id).all()
 
+        # Conta apenas pilotos que efetivamente participaram (têm posição > 0, DNF ou DSQ) e não estão marcados como ausentes.
+        total_participantes = sum(1 for r in resultados if r.status_presenca == 'OK' and (r.posicao > 0 or r.dnf or r.dsq))
+
         primeiro = next((r.pilot for r in resultados if r.posicao == 1 and not r.dsq), None)
         segundo  = next((r.pilot for r in resultados if r.posicao == 2 and not r.dsq), None)
         terceiro = next((r.pilot for r in resultados if r.posicao == 3 and not r.dsq), None)
@@ -511,19 +518,20 @@ def historic():
         volta_rapida = next((r.pilot for r in resultados if r.volta_rapida), None)
 
         dados_corrida = {
-            'nome_gp':    race.nome_gp,
-            'data':       race.data_corrida,
-            'season_name': race.season.nome,
-            'grid_name':  race.grid_config.nome if race.grid_config else race.grid,
-            'pole_sitter': race.pole_sitter,
-            'pole_time':  race.pole_time,
-            'primeiro':   primeiro,
-            'segundo':    segundo,
-            'terceiro':   terceiro,
+            'nome_gp':       race.nome_gp,
+            'data':          race.data_corrida,
+            'season_name':   race.season.nome,
+            'grid_name':     race.grid_config.nome if race.grid_config else race.grid,
+            'pole_sitter':   race.pole_sitter,
+            'pole_time':     race.pole_time,
+            'primeiro':      primeiro,
+            'segundo':       segundo,
+            'terceiro':      terceiro,
             'volta_rapida': volta_rapida,
             'piloto_do_dia': piloto_dia,
-            'race_id':    race.id,
-            'total_pilotos': len(resultados),
+            'race_id':       race.id,
+            'total_pilotos': total_participantes,
+            'tipo_etapa':    race.tipo_etapa,
         }
 
         circuito = race.pista
@@ -533,13 +541,12 @@ def historic():
 
     # Calcula estatísticas por circuito
     for circuito, dados in historico_por_circuito.items():
-        corridas = dados['corridas']
-        vitorias = {}
-        poles    = {}
         
         record_pilot = None
         record_time = None
         min_seconds = float('inf')
+        corridas = dados['corridas']
+        vitorias, poles = {}, {}
         
         for c in corridas:
             if c['primeiro']:
@@ -567,7 +574,7 @@ def historic():
             'poles_lider':     poles.get(maior_pole, 0) if maior_pole else 0,
             'record_pilot':    record_pilot,
             'record_time':     record_time,
-            'ultima_data':     corridas[0]['data'],   # já vem desc por data
+            'ultima_data':     corridas[0]['data'],
         }
 
     total_corridas_geral = sum(d['stats']['total_corridas'] for d in historico_por_circuito.values())
