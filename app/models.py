@@ -163,6 +163,11 @@ class Race(db.Model):
     status = db.Column(db.String(20), default='Agendada')
     tipo_etapa = db.Column(db.String(20), default='NORMAL')
     
+    # POLE POSITION
+    pole_pilot_id = db.Column(db.Integer, db.ForeignKey('pilot_profile.id'), nullable=True)
+    pole_time = db.Column(db.String(20), nullable=True)
+    pole_sitter = db.relationship('PilotProfile', foreign_keys=[pole_pilot_id])
+
     results = db.relationship('RaceResult', backref='race', lazy=True, cascade="all, delete-orphan")
     
     # Relacionamentos para garantir limpeza em cascata
