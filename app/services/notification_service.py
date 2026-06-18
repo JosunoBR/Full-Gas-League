@@ -1,5 +1,9 @@
-import firebase_admin
-from firebase_admin import credentials, messaging
+try:
+    import firebase_admin
+    from firebase_admin import credentials, messaging
+    HAS_FIREBASE = True
+except ImportError:
+    HAS_FIREBASE = False
 import os
 
 # --- INICIALIZAÇÃO DO FIREBASE ADMIN SDK ---
@@ -12,21 +16,31 @@ import os
 # o que causaria um erro.
 
 try:
-    # Obtém o caminho absoluto para o diretório raiz do projeto
-    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-    cred_path = os.path.join(base_dir, 'firebase-credentials.json')
-
-    if not os.path.exists(cred_path):
-        print("AVISO: Arquivo 'firebase-credentials.json' não encontrado. As notificações push não funcionarão.")
-        # Define uma variável para que o resto do código saiba que o serviço não está disponível
+    if not HAS_FIREBASE:
+        print("AVISO: Biblioteca 'firebase-admin' não está instalada. As notificações push serão simuladas.")
         _firebase_app = None
     else:
-        cred = credentials.Certificate(cred_path)
-        _firebase_app = firebase_admin.initialize_app(cred)
+        # Obtém o caminho absoluto para o diretório raiz do projeto
+        base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+        cred_path = os.path.join(base_dir, 'firebase-credentials.json')
+
+        if not os.path.exists(cred_path):
+            print("AVISO: Arquivo 'firebase-credentials.json' não encontrado. As notificações push não funcionarão.")
+            # Define uma variável para que o resto do código saiba que o serviço não está disponível
+            _firebase_app = None
+        else:
+            cred = credentials.Certificate(cred_path)
+            _firebase_app = firebase_admin.initialize_app(cred)
 
 except ValueError:
     # O app já foi inicializado, o que é esperado em recarregamentos (reload).
-    _firebase_app = firebase_admin.get_app()
+    if HAS_FIREBASE:
+        _firebase_app = firebase_admin.get_app()
+    else:
+        _firebase_app = None
+except Exception as e:
+    print(f"Erro ao inicializar Firebase: {e}")
+    _firebase_app = None
 
 
 class NotificationService:

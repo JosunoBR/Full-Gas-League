@@ -955,7 +955,7 @@ def close_season(season_id):
                 pontos=res.total_pts, vitorias=res.total_wins
             ))
 
-        # 2. CAMPEÃO DE CONSTRUTORES (TOP 1)
+        # 2. CAMPEÕES DE CONSTRUTORES (TOP 3)
         team_results = db.session.query(
             RaceResult.team_id,
             func.sum(RaceResult.pontos_ganhos).label('total_pts'),
@@ -967,25 +967,28 @@ def close_season(season_id):
         ).group_by(RaceResult.team_id).all()
 
         if team_results:
-            champion_team_stats = sorted(team_results, key=lambda x: (x.total_pts or 0, x.total_wins or 0), reverse=True)[0]
-            team = Team.query.get(champion_team_stats.team_id)
-            
-            # Copia logo da equipe
-            champ_logo = None
-            if team.logo_url:
-                ext = team.logo_url.split('.')[-1]
-                champ_logo = f"champ_team_{season.id}_{grid_name}_{secrets.token_hex(4)}.{ext}"
-                try:
-                    shutil.copy(os.path.join(upload_folder, team.logo_url), os.path.join(upload_folder, champ_logo))
-                except (OSError, FileNotFoundError) as e:
-                    print(f"WARN: Falha ao copiar logo da equipe campea {team.nome}: {e}")
-                    champ_logo = None
+            sorted_teams = sorted(team_results, key=lambda x: (x.total_pts or 0, x.total_wins or 0), reverse=True)[:3]
+            for j, t_stats in enumerate(sorted_teams):
+                team = Team.query.get(t_stats.team_id)
+                if not team:
+                    continue
+                
+                # Copia logo da equipe
+                champ_logo = None
+                if team.logo_url:
+                    ext = team.logo_url.split('.')[-1]
+                    champ_logo = f"champ_team_{season.id}_{grid_name}_{j+1}_{secrets.token_hex(4)}.{ext}"
+                    try:
+                        shutil.copy(os.path.join(upload_folder, team.logo_url), os.path.join(upload_folder, champ_logo))
+                    except (OSError, FileNotFoundError) as e:
+                        print(f"WARN: Falha ao copiar logo da equipe campea {team.nome}: {e}")
+                        champ_logo = None
 
-            db.session.add(SeasonChampion(
-                season_id=season.id, grid=grid_name, grid_id=g_cfg.id, category='CONSTRUCTOR', position=1,
-                name=team.nome, image_url=champ_logo,
-                pontos=champion_team_stats.total_pts, vitorias=champion_team_stats.total_wins
-            ))
+                db.session.add(SeasonChampion(
+                    season_id=season.id, grid=grid_name, grid_id=g_cfg.id, category='CONSTRUCTOR', position=j+1,
+                    name=team.nome, image_url=champ_logo,
+                    pontos=t_stats.total_pts, vitorias=t_stats.total_wins
+                ))
     # --------------------------------------------
 
     _archive_season_teams_and_unlink_pilots(season)

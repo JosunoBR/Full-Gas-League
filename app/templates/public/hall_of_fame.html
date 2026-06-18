@@ -27,13 +27,27 @@
     <div class="card-body p-4">
         
         {% for grid, champs in data[season.id].items() %}
-        <div class="mb-5">
-            <h3 class="text-danger fw-bold text-center mb-4 border-bottom border-secondary pb-2 d-inline-block px-5">
-                GRID {{ grid }}
-            </h3>
+        {% set grid_slug = grid | replace(' ', '_') | replace('/', '_') | replace('-', '_') %}
+        <div class="mb-5 grid-section" id="grid-{{ season.id }}-{{ grid_slug }}">
+            
+            <div class="d-flex flex-column flex-md-row align-items-center justify-content-center mb-4 gap-3">
+                <h3 class="text-danger fw-bold border-bottom border-secondary pb-2 px-5 mb-0" style="font-family: 'Cinzel', serif;">
+                    GRID {{ grid }}
+                </h3>
+                <div>
+                    <select class="form-select form-select-sm bg-dark text-white border-secondary fw-bold rounded-pill px-3 py-1.5 select-grid-mode" 
+                            style="font-size: 0.85rem; cursor: pointer; border-color: rgba(255,255,255,0.2) !important; box-shadow: none;"
+                            data-season-id="{{ season.id }}"
+                            data-grid-name="{{ grid_slug }}"
+                            onchange="toggleGridMode('{{ season.id }}', '{{ grid_slug }}', this.value)">
+                        <option value="pilots" {% if grid.upper() != 'RIVALS' %}selected{% endif %}>🏆 Pilotos</option>
+                        <option value="teams" {% if grid.upper() == 'RIVALS' %}selected{% endif %}>👥 Equipes</option>
+                    </select>
+                </div>
+            </div>
 
             <!-- PÓDIO DE PILOTOS -->
-            <div class="row justify-content-center align-items-end mb-5 g-3">
+            <div class="row justify-content-center align-items-end mb-5 g-3 pilot-view">
                 
                 <!-- 2º LUGAR (VICE) -->
                 {% set p2 = champs | selectattr('category', 'equalto', 'PILOT') | selectattr('position', 'equalto', 2) | first %}
@@ -99,10 +113,74 @@
                 {% endif %}
             </div>
 
-            <!-- EQUIPE CAMPEÃ -->
+            <!-- PÓDIO DE EQUIPES -->
+            <div class="row justify-content-center align-items-end mb-5 g-3 team-view" style="display: none;">
+                
+                <!-- 2ª EQUIPE (VICE) -->
+                {% set t2 = champs | selectattr('category', 'equalto', 'CONSTRUCTOR') | selectattr('position', 'equalto', 2) | first %}
+                {% if t2 %}
+                <div class="col-4 col-md-3 order-2 order-md-1 text-center">
+                    <div class="position-relative mb-2">
+                        {% if t2.image_url %}
+                        <img src="{{ url_for('static', filename='uploads/' + t2.image_url) }}" class="border border-3 border-secondary shadow p-1 bg-dark" style="width: 100px; height: 100px; object-fit: contain; border-radius: 12px;">
+                        {% else %}
+                        <div class="border border-3 border-secondary bg-secondary d-flex align-items-center justify-content-center mx-auto shadow" style="width: 100px; height: 100px; border-radius: 12px;">
+                            <i class="fa-solid fa-users fa-2x text-dark"></i>
+                        </div>
+                        {% endif %}
+                        <span class="position-absolute bottom-0 start-50 translate-middle-x badge bg-secondary border border-dark rounded-pill">2º</span>
+                    </div>
+                    <h5 class="text-white fw-bold mb-0 text-truncate">{{ t2.name }}</h5>
+                    <small class="text-secondary fw-bold d-block">{{ t2.pontos|int }} pts</small>
+                </div>
+                {% endif %}
+
+                <!-- 1ª EQUIPE (CAMPEÃ) -->
+                {% set t1 = champs | selectattr('category', 'equalto', 'CONSTRUCTOR') | selectattr('position', 'equalto', 1) | first %}
+                {% if t1 %}
+                <div class="col-4 col-md-4 order-1 order-md-2 text-center mb-4 mb-md-0">
+                    <div class="position-relative mb-3">
+                        <i class="fa-solid fa-crown text-warning fa-2x mb-2 d-block animate-bounce"></i>
+                        {% if t1.image_url %}
+                        <img src="{{ url_for('static', filename='uploads/' + t1.image_url) }}" class="border border-4 border-warning shadow-lg p-2 bg-dark" style="width: 140px; height: 140px; object-fit: contain; border-radius: 16px; box-shadow: 0 0 20px rgba(212, 175, 55, 0.3) !important;">
+                        {% else %}
+                        <div class="border border-4 border-warning bg-secondary d-flex align-items-center justify-content-center mx-auto shadow-lg" style="width: 140px; height: 140px; border-radius: 16px;">
+                            <i class="fa-solid fa-users fa-3x text-warning"></i>
+                        </div>
+                        {% endif %}
+                        <span class="position-absolute bottom-0 start-50 translate-middle-x badge bg-warning text-dark border border-dark rounded-pill px-3">CAMPEÃ</span>
+                    </div>
+                    <h3 class="text-warning fw-bold mb-0 text-uppercase" style="font-family: 'Cinzel', serif;">{{ t1.name }}</h3>
+                    <div class="badge bg-dark border border-warning text-warning mt-2 px-3 py-2">
+                        {{ t1.pontos|int }} PONTOS | {{ t1.vitorias }} VITÓRIAS
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- 3ª EQUIPE -->
+                {% set t3 = champs | selectattr('category', 'equalto', 'CONSTRUCTOR') | selectattr('position', 'equalto', 3) | first %}
+                {% if t3 %}
+                <div class="col-4 col-md-3 order-3 order-md-3 text-center">
+                    <div class="position-relative mb-2">
+                        {% if t3.image_url %}
+                        <img src="{{ url_for('static', filename='uploads/' + t3.image_url) }}" class="border border-3 border-danger shadow p-1 bg-dark" style="width: 100px; height: 100px; object-fit: contain; border-radius: 12px; border-color: #cd7f32 !important;">
+                        {% else %}
+                        <div class="border border-3 bg-secondary d-flex align-items-center justify-content-center mx-auto shadow" style="width: 100px; height: 100px; border-radius: 12px; border-color: #cd7f32 !important;">
+                            <i class="fa-solid fa-users fa-2x text-dark"></i>
+                        </div>
+                        {% endif %}
+                        <span class="position-absolute bottom-0 start-50 translate-middle-x badge bg-dark border border-secondary rounded-pill" style="color: #cd7f32; border-color: #cd7f32 !important;">3º</span>
+                    </div>
+                    <h5 class="text-white fw-bold mb-0 text-truncate">{{ t3.name }}</h5>
+                    <small class="text-secondary fw-bold d-block" style="color: #cd7f32 !important;">{{ t3.pontos|int }} pts</small>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- EQUIPE CAMPEÃ (MOSTRADO NA VISTA DE PILOTOS) -->
             {% set constr = champs | selectattr('category', 'equalto', 'CONSTRUCTOR') | first %}
             {% if constr %}
-            <div class="row justify-content-center mt-4">
+            <div class="row justify-content-center mt-4 pilot-view">
                 <div class="col-md-6">
                     <div class="card bg-dark border-info shadow-sm">
                         <div class="card-body d-flex align-items-center justify-content-center py-3">
@@ -113,6 +191,31 @@
                                 <small class="text-info fw-bold d-block text-uppercase">Campeã de Construtores</small>
                                 <h4 class="text-white fw-bold mb-0">{{ constr.name }}</h4>
                                 <small class="text-white-50">{{ constr.pontos|int }} pts</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- PILOTO CAMPEÃO (MOSTRADO NA VISTA DE EQUIPES) -->
+            {% set p1_champ = champs | selectattr('category', 'equalto', 'PILOT') | selectattr('position', 'equalto', 1) | first %}
+            {% if p1_champ %}
+            <div class="row justify-content-center mt-4 team-view" style="display: none;">
+                <div class="col-md-6">
+                    <div class="card bg-dark border-warning shadow-sm">
+                        <div class="card-body d-flex align-items-center justify-content-center py-3">
+                            {% if p1_champ.image_url %}
+                            <img src="{{ url_for('static', filename='uploads/' + p1_champ.image_url) }}" class="rounded-circle me-3" style="width: 55px; height: 55px; object-fit: cover; border: 2px solid #D4AF37;">
+                            {% else %}
+                            <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center me-3" style="width: 55px; height: 55px; border: 2px solid #D4AF37;">
+                                <i class="fa-solid fa-user text-dark fa-lg"></i>
+                            </div>
+                            {% endif %}
+                            <div class="text-start">
+                                <small class="text-warning fw-bold d-block text-uppercase">Piloto Campeão</small>
+                                <h4 class="text-white fw-bold mb-0">{{ p1_champ.name }}</h4>
+                                <small class="text-white-50">{{ p1_champ.team_name }} | {{ p1_champ.pontos|int }} pts</small>
                             </div>
                         </div>
                     </div>
@@ -136,4 +239,30 @@
         animation: bounce 2s infinite;
     }
 </style>
+
+<script>
+function toggleGridMode(seasonId, gridName, value) {
+    const container = document.getElementById(`grid-${seasonId}-${gridName}`);
+    if (!container) return;
+    
+    const pilotViews = container.querySelectorAll('.pilot-view');
+    const teamViews = container.querySelectorAll('.team-view');
+    
+    if (value === 'pilots') {
+        pilotViews.forEach(el => el.style.display = '');
+        teamViews.forEach(el => el.style.display = 'none');
+    } else {
+        pilotViews.forEach(el => el.style.display = 'none');
+        teamViews.forEach(el => el.style.display = '');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.select-grid-mode').forEach(select => {
+        const seasonId = select.getAttribute('data-season-id');
+        const gridName = select.getAttribute('data-grid-name');
+        toggleGridMode(seasonId, gridName, select.value);
+    });
+});
+</script>
 {% endblock %}
