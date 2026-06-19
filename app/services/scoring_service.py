@@ -206,7 +206,9 @@ class ScoringService:
             .join(Race, Protesto.etapa_id == Race.id)\
             .filter(Protesto.acusado_id == pilot_id, Protesto.status == 'CONCLUIDO', 
                     Race.season_id == season_id, Race.grid_id == grid_id).all()
-        punicoes_dict = {p.etapa_id: calcular_perda(p.veredito_final) for p in punicoes}
+        punicoes_dict = {}
+        for p in punicoes:
+            punicoes_dict[p.etapa_id] = punicoes_dict.get(p.etapa_id, 0.0) + calcular_perda(p.veredito_final)
         
         evolucao = [{
             'gp': 'Início',

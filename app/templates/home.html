@@ -1356,47 +1356,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 };
             });
 
-        // Fallback: se filtros salvos deixarem o gráfico vazio, reativa todos com dados.
-        if (!datasets.length) {
-            gridStandings.forEach(row => {
-                filterState[gridId][row.piloto.id] = !!(row.evolucao && row.evolucao.length > 0);
-            });
-            if (filterState[gridId].teams) {
-                Object.keys(filterState[gridId].teams).forEach(team => {
-                    filterState[gridId].teams[team] = true;
-                });
-            }
-            datasets = gridStandings
-                .filter(row => row.evolucao && row.evolucao.length > 0)
-                .map((row) => {
-                    const piloto = row.piloto;
-                    const evolucao = row.evolucao;
-                    const color = colorMap[piloto.id];
 
-                    const data = gpsOrdenados.map(gp => {
-                        const ev = evolucao.find(e => e.gp === gp);
-                        if (!ev) return null;
-                        return mode === 'etapa' ? ev.pontos_corrida : ev.pontos_acumulados;
-                    });
-
-                    return {
-                        label: piloto.nome_real || piloto.nickname,
-                        data: data,
-                        borderColor: color,
-                        backgroundColor: (context) => buildLineGradient(context.chart, color),
-                        borderWidth: 3,
-                        fill: false,
-                        tension: 0.35,
-                        pointRadius: 3,
-                        pointHoverRadius: 6,
-                        pointHitRadius: 14,
-                        pointBackgroundColor: color,
-                        pointBorderColor: '#ffffff',
-                        pointBorderWidth: 1.5,
-                        cubicInterpolationMode: 'monotone'
-                    };
-                });
-        }
         
         // Cria o gráfico
         const chart = new Chart(canvas, {
