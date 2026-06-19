@@ -63,32 +63,35 @@ class ScoringService:
         }
 
     @staticmethod
-    def build_constructors_for_home(season_id, grid_configs, canonical_teams, alias_ids_by_key):
+    def build_constructors_for_home(season_id, grid_configs, canonical_teams, alias_ids_by_key=None):
         """
         Build constructors table by grid.
-        Source of truth is race_result.team_id only.
+        Source of truth is the sum of total points of all pilots registered (titulars) in the team.
         """
         constructors = {g.id: [] for g in grid_configs}
-        stats_by_team_id = ScoringService.get_team_result_stats(season_id)
 
-        seen = set()
         for team in canonical_teams:
             if not team.grid_id or team.grid_id not in constructors:
                 continue
-            key = (team.grid_id, normalize_team_name(team.nome))
-            if key in seen:
-                continue
-            seen.add(key)
+            
+            # Soma a pontuação total calculada de todos os pilotos cadastrados (titulares e reservas) na equipe
+            todos_pilotos = list(team.pilots) + list(team.reserves)
+            total_pts = sum(
+                ScoringService.calculate_pilot_total_points(pilot.id, season_id, team.grid_id)
+                for pilot in todos_pilotos
+            )
+            
+            # Soma as vitórias dos pilotos cadastrados (titulares e reservas) na equipe neste grid/temporada
+            total_wins = 0
+            for pilot in todos_pilotos:
+                res_no_grid = [r for r in pilot.race_results if r.race.season_id == season_id and r.race.grid_id == team.grid_id]
+                total_wins += sum(1 for r in res_no_grid if r.posicao == 1 and not r.dsq)
 
-            alias_ids = alias_ids_by_key.get(key, [team.id])
-            pontos = 0.0
-            vitorias = 0
-            for tid in alias_ids:
-                s = stats_by_team_id.get(tid, {"pontos": 0.0, "vitorias": 0})
-                pontos += float(s["pontos"] or 0.0)
-                vitorias += int(s["vitorias"] or 0)
-
-            constructors[team.grid_id].append({"equipe": team, "pontos": pontos, "vitorias": vitorias})
+            constructors[team.grid_id].append({
+                "equipe": team,
+                "pontos": round(total_pts, 1),
+                "vitorias": total_wins
+            })
 
         for grid_id in constructors:
             constructors[grid_id].sort(key=lambda x: (x["pontos"], x["vitorias"]), reverse=True)
@@ -131,46 +134,30 @@ class ScoringService:
     def get_team_profile_stats(team: Team, season_id: int):
         """
         Source of truth for public team profile stats:
-        - totals and pilot breakdown from race_result.team_id only
-        - includes ex-drivers and reserves that raced for the team
+        - totals and pilot breakdown from currently registered titular pilots.
         """
-        alias_ids = ScoringService.get_team_alias_ids(team, season_id)
-        if not alias_ids:
-            return {"total_pontos": 0.0, "total_vitorias": 0, "stats_pilotos": []}
-
-        query = db.session.query(
-            RaceResult.pilot_id,
-            func.sum(RaceResult.pontos_ganhos).label("pontos"),
-            func.sum(case((((RaceResult.posicao == 1) & (RaceResult.dsq == False)), 1), else_=0)).label("vitorias"),
-        ).join(Race).filter(
-            Race.season_id == season_id,
-            RaceResult.team_id.in_(alias_ids),
-        )
-        if team.grid_id:
-            query = query.filter(Race.grid_id == team.grid_id)
-
-        rows = query.group_by(RaceResult.pilot_id).all()
-        if not rows:
-            return {"total_pontos": 0.0, "total_vitorias": 0, "stats_pilotos": []}
-
-        pilot_ids = [r.pilot_id for r in rows]
-        pilots = PilotProfile.query.filter(PilotProfile.id.in_(pilot_ids)).all()
-        pilot_by_id = {p.id: p for p in pilots}
-
         stats_pilotos = []
         total_pontos = 0.0
         total_vitorias = 0
-        for r in rows:
-            p = pilot_by_id.get(r.pilot_id)
-            if not p:
-                continue
-            pontos = float(r.pontos or 0.0)
-            vitorias = int(r.vitorias or 0)
+        
+        for pilot in list(team.pilots) + list(team.reserves):
+            # Calcula a pontuação total do piloto no grid/temporada (incluindo punições e penalidades manuais)
+            pontos = ScoringService.calculate_pilot_total_points(pilot.id, season_id, team.grid_id)
+            
+            # Soma as vitórias do piloto neste grid/temporada
+            res_no_grid = [r for r in pilot.race_results if r.race.season_id == season_id and r.race.grid_id == team.grid_id]
+            vitorias = sum(1 for r in res_no_grid if r.posicao == 1 and not r.dsq)
+            
             total_pontos += pontos
             total_vitorias += vitorias
-            stats_pilotos.append({"piloto": p, "pontos": pontos, "vitorias": vitorias})
-
+            stats_pilotos.append({
+                "piloto": pilot,
+                "pontos": pontos,
+                "vitorias": vitorias
+            })
+            
         stats_pilotos.sort(key=lambda x: (x["pontos"], x["vitorias"]), reverse=True)
+        
         return {
             "total_pontos": round(total_pontos, 1),
             "total_vitorias": int(total_vitorias),

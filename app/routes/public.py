@@ -7,7 +7,7 @@ from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 from app.models import db, Season, Race, PilotProfile, Protesto, RaceResult, VotoComissario, Team, RaceRegistration, User, Invite, News, GridConfig, SeasonChampion, PilotGridPhoto
-from app.utils import allowed_file, get_embed_url, ORDEM_CARROS, get_grid_name, find_grid_config, grid_matches
+from app.utils import allowed_file, get_embed_url, ORDEM_CARROS, get_grid_name, find_grid_config, grid_matches, calcular_perda
 from app.services.team_context import build_team_context
 from app.services.standings_service import StandingsService
 from app.services.scoring_service import ScoringService
@@ -114,57 +114,6 @@ def home():
 
     # Passo 3: Refatoração para usar StandingsService com Cache
     data = StandingsService.get_home_data(season_ativa.id)
-
-    # --- INÍCIO DA CORREÇÃO PONTUAL PARA CONSTRUTORES NA HOME ---
-    # A lógica abaixo recalcula a pontuação dos construtores para corrigir a inconsistência,
-    # aplicando as deduções de penalidades que o StandingsService pode não estar considerando.
-    # Esta é a mesma lógica usada no painel /admin/overview.
-
-    # 1. Coleta todas as punições da temporada para eficiência
-    punicoes_temporada = Protesto.query.join(Race).filter(
-        Protesto.status == 'CONCLUIDO',
-        Race.season_id == season_ativa.id
-    ).all()
-    punicoes_by_pilot = {}
-    for prot in punicoes_temporada:
-        if prot.acusado_id not in punicoes_by_pilot:
-            punicoes_by_pilot[prot.acusado_id] = []
-        punicoes_by_pilot[prot.acusado_id].append(prot)
-
-    PONTOS_PENALIDADE = {'LEVE': 3, 'MEDIA': 5, 'GRAVE': 10}
-    new_constructors_data = {}
-
-    # 2. Itera sobre os grids da temporada ativa
-    grid_configs = data.get('grid_configs', [])
-    for g_cfg in grid_configs:
-        g_id = g_cfg['id'] if isinstance(g_cfg, dict) else g_cfg.id
-        team_points = {}
-        
-        results = RaceResult.query.join(Race).filter(Race.season_id == season_ativa.id, Race.grid_id == g_id).all()
-        
-        for rr in results:
-            team = rr.team_snapshot if hasattr(rr, 'team_snapshot') else rr.team
-            if not team: continue
-
-            raw_points = float(rr.pontos_ganhos or 0)
-            deductions = sum(PONTOS_PENALIDADE.get(p.veredito_final, 0) for p in punicoes_by_pilot.get(rr.pilot_id, []) if p.etapa_id == rr.race_id)
-            net_points = raw_points - deductions
-
-            if team.id not in team_points:
-                team_points[team.id] = {
-                    'equipe': team.to_dict() if hasattr(team, 'to_dict') else {'id': team.id, 'nome': getattr(team, 'nome', 'N/A'), 'logo': getattr(team, 'logo', None)},
-                    'pontos': 0.0,
-                    'vitorias': 0
-                }
-            team_points[team.id]['pontos'] += net_points
-            if getattr(rr, 'posicao', None) == 1 and not getattr(rr, 'dsq', False):
-                team_points[team.id]['vitorias'] += 1
-            
-        new_constructors_data[g_id] = sorted(team_points.values(), key=lambda x: x['pontos'], reverse=True)
-
-    if 'constructors' in data:
-        data['constructors'] = new_constructors_data
-    # --- FIM DA CORREÇÃO PONTUAL ---
 
     return render_template('home.html', season_ativa=season_ativa, all_seasons=all_active_seasons, **data)
 
@@ -431,11 +380,20 @@ def public_profile(pilot_id):
         
         for race in corridas:
             resultado = next((r for r in race.results if r.pilot_id == perfil.id), None)
+            pontos_ganhos = resultado.pontos_ganhos if resultado else 0.0
+            punicoes_tribunal = Protesto.query.filter_by(
+                acusado_id=perfil.id,
+                etapa_id=race.id,
+                status='CONCLUIDO'
+            ).all()
+            total_punicoes_tribunal = sum(calcular_perda(p.veredito_final) for p in punicoes_tribunal)
+            pontos_finais = pontos_ganhos - total_punicoes_tribunal
+            
             desempenho_temporada.append({
                 'gp': race.nome_gp, 'data': race.data_corrida, 'status_corrida': race.status,
                 'participou': True if resultado and resultado.status_presenca == 'OK' else False,
                 'posicao': resultado.posicao if resultado else 0,
-                'pontos': resultado.pontos_ganhos if resultado else 0,
+                'pontos': round(pontos_finais, 1),
                 'dnf': resultado.dnf if resultado else False, 'dsq': resultado.dsq if resultado else False
             })
 
@@ -652,11 +610,20 @@ def my_profile():
         
         for race in corridas:
             resultado = next((r for r in race.results if r.pilot_id == perfil.id), None)
+            pontos_ganhos = resultado.pontos_ganhos if resultado else 0.0
+            punicoes_tribunal = Protesto.query.filter_by(
+                acusado_id=perfil.id,
+                etapa_id=race.id,
+                status='CONCLUIDO'
+            ).all()
+            total_punicoes_tribunal = sum(calcular_perda(p.veredito_final) for p in punicoes_tribunal)
+            pontos_finais = pontos_ganhos - total_punicoes_tribunal
+            
             desempenho_temporada.append({
                 'gp': race.nome_gp, 'data': race.data_corrida, 'status_corrida': race.status,
                 'participou': True if resultado and resultado.status_presenca == 'OK' else False,
                 'posicao': resultado.posicao if resultado else 0,
-                'pontos': resultado.pontos_ganhos if resultado else 0,
+                'pontos': round(pontos_finais, 1),
                 'dnf': resultado.dnf if resultado else False, 'dsq': resultado.dsq if resultado else False
             })
 
@@ -825,13 +792,15 @@ def team_profile(team_id):
     total_pontos = 0.0
     total_vitorias = 0
     stats_pilotos = []
+    stats_reserva = []
     if season_ativa:
         profile_stats = ScoringService.get_team_profile_stats(team, season_ativa.id)
         total_pontos = profile_stats["total_pontos"]
         total_vitorias = profile_stats["total_vitorias"]
-        # Exibe apenas titulares atualmente cadastrados nesta equipe.
+        
         stats_by_pilot_id = {item["piloto"].id: item for item in profile_stats["stats_pilotos"]}
-        stats_pilotos = []
+        
+        # Titulares
         for p in sorted(team.pilots, key=lambda x: (x.nickname or "").upper()):
             st = stats_by_pilot_id.get(p.id)
             stats_pilotos.append({
@@ -840,7 +809,16 @@ def team_profile(team_id):
                 "vitorias": int(st["vitorias"]) if st else 0,
             })
             
-    return render_template('public/team_profile.html', team=team, total_pontos=total_pontos, total_vitorias=total_vitorias, stats_pilotos=stats_pilotos, season_ativa=season_ativa, all_active_seasons=all_seasons)
+        # Reservas
+        for p in sorted(team.reserves, key=lambda x: (x.nickname or "").upper()):
+            st = stats_by_pilot_id.get(p.id)
+            stats_reserva.append({
+                "piloto": p,
+                "pontos": float(st["pontos"]) if st else 0.0,
+                "vitorias": int(st["vitorias"]) if st else 0,
+            })
+            
+    return render_template('public/team_profile.html', team=team, total_pontos=total_pontos, total_vitorias=total_vitorias, stats_pilotos=stats_pilotos, stats_reserva=stats_reserva, season_ativa=season_ativa, all_active_seasons=all_seasons)
 
 # --- AÇÕES DO PILOTO (DEFESA, ATUALIZAR PERFIL, PROTESTAR) ---
 

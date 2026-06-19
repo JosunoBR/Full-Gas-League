@@ -68,37 +68,54 @@
                 </div>
             </div>
         </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                    <h4 class="text-white fw-bold">{{ stat.piloto.nickname }}</h4>
+                </a>
+                <div class="d-flex justify-content-center gap-3 mt-3">
+                    <span class="badge bg-dark border border-secondary text-danger">{{ stat.pontos|int }} PTS</span>
+                    <span class="badge bg-dark border border-secondary text-success">{{ stat.vitorias }} WIN</span>
+                </div>
+            </div>
+        </div>
     </div>
     {% else %}
     <div class="col-12 text-center text-white-50">Nenhum piloto atribuído ainda.</div>
     {% endfor %}
 </div>
 
-{% if team.reserves %}
+{% if stats_reserva %}
 <h3 class="text-white border-bottom border-secondary pb-2 mb-4 mt-5" style="font-family: 'Cinzel', serif;">RESERVAS</h3>
 <div class="row justify-content-center">
-    {% for res in team.reserves %}
+    {% for stat in stats_reserva %}
     <div class="col-md-5 mb-4">
         <div class="card shadow border-secondary h-100">
             <div class="card-body bg-dark p-3">
-                <a href="{{ url_for('public.public_profile', pilot_id=res.id) }}" class="text-decoration-none d-flex align-items-center justify-content-center">
-                    <div class="me-3" style="width: 60px; height: 60px; border-radius: 50%; overflow: hidden; border: 2px solid #6c757d;">
-                        {% if res.foto_url %}
-                            <img src="{{ url_for('static', filename='uploads/' + res.foto_url) }}"
-                                 class="js-image-zoom"
-                                 style="width: 100%; height: 100%; object-fit: cover;"
-                                 data-fullsrc="{{ url_for('static', filename='uploads/' + res.foto_url) }}"
-                                 data-caption="{{ res.nickname }}"
-                                 alt="Foto de {{ res.nickname }}">
-                        {% else %}
-                            <div class="d-flex align-items-center justify-content-center h-100 bg-secondary">
-                                <i class="fa-solid fa-user"></i>
-                            </div>
-                        {% endif %}
+                <a href="{{ url_for('public.public_profile', pilot_id=stat.piloto.id) }}" class="text-decoration-none d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center">
+                        <div class="me-3" style="width: 60px; height: 60px; border-radius: 50%; overflow: hidden; border: 2px solid #6c757d;">
+                            {% if stat.piloto.foto_url %}
+                                <img src="{{ url_for('static', filename='uploads/' + stat.piloto.foto_url) }}"
+                                     class="js-image-zoom"
+                                     style="width: 100%; height: 100%; object-fit: cover;"
+                                     data-fullsrc="{{ url_for('static', filename='uploads/' + stat.piloto.foto_url) }}"
+                                     data-caption="{{ stat.piloto.nickname }}"
+                                     alt="Foto de {{ stat.piloto.nickname }}">
+                            {% else %}
+                                <div class="d-flex align-items-center justify-content-center h-100 bg-secondary">
+                                    <i class="fa-solid fa-user"></i>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="text-start">
+                            <h5 class="text-white fw-bold mb-0">{{ stat.piloto.nickname }}</h5>
+                            <span class="badge bg-secondary text-white small">Reserva</span>
+                        </div>
                     </div>
-                    <div class="text-start">
-                        <h5 class="text-white fw-bold mb-0">{{ res.nickname }}</h5>
-                        <span class="badge bg-secondary text-white small">Reserva</span>
+                    <div class="text-end d-flex flex-column gap-1">
+                        <span class="badge bg-dark border border-secondary text-danger">{{ stat.pontos|int }} PTS</span>
+                        <span class="badge bg-dark border border-secondary text-success">{{ stat.vitorias }} WIN</span>
                     </div>
                 </a>
             </div>

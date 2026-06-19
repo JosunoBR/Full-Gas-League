@@ -230,7 +230,7 @@
                                     {% if c.dsq %}
                                         0
                                     {% else %}
-                                        {{ c.pontos|int }}
+                                        {{ '%g' | format(c.pontos|float) }}
                                     {% endif %}
                                 </td>
                             </tr>
