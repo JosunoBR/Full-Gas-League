@@ -21,10 +21,18 @@
 
 {% for season in seasons %}
 <div class="card bg-dark border-silver shadow mb-5">
-    <div class="card-header bg-dark border-silver text-center py-3">
-        <h2 class="text-white fw-bold mb-0" style="font-family: 'Cinzel', serif;">{{ season.nome }}</h2>
+    <div class="card-header bg-dark border-silver text-center py-3 season-toggle-btn" 
+         data-bs-toggle="collapse" 
+         data-bs-target="#collapseSeason-{{ season.id }}" 
+         aria-expanded="{% if loop.first %}true{% else %}false{% endif %}"
+         aria-controls="collapseSeason-{{ season.id }}">
+        <h2 class="text-white fw-bold mb-0 d-inline-block" style="font-family: 'Cinzel', serif;">
+            {{ season.nome }}
+        </h2>
+        <i class="fa-solid fa-chevron-down text-danger ms-3 fs-3 transition-icon align-middle"></i>
     </div>
-    <div class="card-body p-4">
+    <div class="collapse {% if loop.first %}show{% endif %}" id="collapseSeason-{{ season.id }}">
+        <div class="card-body p-4">
         
         {% for grid, champs in data[season.id].items() %}
         {% set grid_slug = grid | replace(' ', '_') | replace('/', '_') | replace('-', '_') %}
@@ -228,6 +236,7 @@
 
     </div>
 </div>
+</div>
 {% endfor %}
 
 <style>
@@ -237,6 +246,20 @@
     }
     .animate-bounce {
         animation: bounce 2s infinite;
+    }
+    .season-toggle-btn {
+        cursor: pointer;
+        user-select: none;
+        transition: background-color 0.2s ease;
+    }
+    .season-toggle-btn:hover {
+        background-color: rgba(255, 255, 255, 0.03) !important;
+    }
+    .season-toggle-btn .transition-icon {
+        transition: transform 0.3s ease;
+    }
+    .season-toggle-btn[aria-expanded="true"] .transition-icon {
+        transform: rotate(180deg);
     }
 </style>
 

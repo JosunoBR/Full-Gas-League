@@ -6,7 +6,7 @@
     <a href="{{ url_for('admin.seasons') }}" class="btn btn-outline-secondary">Cancelar</a>
 </div>
 
-<form method="POST" action="{{ url_for('admin.create_season') }}">
+<form id="seasonForm" method="POST" action="{{ url_for('admin.create_season') }}" onsubmit="return validateForm()">
     <!-- DADOS DA TEMPORADA -->
     <div class="card shadow border-silver mb-4">
         <div class="card-body bg-dark">
@@ -109,6 +109,15 @@
         const checkbox = document.getElementById(`check_lastro_${id}`);
         const hidden = document.getElementById(`hidden_lastro_${id}`);
         hidden.value = checkbox.checked ? '1' : '0';
+    }
+
+    function validateForm() {
+        const tbody = document.getElementById('gridsBody');
+        if (tbody.children.length === 0) {
+            alert('Você precisa adicionar e configurar pelo menos um grid para criar a temporada.');
+            return false;
+        }
+        return true;
     }
 </script>
 {% endblock %}

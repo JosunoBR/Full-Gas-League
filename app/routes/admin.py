@@ -805,26 +805,45 @@ def seasons():
 def create_season():
     if request.method == 'POST':
         nome = request.form.get('nome')
-        
-        # Cria a temporada
-        nova = Season(nome=nome, ativa=True, data_inicio=datetime.utcnow().date())
-        db.session.add(nova)
-        
-        # Processa os Grids Dinâmicos
-        # O formulário envia listas: grid_name[], grid_vagas[], grid_ordem[], grid_lastro[]
+        # Captura o nome da temporada e prepara as listas de grids
+        nome = request.form.get('nome')
         names = request.form.getlist('grid_name[]')
         vagas = request.form.getlist('grid_vagas[]')
         ordens = request.form.getlist('grid_ordem[]')
         lastros = request.form.getlist('grid_lastro[]') # Vem como "1" ou "0"
 
+        # Validação: Pelo menos um grid deve ser informado
+        if not any(name.strip() for name in names):
+            flash('É obrigatório informar pelo menos um grid para criar a temporada.', 'danger')
+            return redirect(url_for('admin.create_season'))
+
+        # Cria a temporada apenas se a validação passar
+        nova = Season(nome=nome, ativa=True, data_inicio=datetime.utcnow().date())
+        db.session.add(nova)
+        db.session.flush() # NECESSÁRIO: Gera o nova.id antes de vincular os grids
+        # Processa os Grids Dinâmicos
+
         for i in range(len(names)):
             if names[i].strip():
+                # Tratamento seguro para conversão de valores, previne erro 500 se o campo vier vazio
+                try:
+                    vagas_val = int(vagas[i]) if i < len(vagas) and vagas[i].strip() else 20
+                except ValueError:
+                    vagas_val = 20
+                    
+                try:
+                    ordem_val = int(ordens[i]) if i < len(ordens) and ordens[i].strip() else (i + 1)
+                except ValueError:
+                    ordem_val = i + 1
+                    
+                lastro_val = (lastros[i] == '1') if i < len(lastros) else True
+                
                 novo_grid = GridConfig(
                     season_id=nova.id,
                     nome=names[i].strip(),
-                    vagas=int(vagas[i]),
-                    ordem=int(ordens[i]),
-                    exibir_lastro=(lastros[i] == '1')
+                    vagas=vagas_val,
+                    ordem=ordem_val,
+                    exibir_lastro=lastro_val
                 )
                 db.session.add(novo_grid)
                 
