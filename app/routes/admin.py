@@ -1771,6 +1771,7 @@ def edit_team(team_id):
             
         pilot1_id = request.form.get('pilot1')
         pilot2_id = request.form.get('pilot2')
+        pilot3_id = request.form.get('pilot3')
         titulares_ids = set()
         
         if pilot1_id:
@@ -1785,6 +1786,12 @@ def edit_team(team_id):
                 unlink_from_other_teams(p2)
                 team.pilots.append(p2)
                 titulares_ids.add(p2.id)
+        if pilot3_id:
+            p3 = PilotProfile.query.get(pilot3_id)
+            if p3 and p3.id not in titulares_ids:
+                unlink_from_other_teams(p3)
+                team.pilots.append(p3)
+                titulares_ids.add(p3.id)
             
         reserve1_id = request.form.get('reserve_pilot_1')
         reservas_ids = set()
@@ -1893,7 +1900,8 @@ def seletiva():
             vagas_input = int(request.form.get('vagas') or 20)
             vagas = vagas_input if vagas_input in [20, 22] else 20
             ordem = int(request.form.get('ordem') or 0)
-            exibir_lastro = True if request.form.get('exibir_lastro') == 'on' else False
+            campeonato_equipes = True if request.form.get('campeonato_equipes') == 'on' else False
+            exibir_lastro = not campeonato_equipes
             
             existing = GridConfig.query.filter_by(season_id=None, nome=nome).first()
             if existing:

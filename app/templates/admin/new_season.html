@@ -33,7 +33,7 @@
                             <th class="ps-4" style="width: 30%;">Nome do Grid</th>
                             <th style="width: 20%;">Vagas</th>
                             <th style="width: 15%;">Ordem</th>
-                            <th style="width: 25%;">Carros de Lastro</th>
+                             <th style="width: 25%;">Campeonato de Equipes</th>
                             <th class="text-end pe-4" style="width: 10%;">Ação</th>
                         </tr>
                     </thead>
@@ -82,8 +82,8 @@
             <td>
                 <div class="form-check form-switch">
                     <input type="hidden" name="grid_lastro[]" id="hidden_lastro_${rowId}" value="1">
-                    <input class="form-check-input" type="checkbox" id="check_lastro_${rowId}" checked onchange="toggleLastro('${rowId}')">
-                    <label class="form-check-label text-white small" for="check_lastro_${rowId}">Exibir Carros</label>
+                    <input class="form-check-input" type="checkbox" id="check_lastro_${rowId}" onchange="toggleLastro('${rowId}')">
+                    <label class="form-check-label text-white small" for="check_lastro_${rowId}">Campeonato de Equipes</label>
                 </div>
             </td>
             <td class="text-end pe-4">
@@ -108,7 +108,7 @@
     function toggleLastro(id) {
         const checkbox = document.getElementById(`check_lastro_${id}`);
         const hidden = document.getElementById(`hidden_lastro_${id}`);
-        hidden.value = checkbox.checked ? '1' : '0';
+        hidden.value = checkbox.checked ? '0' : '1';
     }
 
     function validateForm() {
