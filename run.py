@@ -8,6 +8,7 @@ from app.routes.public import public_bp
 from app.routes.admin import admin_bp
 from app.routes.api import api_bp # Importa a nova API
 from config import Config
+from sqlalchemy import text
 import os
 from datetime import datetime, timezone, timedelta
 
@@ -87,8 +88,20 @@ app.register_blueprint(api_bp, url_prefix='/api') # Registra com prefixo /api
 if __name__ == '__main__':
     # Criação das Tabelas e Admin Inicial (Executado apenas ao rodar o servidor)
     with app.app_context():
-        # db.create_all() garante que tabelas novas (como pilot_teams) sejam criadas
         db.create_all() 
+
+        # Verifica se coluna exibir_home existe na tabela season
+        try:
+            db.session.execute(text("SELECT exibir_home FROM season LIMIT 1"))
+        except Exception:
+            db.session.rollback()
+            try:
+                db.session.execute(text("ALTER TABLE season ADD COLUMN exibir_home INTEGER DEFAULT 1 NOT NULL"))
+                db.session.commit()
+                print("Successfully added column exibir_home to season table")
+            except Exception as e:
+                db.session.rollback()
+                print(f"Error adding exibir_home column: {e}")
         
         # Verifica se existe pasta de upload
         if not os.path.exists(app.config['UPLOAD_FOLDER']):

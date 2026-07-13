@@ -98,7 +98,9 @@ def _get_active_protest_scope(profile):
 
 @public_bp.route('/')
 def home():
-    all_active_seasons = Season.query.filter_by(ativa=True).order_by(Season.id.asc()).all()
+    all_active_seasons = Season.query.filter_by(ativa=True, exibir_home=True).order_by(Season.id.asc()).all()
+    if not all_active_seasons:
+        all_active_seasons = Season.query.filter_by(exibir_home=True).order_by(Season.id.desc()).all()
     if not all_active_seasons:
         all_active_seasons = Season.query.order_by(Season.id.desc()).all()
     

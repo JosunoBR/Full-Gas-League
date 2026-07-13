@@ -116,6 +116,7 @@ class Season(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nome = db.Column(db.String(100), nullable=False)
     ativa = db.Column(db.Boolean, default=True)
+    exibir_home = db.Column(db.Boolean, default=True, nullable=False)
     data_inicio = db.Column(db.Date, nullable=False)
     races = db.relationship('Race', backref='season', lazy=True, cascade="all, delete-orphan")
     # FIX: Equipes agora são filhas da temporada. Se apagar a temporada, apaga as equipes.

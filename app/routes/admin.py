@@ -1017,6 +1017,25 @@ def close_season(season_id):
     )
     return redirect(url_for('admin.seasons'))
 
+@admin_bp.route('/seasons/<int:season_id>/toggle-home', methods=['POST'])
+@login_required
+def toggle_season_home(season_id):
+    if current_user.role not in ['ADM', 'SUPER_ADM']:
+        abort(403)
+    season = Season.query.get_or_404(season_id)
+    if not season.ativa:
+        flash('Não é possível alterar a exibição de uma temporada encerrada.', 'danger')
+        return redirect(url_for('admin.seasons'))
+    season.exibir_home = not season.exibir_home
+    
+    # Invalida cache de home
+    HomeCache.query.delete()
+    db.session.commit()
+    
+    status = "exibida" if season.exibir_home else "ocultada"
+    flash(f'Temporada {season.nome} foi {status} na Home com sucesso.', 'success')
+    return redirect(url_for('admin.seasons'))
+
 @admin_bp.route('/season/<int:season_id>/delete', methods=['POST'])
 def delete_season(season_id):
     if current_user.role != 'SUPER_ADM':
