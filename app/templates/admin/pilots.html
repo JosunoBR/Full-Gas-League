@@ -6,6 +6,15 @@
     <span class="badge bg-secondary text-white">{{ total_count }} Cadastrados</span>
 </div>
 
+<div class="row mb-4">
+    <div class="col-md-6 col-lg-4">
+        <div class="input-group">
+            <span class="input-group-text bg-dark border-secondary text-white-50"><i class="fa-solid fa-magnifying-glass"></i></span>
+            <input type="text" id="searchPilotInput" class="form-control bg-dark text-white border-secondary" placeholder="Buscar por nick ou nome real...">
+        </div>
+    </div>
+</div>
+
 <!-- Abas de Navegação por Grid -->
 <ul class="nav nav-tabs border-secondary mb-4" id="pilotTabs" role="tablist">
     <li class="nav-item" role="presentation">
@@ -32,6 +41,7 @@
                         <thead>
                             <tr class="text-white-50">
                                 <th class="ps-4">Piloto (Nick)</th>
+                                <th>Nome Real</th>
                                 <th>Grids Atuais</th>
                                 <th>CNH</th>
                                 <th class="text-end pe-4">Ações</th>
@@ -41,6 +51,7 @@
                             {% for p in all_pilots %}
                             <tr>
                                 <td class="ps-4 fw-bold text-white">{{ p.nickname }}</td>
+                                <td class="text-white">{{ p.nome_real }}</td>
                                 <td>
                                     {% for g in get_pilot_grids_display(p).split(',') %}
                                         <span class="badge bg-secondary">{{ g.strip() }}</span>
@@ -150,4 +161,51 @@
         color: #ffc107;
     }
 </style>
+
+<script>
+document.getElementById('searchPilotInput').addEventListener('input', function() {
+    const query = this.value.toLowerCase().trim();
+    const tables = document.querySelectorAll('.tab-content table');
+    tables.forEach(table => {
+        const rows = table.querySelectorAll('tbody tr');
+        let visibleCount = 0;
+        
+        rows.forEach(row => {
+            if (row.querySelector('td[colspan]')) {
+                return;
+            }
+            
+            const nicknameEl = row.cells[0];
+            const nomeRealEl = row.cells[1];
+            if (nicknameEl) {
+                const nickname = nicknameEl.textContent.toLowerCase();
+                const nomeReal = nomeRealEl ? nomeRealEl.textContent.toLowerCase() : '';
+                
+                if (nickname.includes(query) || nomeReal.includes(query)) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            }
+        });
+        
+        // Handle placeholder row
+        const noPilotsRow = table.querySelector('tbody tr td[colspan]');
+        if (noPilotsRow) {
+            const tr = noPilotsRow.closest('tr');
+            if (visibleCount === 0) {
+                tr.style.display = '';
+                if (query !== '') {
+                    noPilotsRow.textContent = 'Nenhum piloto corresponde à busca.';
+                } else {
+                    noPilotsRow.textContent = 'Nenhum piloto neste grid.';
+                }
+            } else {
+                tr.style.display = 'none';
+            }
+        }
+    });
+});
+</script>
 {% endblock %}

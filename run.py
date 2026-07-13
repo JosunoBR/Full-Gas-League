@@ -15,6 +15,20 @@ from datetime import datetime, timezone, timedelta
 app = Flask(__name__, template_folder='app/templates', static_folder='app/static')
 app.config.from_object(Config)
 
+# Copy default pilot profile photo to NP.jpg if it doesn't exist
+try:
+    static_img_dir = os.path.join(app.static_folder, 'img')
+    os.makedirs(static_img_dir, exist_ok=True)
+    default_img_path = os.path.join(static_img_dir, 'NP.jpg')
+    if not os.path.exists(default_img_path):
+        src_image = r"C:\Users\Josué\.gemini\antigravity-ide\brain\8b04a6c0-e451-43f8-ae95-47880bb0dad9\media__1783902550571.jpg"
+        if os.path.exists(src_image):
+            import shutil
+            shutil.copy(src_image, default_img_path)
+            print("Successfully copied default pilot profile photo to NP.jpg")
+except Exception as e:
+    print(f"Error copying default pilot profile photo: {e}")
+
 # Inicialização do Banco de Dados
 db.init_app(app)
 

@@ -157,21 +157,24 @@ def register():
         token_input = request.form.get('token')
         email = (request.form.get('email') or '').strip().lower()
         nickname = (request.form.get('nickname') or '')
+        nome_real = (request.form.get('nome_real') or '')
         telefone = request.form.get('telefone')
         password = request.form.get('password')
         confirm_password = request.form.get('confirm_password')
 
-        if not token_input:
-            flash('O código de convite é obrigatório.', 'warning')
-            return redirect(url_for('public.register'))
-            
-        invite = Invite.query.filter_by(token=token_input, used=False).first()
-        if not invite:
-            flash('Código de convite inválido ou já utilizado.', 'danger')
-            return redirect(url_for('public.register'))
+        invite = None
+        if token_input:
+            invite = Invite.query.filter_by(token=token_input, used=False).first()
+            if not invite:
+                flash('Código de convite inválido ou já utilizado.', 'danger')
+                return redirect(url_for('public.register'))
 
         if not nickname or nickname.strip() == "":
             flash('O campo Nickname é obrigatório.', 'danger')
+            return redirect(url_for('public.register'))
+
+        if not nome_real or nome_real.strip() == "":
+            flash('O campo Nome Real é obrigatório.', 'danger')
             return redirect(url_for('public.register'))
 
         if password != confirm_password:
@@ -191,12 +194,13 @@ def register():
         new_profile = PilotProfile(
             user_id=new_user.id, 
             nickname=nickname[:50], 
-            nome_real=nickname[:100], 
+            nome_real=nome_real[:100], 
             grid='SEM_GRID',
             telefone=telefone[:20] if telefone else None
         )
         db.session.add(new_profile)
-        invite.used = True
+        if invite:
+            invite.used = True
         db.session.commit()
 
         flash('Conta criada com sucesso! Faça login para continuar.', 'success')
@@ -880,7 +884,7 @@ def update_profile():
     if 'foto' in request.files:
         file = request.files['foto']
         if file and file.filename != '' and allowed_file(file.filename):
-            if current_user.pilot_profile.foto_url:
+            if current_user.pilot_profile.foto_url and current_user.pilot_profile.foto_url != '../img/NP.jpg':
                 old_path = os.path.join(current_app.config['UPLOAD_FOLDER'], current_user.pilot_profile.foto_url)
                 if os.path.exists(old_path):
                     try:

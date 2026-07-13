@@ -749,7 +749,7 @@ def delete_admin(user_id):
     if has_history:
         # ANONIMIZAR (Preserva histórico)
         profile = user.pilot_profile
-        if profile.foto_url:
+        if profile.foto_url and profile.foto_url != '../img/NP.jpg':
             path = os.path.join(current_app.config['UPLOAD_FOLDER'], profile.foto_url)
             if os.path.exists(path): os.remove(path)
             profile.foto_url = None
@@ -772,7 +772,7 @@ def delete_admin(user_id):
         # EXCLUSÃO TOTAL (Sem histórico)
         if user.pilot_profile:
             profile = user.pilot_profile
-            if profile.foto_url:
+            if profile.foto_url and profile.foto_url != '../img/NP.jpg':
                 path = os.path.join(current_app.config['UPLOAD_FOLDER'], profile.foto_url)
                 if os.path.exists(path): os.remove(path)
             
@@ -1460,7 +1460,7 @@ def edit_pilot(pilot_id):
         if 'foto' in request.files:
             file = request.files['foto']
             if file and file.filename != '' and allowed_file(file.filename):
-                if pilot.foto_url:
+                if pilot.foto_url and pilot.foto_url != '../img/NP.jpg':
                     old_path = os.path.join(current_app.config['UPLOAD_FOLDER'], pilot.foto_url)
                     if os.path.exists(old_path): os.remove(old_path)
                     
@@ -1568,7 +1568,7 @@ def delete_pilot(pilot_id):
 
     if tem_historico:
         # ANONIMIZAR
-        if profile.foto_url:
+        if profile.foto_url and profile.foto_url != '../img/NP.jpg':
             path = os.path.join(current_app.config['UPLOAD_FOLDER'], profile.foto_url)
             if os.path.exists(path): os.remove(path)
             profile.foto_url = None
@@ -1590,7 +1590,7 @@ def delete_pilot(pilot_id):
         flash('Piloto possuía histórico. Conta anonimizada para preservar a pontuação das equipes.', 'warning')
     else:
         # EXCLUSÃO TOTAL
-        if profile.foto_url:
+        if profile.foto_url and profile.foto_url != '../img/NP.jpg':
             path = os.path.join(current_app.config['UPLOAD_FOLDER'], profile.foto_url)
             if os.path.exists(path): os.remove(path)
 

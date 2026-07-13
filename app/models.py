@@ -66,7 +66,7 @@ class PilotProfile(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     nickname = db.Column(db.String(50), nullable=False)
     nome_real = db.Column(db.String(100), nullable=False)
-    foto_url = db.Column(db.String(200), nullable=True)
+    foto_url = db.Column(db.String(200), nullable=True, default='../img/NP.jpg')
     grid = db.Column(db.String(200), nullable=False, default='SEM_GRID') 
     
     telefone = db.Column(db.String(20), nullable=True)

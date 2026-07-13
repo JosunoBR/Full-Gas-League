@@ -835,6 +835,10 @@
     }
 </style>
 
+<script id="grid-configs-json" type="application/json">{{ grid_configs|tojson|safe }}</script>
+<script id="standings-json" type="application/json">{{ standings|tojson|safe }}</script>
+<script id="current-pilot-id-json" type="application/json">{% if current_user.is_authenticated and current_user.pilot_profile %}{{ current_user.pilot_profile.id }}{% else %}null{% endif %}</script>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const containers = document.querySelectorAll('.auto-scroll-container');
@@ -864,9 +868,9 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // --- GRÁFICOS DE EVOLUÇÃO DE PONTOS ---
-    const gridConfigs = {{ grid_configs|tojson }};
-    const standings = {{ standings|tojson }};
-    const currentPilotId = {% if current_user.is_authenticated and current_user.pilot_profile %}{{ current_user.pilot_profile.id }}{% else %}null{% endif %};
+    const gridConfigs = JSON.parse(document.getElementById('grid-configs-json').textContent);
+    const standings = JSON.parse(document.getElementById('standings-json').textContent);
+    const currentPilotId = JSON.parse(document.getElementById('current-pilot-id-json').textContent);
     
     // Cache local para dados de evolução carregados via API
     const evolutionDataCache = {};
