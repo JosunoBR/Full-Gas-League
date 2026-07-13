@@ -208,14 +208,11 @@ def dashboard():
 
 @admin_bp.route('/data-health')
 def data_health():
-    all_seasons = Season.query.order_by(Season.id.desc()).all()
-    all_active_seasons = Season.query.filter_by(ativa=True).order_by(Season.id.desc()).all()
+    all_seasons = Season.query.filter_by(ativa=True).order_by(Season.id.desc()).all()
     selected_season_id = request.args.get('s', type=int)
     season_ativa = None
     if selected_season_id:
-        season_ativa = next((s for s in all_active_seasons if s.id == selected_season_id), None)
-    if not season_ativa:
-        season_ativa = next((s for s in all_seasons if s.ativa), None)
+        season_ativa = next((s for s in all_seasons if s.id == selected_season_id), None)
     if not season_ativa and all_seasons:
         season_ativa = all_seasons[0]
 
@@ -1643,18 +1640,15 @@ def delete_invite(invite_id):
 def list_teams():
     # 1. Seleção de Temporada
     # FIX: Buscar TODAS as temporadas para permitir gestão de histórico e evitar tela vazia
-    all_seasons = Season.query.order_by(Season.id.desc()).all()
+    all_seasons = Season.query.filter_by(ativa=True).order_by(Season.id.desc()).all()
     selected_season_id = request.args.get('s', type=int)
     
     season_ativa = None
     if selected_season_id:
         season_ativa = next((s for s in all_seasons if s.id == selected_season_id), None)
     
-    if not season_ativa:
-        # Tenta a mais recente ativa, senão a mais recente de todas
-        season_ativa = next((s for s in all_seasons if s.ativa), None)
-        if not season_ativa and all_seasons:
-            season_ativa = all_seasons[0]
+    if not season_ativa and all_seasons:
+        season_ativa = all_seasons[0]
 
     # 2. Busca equipes da temporada
     teams = []
