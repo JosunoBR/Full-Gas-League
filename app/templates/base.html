@@ -107,7 +107,6 @@
             border-color: var(--surface-border) !important;
             backdrop-filter: blur(3px);
             box-shadow: 0 10px 26px rgba(0, 0, 0, 0.36);
-            transform: translateZ(0);
         }
         .card:hover {
             box-shadow: 0 16px 34px rgba(0, 0, 0, 0.44);
@@ -139,18 +138,6 @@
         @keyframes ambientShift {
             0% { transform: translate3d(0, 0, 0); opacity: 0.9; }
             100% { transform: translate3d(8px, -6px, 0); opacity: 1; }
-        }
-
-        @media (min-width: 992px) {
-            .container .card {
-                animation: surfaceFloat 8s ease-in-out infinite;
-            }
-            .container .card:nth-of-type(even) {
-                animation-delay: 1.2s;
-            }
-            .container .card:nth-of-type(3n) {
-                animation-delay: 2.1s;
-            }
         }
 
         @media (max-width: 991.98px) {
