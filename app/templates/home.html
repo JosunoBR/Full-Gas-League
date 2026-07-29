@@ -906,15 +906,22 @@ document.addEventListener('DOMContentLoaded', function() {
         // Inicializa filtro (todos selecionados por padrão)
         if (!filterState[gridId]) {
             filterState[gridId] = {};
+        }
+        if (!filterState[gridId].pilots_initialized) {
             gridStandings.forEach(row => {
                 filterState[gridId][row.piloto.id] = true;
             });
             // Inicializa também filtro de equipes
-            filterState[gridId].teams = {};
-            Object.keys(equipas).forEach(teamName => {
-                filterState[gridId].teams[teamName] = true;
-            });
-            filterState[gridId].mode = localStorage.getItem(`home_chart_mode_${gridId}`) || 'acumulado';
+            if (!filterState[gridId].teams) {
+                filterState[gridId].teams = {};
+                Object.keys(equipas).forEach(teamName => {
+                    filterState[gridId].teams[teamName] = true;
+                });
+            }
+            if (!filterState[gridId].mode) {
+                filterState[gridId].mode = localStorage.getItem(`home_chart_mode_${gridId}`) || 'acumulado';
+            }
+            filterState[gridId].pilots_initialized = true;
         }
         
         // Renderiza checkboxes agrupados por equipe
