@@ -4,7 +4,7 @@
 Sistema de gerenciamento de campeonatos de F1 virtual, com controle de pilotos, equipes, pontuação, punições e estatísticas.
 O sistema suporta múltiplos grids, temporadas, sistema de lastro invertido e cálculo automático de pontuação baseado no tamanho do grid.
 
-**Contato:** [Instagram](https://www.instagram.com/fullgasleague) | [YouTube](https://www.youtube.com/@FullGasLeagueF1Oficial) | [E-mail](mailto:fullgasracingf1@gmail.com)
+**Contato:** [Instagram](https://www.instagram.com/fullgasleagueofficial/) | [YouTube](https://www.youtube.com/@FullGasLeagueF1Oficial) | [E-mail](mailto:fullgasracingf1@gmail.com)
 **Desenvolvedor:** Josué Nogueira
 
 ## Instalação Local

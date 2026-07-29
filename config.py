@@ -24,6 +24,6 @@ class Config:
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
     # --- REDES SOCIAIS E CONTATO ---
-    INSTAGRAM_URL = 'https://www.instagram.com/fullgasleague?igsh=MTJ4djMxbmZncm1heQ=='
+    INSTAGRAM_URL = 'https://www.instagram.com/fullgasleagueofficial/'
     YOUTUBE_URL = 'https://www.youtube.com/@FullGasLeagueF1Oficial'
     CONTACT_EMAIL = 'fullgasracingf1@gmail.com'
