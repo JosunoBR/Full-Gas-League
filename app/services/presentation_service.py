@@ -16,7 +16,7 @@ class PresentationService:
             if i < len(ORDEM_CARROS):
                 item["carro"] = ORDEM_CARROS[i]
             else:
-                item["carro"] = "McLaren (Extra)"
+                item["carro"] = "Mercedes (Extra)"
 
     @staticmethod
     def get_pilot_photo_for_grid(pilot_obj, grid_id):

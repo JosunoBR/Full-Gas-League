@@ -1220,7 +1220,7 @@ def generate_grid_text(race_id):
             if i < len(ORDEM_CARROS): 
                 carro = ORDEM_CARROS[i]
             else: 
-                carro = "McLaren (Extra)"
+                carro = "Mercedes (Extra)"
         lista_final.append({'pos': i + 1, 'nickname': item['piloto'].nickname, 'carro': carro})
         
     return render_template('admin/grid_text.html', race=race, lista=lista_final, usar_lastro=usar_lastro)

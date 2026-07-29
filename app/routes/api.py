@@ -113,15 +113,16 @@ def get_profile():
         pos = next((i for i, r in enumerate(ranking) if r['id'] == pilot.id), -1)
         if pos != -1:
             pos += 1 # 1 para 1º lugar, 2 para 2º...
-            # Regra do Lastro: 1-2(Sauber), 3-4(Haas), 5-6(Alpine), 7-8(RB), 9-10(Williams)
-            # 11-12(Aston), 13-14(Ferrari), 15-16(Mercedes), 17-18(Red Bull), 19-20+(McLaren)
+            # Regra do Lastro 2026 (11 Equipes - Construtores 2026 Invertido):
+            # 1-2(Cadillac), 3-4(Aston), 5-6(Williams), 7-8(Audi), 9-10(Haas), 11-12(Alpine),
+            # 13-14(RB), 15-16(Red Bull), 17-18(McLaren), 19-20(Ferrari), 21-22(Mercedes)
             carros_lastro = [
-                "Sauber", "Sauber", "Haas", "Haas", "Alpine", "Alpine", 
-                "RB", "RB", "Williams", "Williams", "Aston Martin", "Aston Martin", 
-                "Ferrari", "Ferrari", "Mercedes", "Mercedes", "Red Bull", "Red Bull", 
-                "McLaren", "McLaren"
+                "Cadillac", "Cadillac", "Aston Martin", "Aston Martin", "Williams", "Williams",
+                "Audi", "Audi", "Haas", "Haas", "Alpine", "Alpine",
+                "RB", "RB", "Red Bull", "Red Bull", "McLaren", "McLaren",
+                "Ferrari", "Ferrari", "Mercedes", "Mercedes"
             ]
-            lastro_veiculo = carros_lastro[pos-1] if pos <= len(carros_lastro) else "McLaren"
+            lastro_veiculo = carros_lastro[pos-1] if pos <= len(carros_lastro) else "Mercedes"
     
     # Busca o histórico de corridas do piloto na temporada atual
     desempenho_temporada = []
