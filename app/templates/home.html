@@ -1152,7 +1152,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const grid = gridConfigs.find(g => g.id === gridId);
         if (grid) {
-            // Não precisa re-renderizar dropdowns inteiros, apenas atualizar gráfico
+            renderFilterDropdown(grid, gridStandings);
+            renderTeamFilterDropdown(grid, gridStandings);
             updateChart(gridId);
         }
     }
