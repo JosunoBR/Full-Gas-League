@@ -94,15 +94,22 @@
                         </div>
                     </div>
 
-                    {% if pilot.user.role != 'NARRADOR' %}
-                    <div class="mb-3">
-                        <label class="form-label text-white">Telefone / WhatsApp</label>
-                        <div class="input-group">
-                            <input type="text" id="phoneInput" name="telefone" class="form-control bg-secondary text-white border-0" value="{{ pilot.telefone or '' }}" oninput="maskPhone(this)" placeholder="(00) 00000-0000">
-                            <button type="button" class="btn btn-success" onclick="openWhatsApp()">
-                                <i class="fa-brands fa-whatsapp me-1"></i> Abrir WhatsApp
-                            </button>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-white">E-mail Cadastrado</label>
+                            <input type="email" name="email" class="form-control bg-secondary text-white border-0" value="{{ pilot.user.email }}" required>
                         </div>
+                        {% if pilot.user.role != 'NARRADOR' %}
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-white">Telefone / WhatsApp</label>
+                            <div class="input-group">
+                                <input type="text" id="phoneInput" name="telefone" class="form-control bg-secondary text-white border-0" value="{{ pilot.telefone or '' }}" oninput="maskPhone(this)" placeholder="(00) 00000-0000">
+                                <button type="button" class="btn btn-success" onclick="openWhatsApp()">
+                                    <i class="fa-brands fa-whatsapp me-1"></i> Abrir WhatsApp
+                                </button>
+                            </div>
+                        </div>
+                        {% endif %}
                     </div>
 
                     <div class="row">

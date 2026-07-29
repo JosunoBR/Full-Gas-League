@@ -33,21 +33,23 @@ O sistema utiliza um cálculo **dinâmico** de pontuação. Os pontos salvos no 
 - **Penalidades Administrativas:** Subtraídas do total global do piloto na temporada (definidas no perfil do piloto).
 
 ### Gestão de Equipes e Reservas
-- **Composição:** Cada equipe suporta 2 pilotos titulares e até **4 pilotos reservas** oficiais.
-- **Visualização:** As tabelas de classificação separam automaticamente Titulares de Reservas. A aba de Reservas não possui limitação de vagas, permitindo listar todos os pilotos vinculados.
-- **Fotos por Grid:** Pilotos podem ter fotos de perfil diferentes para cada grid que participam (ex: macacões diferentes).
+- **Composição**:
+  - **Campeonato de Equipes**: Cada equipe suporta até **3 pilotos titulares** e **4 pilotos reservas** oficiais. As equipes usam seus próprios nomes e o desempenho dos carros é idêntico.
+  - **Campeonato de Pilotos**: O formato de equipes é opcional ou secundário, focando no desempenho individual.
+- **Visualização**: As tabelas de classificação separam automaticamente Titulares de Reservas. A aba de Reservas não possui limitação de vagas, permitindo listar todos os pilotos vinculados.
+- **Fotos por Grid**: Pilotos podem ter fotos de perfil diferentes para cada grid que participam (ex: macacões diferentes).
 
 ### CNH (Carteira Nacional de Habilitação)
 Sistema global de conduta com base de **25 pontos**:
-- **Protestos:** Descontos de 3, 5 ou 10 pontos conforme o veredito.
-- **Advertências:** A cada 3 advertências acumuladas, o piloto perde 3 pontos na CNH.
-- **FNJ (Falta Não Justificada):** Cada W.O. sem justificativa desconta 2 pontos automaticamente.
+- **Protestos**: Descontos de 3, 5 ou 10 pontos conforme o veredito.
+- **Advertências**: A cada 3 advertências acumuladas, o piloto perde 3 pontos na CNH.
+- **FNJ (Falta Não Justificada)**: Cada W.O. sem justificativa desconta 2 pontos automaticamente.
 
 ### Arquitetura de Grids
-O sistema utiliza `GridConfig` vinculados a cada temporada. Isso permite que grids com o mesmo nome (ex: ELITE) tenham configurações de vagas e lastro independentes entre temporadas.
+O sistema utiliza `GridConfig` vinculados a cada temporada. Isso permite que grids com o mesmo nome (ex: ELITE) tenham configurações de vagas e de tipo de campeonato (Campeonato de Equipes ou Campeonato de Pilotos) independentes entre temporadas.
 
 ### Lastro Invertido
-A ordem de desempenho dos carros é fixa: Sauber (Líderes) -> Haas -> Alpine -> RB -> Williams -> Aston -> Ferrari -> Mercedes -> RBR -> McLaren (Últimos).
+Aplicado apenas em **Campeonatos de Pilotos** para equilibrar a disparidade de desempenho dos veículos. A ordem de desempenho dos carros é fixa: Sauber (Líderes) -> Haas -> Alpine -> RB -> Williams -> Aston -> Ferrari -> Mercedes -> RBR -> McLaren (Últimos). Em **Campeonatos de Equipes**, todos correm com desempenho de carro igual, e a coluna de lastro é omitida da visualização.
 
 ## Deploy (Hospedagem)
 Este projeto está configurado para o **PythonAnywhere**.

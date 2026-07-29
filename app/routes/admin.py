@@ -1422,6 +1422,16 @@ def edit_pilot(pilot_id):
         pilot.user.username = new_nickname # Sincroniza o login do usuário
         pilot.nome_real = request.form.get('nome_real')[:100] # Garante salvar Nome Real
         
+        new_email = (request.form.get('email') or '').strip().lower()
+        if new_email and new_email != pilot.user.email:
+            existing_user = User.query.filter((User.email == new_email) & (User.id != pilot.user.id)).first()
+            if existing_user:
+                flash('O e-mail informado já está cadastrado para outro usuário.', 'danger')
+            else:
+                pilot.user.email = new_email
+        elif not new_email:
+            flash('O e-mail não pode ficar em branco.', 'danger')
+        
         # NOVO: PilotProfile.grid passa a armazenar APENAS IDs numéricos de grids (ex.: "1,2").
         # O formulário envia IDs; salvamos somente IDs (sem nomes) para suportar a Home pilot-centric por ID.
         grid_ids_selecionados = request.form.getlist('grids')
