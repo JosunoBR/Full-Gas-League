@@ -176,4 +176,16 @@ if __name__ == '__main__':
         db.session.commit()
         print("Acesso Admin garantido: admin@fullgas.com / admin123")
 
+        # Aquecimento de Cache da Home para temporadas ativas
+        try:
+            from app.models import Season
+            from app.services.standings_service import StandingsService
+            active_seasons = Season.query.filter_by(ativa=True).all()
+            for s in active_seasons:
+                StandingsService.get_home_data(s.id)
+            print("Cache da Home pré-aquecido com sucesso!")
+        except Exception as e:
+            print(f"Aviso no pré-aquecimento do cache: {e}")
+
     app.run(debug=True, host='0.0.0.0')
+

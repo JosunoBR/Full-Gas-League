@@ -1,6 +1,7 @@
 import json
 from datetime import datetime, timedelta, date
-from app.models import db, Race, RaceResult, Protesto, Team, PilotProfile, GridConfig, HomeCache, News
+from sqlalchemy import func
+from app.models import db, Race, RaceResult, Protesto, Team, PilotProfile, GridConfig, HomeCache, News, PilotGridPhoto
 from sqlalchemy.orm import joinedload
 from app.utils import calcular_perda, ORDEM_CARROS, grid_matches
 from app.services.team_context import build_team_context
@@ -13,10 +14,11 @@ class StandingsService:
     @staticmethod
     def get_home_data(season_id):
         """
-        Agrega todos os dados da Home (Notícias, Classificação, Calendário) com cache.
+        Agrega todos os dados da Home (Notícias, Classificação, Calendário) com cache persistente.
+        O cache é mantido até ser explicitamente invalidado por ações administrativas.
         """
         cache = HomeCache.query.filter_by(season_id=season_id).first()
-        if cache and cache.last_updated > datetime.utcnow() - timedelta(minutes=2):
+        if cache:
             try:
                 print(f"DEBUG: Carregando Home do Cache (Season {season_id})")
                 data = json.loads(cache.data_json)
@@ -73,6 +75,24 @@ class StandingsService:
         # Precarrega em lote todos os pontos da temporada de forma otimizada em poucas consultas
         points_cache = ScoringService.preload_season_points(season_id)
         
+        # OTIMIZAÇÕES EM LOTE PARA EVITAR CONSULTAS N+1
+        # Precarrega fotos de grid
+        grid_photos_db = PilotGridPhoto.query.all()
+        photo_map = {(gp.pilot_id, gp.grid_id): gp.foto_url for gp in grid_photos_db}
+
+        # Precarrega vitórias por (pilot_id, grid_id)
+        wins_query = (
+            db.session.query(RaceResult.pilot_id, Race.grid_id, func.count(RaceResult.id))
+            .join(Race, RaceResult.race_id == Race.id)
+            .filter(Race.season_id == season_id, RaceResult.posicao == 1, RaceResult.dsq == False)
+            .group_by(RaceResult.pilot_id, Race.grid_id)
+            .all()
+        )
+        wins_map = {(row[0], row[1]): row[2] for row in wins_query}
+
+        # Precarrega quali bans ativos
+        banned_set = DisciplineService.preload_quali_bans(season_id)
+
         # 3. Contexto de Equipes e Construtores
         team_ctx = build_team_context(season_id)
         raw_constructors = ScoringService.build_constructors_for_home(
@@ -104,12 +124,9 @@ class StandingsService:
                 if key_pg not in points_cache:
                     points_cache[key_pg] = ScoringService.calculate_pilot_total_points(p.id, season_id, g.id)
                 
-                res_no_grid = [r for r in p.race_results if r.race.season_id == season_id and grid_matches(r.race, g)]
-                vitorias = ScoringService.get_pilot_wins(res_no_grid)
-
-                quali_ban = DisciplineService.is_quali_banned(p.id, g.id)
-
-                foto_final = PresentationService.get_pilot_photo_for_grid(p, g.id)
+                vitorias = wins_map.get((p.id, g.id), 0)
+                quali_ban = (p.id, g.id) in banned_set
+                foto_final = photo_map.get((p.id, g.id)) or p.foto_url
 
                 full_row = {
                     "piloto": {'id': p.id, 'nome_real': p.nome_real, 'nickname': p.nickname},

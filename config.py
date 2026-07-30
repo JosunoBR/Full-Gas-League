@@ -31,7 +31,11 @@ class Config:
     # Extensões permitidas
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
+    # --- CONFIGURAÇÃO DE CACHE DE ESTATÍSTICOS / NAVEGADOR ---
+    SEND_FILE_MAX_AGE_DEFAULT = 31536000 # 1 ano de cache para assets estáticos no navegador
+
     # --- REDES SOCIAIS E CONTATO ---
     INSTAGRAM_URL = 'https://www.instagram.com/fullgasleagueofficial/'
     YOUTUBE_URL = 'https://www.youtube.com/@FullGasLeagueF1Oficial'
     CONTACT_EMAIL = 'fullgasracingf1@gmail.com'
+

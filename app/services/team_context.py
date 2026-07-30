@@ -1,5 +1,5 @@
 from collections import defaultdict
-
+from sqlalchemy.orm import joinedload
 from app.models import Team
 
 
@@ -21,7 +21,10 @@ def build_team_context(season_id):
         - reserve_team_by_pilot_grid[(pilot_id, grid_id)] -> Team (canonical)
         - participants_by_grid[grid_id] -> [{'pilot', 'team', 'is_reserve'}]
     """
-    raw_teams = Team.query.filter_by(season_id=season_id, ativa=True).all()
+    raw_teams = Team.query.options(
+        joinedload(Team.pilots),
+        joinedload(Team.reserves)
+    ).filter_by(season_id=season_id, ativa=True).all()
 
     canonical_by_key = {}
     alias_ids_by_key = defaultdict(list)

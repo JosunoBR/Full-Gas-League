@@ -1,4 +1,5 @@
 from datetime import datetime
+from sqlalchemy import func
 from app.models import db, Protesto, RaceResult, Race
 
 class DisciplineService:
@@ -56,4 +57,57 @@ class DisciplineService:
             Race.status == 'Concluida', RaceResult.status_presenca == 'OK'
         ).order_by(Race.data_corrida.desc()).first()
         
-        return not ultima_res or ultimo_p.data_fechamento.date() > ultima_res.race.data_corrida
+        return not ultima_res or (ultimo_p.data_fechamento and ultimo_p.data_fechamento.date() > ultima_res.race.data_corrida)
+
+    @staticmethod
+    def preload_quali_bans(season_id):
+        """
+        Retorna um conjunto de tuplas (pilot_id, grid_id) com Quali Ban ativo na temporada,
+        usando apenas 2 consultas SQL agregadas em lote.
+        """
+        protestos = (
+            Protesto.query.join(Race, Protesto.etapa_id == Race.id)
+            .filter(
+                Race.season_id == season_id,
+                Protesto.status == 'CONCLUIDO',
+                Protesto.veredito_final.in_(['MEDIA', 'GRAVE'])
+            )
+            .order_by(Protesto.data_fechamento.desc())
+            .all()
+        )
+        if not protestos:
+            return set()
+
+        last_protest_date = {}
+        for p in protestos:
+            key = (p.acusado_id, p.grid_id)
+            if key not in last_protest_date and p.data_fechamento:
+                last_protest_date[key] = p.data_fechamento.date()
+
+        if not last_protest_date:
+            return set()
+
+        last_race_subquery = (
+            db.session.query(
+                RaceResult.pilot_id,
+                Race.grid_id,
+                func.max(Race.data_corrida).label('max_date')
+            )
+            .join(Race, RaceResult.race_id == Race.id)
+            .filter(
+                Race.season_id == season_id,
+                Race.status == 'Concluida',
+                RaceResult.status_presenca == 'OK'
+            )
+            .group_by(RaceResult.pilot_id, Race.grid_id)
+            .all()
+        )
+        last_race_date = {(r[0], r[1]): r[2] for r in last_race_subquery}
+
+        banned_set = set()
+        for key, protest_dt in last_protest_date.items():
+            race_dt = last_race_date.get(key)
+            if not race_dt or protest_dt > race_dt:
+                banned_set.add(key)
+
+        return banned_set
