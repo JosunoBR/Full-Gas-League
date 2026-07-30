@@ -386,7 +386,7 @@ def public_profile(pilot_id):
         
         for race in corridas:
             resultado = next((r for r in race.results if r.pilot_id == perfil.id), None)
-            pontos_ganhos = resultado.pontos_ganhos if resultado else 0.0
+            pontos_ganhos = (resultado.pontos_ganhos or 0.0) + (getattr(resultado, 'pontos_sprint', 0.0) or 0.0) if resultado else 0.0
             punicoes_tribunal = Protesto.query.filter_by(
                 acusado_id=perfil.id,
                 etapa_id=race.id,
@@ -616,7 +616,7 @@ def my_profile():
         
         for race in corridas:
             resultado = next((r for r in race.results if r.pilot_id == perfil.id), None)
-            pontos_ganhos = resultado.pontos_ganhos if resultado else 0.0
+            pontos_ganhos = (resultado.pontos_ganhos or 0.0) + (getattr(resultado, 'pontos_sprint', 0.0) or 0.0) if resultado else 0.0
             punicoes_tribunal = Protesto.query.filter_by(
                 acusado_id=perfil.id,
                 etapa_id=race.id,

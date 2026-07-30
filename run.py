@@ -47,6 +47,53 @@ with app.app_context():
             db.session.rollback()
             print(f"Error adding exibir_home column: {e}")
 
+    # Garante suporte às estatísticas avançadas da corrida (estilo Overtake F1)
+    novas_colunas = [
+        ("grid_largada", "INTEGER"),
+        ("tempo_total", "VARCHAR(30)"),
+        ("melhor_volta", "VARCHAR(20)"),
+        ("tempo_qualy", "VARCHAR(20)"),
+        ("pit_stops", "INTEGER DEFAULT 0"),
+        ("pneus_stints", "VARCHAR(50)"),
+        ("penalidades_texto", "VARCHAR(100)"),
+        ("posicao_sprint", "INTEGER"),
+        ("pontos_sprint", "FLOAT DEFAULT 0.0"),
+        ("tempo_sprint", "VARCHAR(30)"),
+        ("melhor_volta_sprint", "VARCHAR(20)")
+    ]
+    for col_nome, col_tipo in novas_colunas:
+        try:
+            db.session.execute(text(f"SELECT {col_nome} FROM race_result LIMIT 1"))
+        except Exception:
+            db.session.rollback()
+            try:
+                db.session.execute(text(f"ALTER TABLE race_result ADD COLUMN {col_nome} {col_tipo}"))
+                db.session.commit()
+                print(f"Successfully added column {col_nome} to race_result table")
+            except Exception as e:
+                db.session.rollback()
+                print(f"Error adding {col_nome} column: {e}")
+
+    # Garante suporte aos metadados e configurações do lobby na tabela race
+    race_novas_colunas = [
+        ("sc_vsc_info", "VARCHAR(255)"),
+        ("clima_temp", "VARCHAR(100)"),
+        ("total_voltas", "INTEGER"),
+        ("lobby_settings_json", "TEXT")
+    ]
+    for col_nome, col_tipo in race_novas_colunas:
+        try:
+            db.session.execute(text(f"SELECT {col_nome} FROM race LIMIT 1"))
+        except Exception:
+            db.session.rollback()
+            try:
+                db.session.execute(text(f"ALTER TABLE race ADD COLUMN {col_nome} {col_tipo}"))
+                db.session.commit()
+                print(f"Successfully added column {col_nome} to race table")
+            except Exception as e:
+                db.session.rollback()
+                print(f"Error adding {col_nome} column: {e}")
+
 UPLOAD_FOLDER = app.config.get('UPLOAD_FOLDER')
 if UPLOAD_FOLDER:
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)

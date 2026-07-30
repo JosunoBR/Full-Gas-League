@@ -1,119 +1,242 @@
 {% extends "base.html" %}
 
 {% block content %}
+<style>
+    .f1-card {
+        background: #111827;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    .f1-card-header {
+        background: #1f2937;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 14px 20px;
+    }
+    .f1-input {
+        background: #1f2937 !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    }
+    .f1-input:focus {
+        border-color: #00f2fe !important;
+        box-shadow: 0 0 8px rgba(0, 242, 254, 0.3) !important;
+    }
+    .btn-simhub-action {
+        background: linear-gradient(135deg, #00f2fe, #4facfe);
+        color: #000000 !important;
+        font-weight: 800;
+        letter-spacing: 0.5px;
+        border: none;
+        box-shadow: 0 4px 15px rgba(0, 242, 254, 0.3);
+        transition: all 0.2s ease-in-out;
+    }
+    .btn-simhub-action:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 20px rgba(0, 242, 254, 0.5);
+    }
+    .btn-save-results {
+        background: linear-gradient(135deg, #e10600, #ff4d4d);
+        color: #ffffff !important;
+        font-weight: 800;
+        letter-spacing: 1px;
+        border: none;
+        box-shadow: 0 4px 20px rgba(225, 6, 0, 0.4);
+    }
+    .btn-save-results:hover {
+        box-shadow: 0 6px 25px rgba(225, 6, 0, 0.6);
+    }
+</style>
+
 <div class="mb-4">
-    <h2 class="text-white fw-bold">Lançar Resultados: {{ race.nome_gp }}</h2>
-    <span class="badge bg-danger text-white">{{ race.grid }}</span>
+    <div class="p-3 rounded-3 shadow-sm position-relative overflow-hidden" style="background: linear-gradient(135deg, #161822 0%, #0c0d12 100%); border: 1px solid rgba(255, 255, 255, 0.08); border-left: 5px solid #e10600;">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div>
+                <span class="text-danger fw-bold text-uppercase font-monospace d-block mb-1" style="letter-spacing: 1px; font-size: 0.75rem;">
+                    <i class="fa-solid fa-flag-checkered me-1"></i> PAINEL DE GESTÃO & RESULTADOS DA ETAPA
+                </span>
+                <h2 class="text-white fw-bold mb-0 text-uppercase" style="font-family: 'Outfit', sans-serif; letter-spacing: 0.5px; font-size: 1.6rem; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">
+                    LANÇAR RESULTADOS: {{ race.nome_gp }}
+                </h2>
+                <small class="text-white-50 font-monospace">
+                    <i class="fa-solid fa-location-dot me-1 text-danger"></i> {{ race.pista }} &bull; GRID {{ race.grid }}
+                </small>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-danger text-white px-3 py-2 fw-bold font-monospace shadow-sm" style="font-size: 0.8rem;">FULLGAS LEAGUE</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- CARD DE IMPORTAÇÃO AUTOMÁTICA DO SIMHUB CSV -->
+<div class="f1-card shadow mb-4" style="border: 1px solid rgba(0, 242, 254, 0.4);">
+    <div class="f1-card-header d-flex justify-content-between align-items-center" style="background: rgba(0, 242, 254, 0.08);">
+        <h5 class="text-info fw-bold mb-0" style="font-family: 'Outfit', sans-serif;">
+            <i class="fa-solid fa-file-csv me-2"></i> IMPORTAR SÚMULA DO SIMHUB (.CSV)
+        </h5>
+        <span class="badge bg-info text-dark font-monospace fw-bold">Automático</span>
+    </div>
+    <div class="card-body p-4" style="background: #111827;">
+        <div class="row align-items-end g-3">
+            <div class="col-md-7">
+                <label class="small text-white-50 mb-1 fw-semibold">Selecione o arquivo CSV gerado pelo SimHub para esta corrida</label>
+                <input type="file" id="simhub_csv_file" accept=".csv" class="form-control f1-input">
+            </div>
+            <div class="col-md-5">
+                <button type="button" id="btn_parse_simhub" class="btn btn-simhub-action w-100 py-2">
+                    <i class="fa-solid fa-bolt me-2"></i> PROCESSAR ARQUIVO DO SIMHUB
+                </button>
+            </div>
+        </div>
+        <div id="simhub_alert" class="mt-3 d-none"></div>
+    </div>
 </div>
 
 <form method="POST">
     
-    <div class="card shadow border-secondary mb-5">
-        <div class="card-header bg-dark border-secondary">
-            <h5 class="text-white fw-bold mb-0"><i class="fa-solid fa-user-check me-2"></i> PILOTOS TITULARES (Check-in Automático)</h5>
+    <!-- METADADOS DE TELEMETRIA DO GP & LOBBY -->
+    <div class="f1-card shadow mb-4" style="border-left: 4px solid #f59e0b !important;">
+        <div class="f1-card-header d-flex justify-content-between align-items-center">
+            <h5 class="text-white fw-bold mb-0" style="font-family: 'Outfit', sans-serif;">
+                <i class="fa-solid fa-sliders me-2 text-warning"></i> METADADOS DA ETAPA (SC/VSC, CLIMA, VOLTAS)
+            </h5>
+            <span class="badge bg-warning text-dark font-monospace fw-bold">Estilo Overtake F1</span>
         </div>
-        <div class="card-body bg-dark p-0">
+        <div class="card-body p-4" style="background: #111827;">
+            <div class="row g-3">
+                <div class="col-md-5">
+                    <label class="small text-white-50 mb-1">Safety Car / Virtual Safety Car</label>
+                    <input type="text" name="sc_vsc_info" class="form-control f1-input font-monospace" placeholder="Ex: SC: 2x (voltas 3-7, 12-15) | VSC: 1x" value="{{ race.sc_vsc_info or '' }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="small text-white-50 mb-1">Temperatura Clima/Pista</label>
+                    <input type="text" name="clima_temp" class="form-control f1-input font-monospace" placeholder="Ex: Pista: 24°C | Ar: 20°C" value="{{ race.clima_temp or '' }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="small text-white-50 mb-1">Total de Voltas</label>
+                    <input type="number" name="total_voltas" class="form-control f1-input font-monospace" placeholder="Ex: 29" value="{{ race.total_voltas or '' }}">
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- POLE POSITION DO GP -->
+    <div class="f1-card shadow mb-4" style="border-left: 4px solid #a78bfa !important;">
+        <div class="f1-card-header">
+            <h5 class="text-white fw-bold mb-0" style="font-family: 'Outfit', sans-serif;">
+                <i class="fa-solid fa-flag-checkered me-2" style="color: #a78bfa;"></i> POLE POSITION DO GP
+            </h5>
+        </div>
+        <div class="card-body p-4" style="background: #111827;">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="small text-white-50 mb-1">Piloto Pole Sitter</label>
+                    <select name="pole_pilot_id" id="pole_pilot_id" class="form-select f1-input">
+                        <option value="">-- Nenhum / Não Definido --</option>
+                        {% for p in all_eligible_pilots %}
+                            <option value="{{ p.id }}" {% if race.pole_pilot_id == p.id %}selected{% endif %}>
+                                {{ p.nickname }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="small text-white-50 mb-1">Tempo da Pole (Ex: 1:25.800)</label>
+                    <input type="text" name="pole_time" id="pole_time" class="form-control f1-input font-monospace" placeholder="Ex: 1:25.800" value="{{ race.pole_time or '' }}">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabela de Classificação por Posição -->
+    <div class="f1-card shadow mb-5" style="border-left: 4px solid #e10600 !important;">
+        <div class="f1-card-header">
+            <h5 class="text-white fw-bold mb-0" style="font-family: 'Outfit', sans-serif;">
+                <i class="fa-solid fa-list-ol me-2 text-danger"></i> CLASSIFICAÇÃO DA CORRIDA
+            </h5>
+        </div>
+        <div class="card-body p-0" style="background: #111827;">
             <div class="table-responsive">
                 <table class="table table-dark table-hover mb-0 align-middle">
                     <thead>
-                        <tr class="small text-white-50">
-                            <th>Piloto / Equipe</th>
-                            <th class="text-center">Status Check-in</th>
-                            <th class="text-center">Presença</th>
-                            <th class="text-center">Posição</th>
-                            <th class="text-center">Status</th>
-                            <th class="text-center">Bônus</th>
+                        <tr class="small text-white-50 bg-black" style="font-size:0.75rem; text-transform:uppercase;">
+                            <th class="text-center" style="width: 5%;">Pos.</th>
+                            <th style="width: 22%;">Piloto</th>
+                            <th class="text-center" style="width: 14%;">Equipe</th>
+                            <th class="text-center" style="width: 12%;">Status</th>
+                            <th class="text-center" style="width: 12%;">Bônus</th>
+                            <th class="text-center" style="width: 35%;">Telemetria Completa (Grid | Qualy | VR | Pits | Tempo | Pneus | Pen)</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for item in titulares %}
-                        {% set piloto = item.piloto %}
-                        {% set team = item.team %}
-                        {% set registro = checkin_map.get(piloto.id) %}
-                        {% set resultado = results_map.get(piloto.id) %}
-                        
-                        {% set status_inicial = 'PENDENTE' %}
-                        {% if registro %}{% set status_inicial = registro.status %}{% endif %}
-                        
-                        {# Se já existe resultado, o status de presença vem do resultado gravado #}
-                        {% set presenca_final = status_inicial %}
-                        {% if resultado %}{% set presenca_final = resultado.status_presenca %}{% endif %}
-
+                        {% for i in range(1, grid_size + 1) %}
+                        {% set resultado = results_by_pos.get(i) %}
                         <tr>
-                            <td class="ps-4">
-                                <div class="d-flex align-items-center">
-                                    {% if piloto.foto_url %}
-                                        <img src="{{ url_for('static', filename='uploads/' + piloto.foto_url) }}" alt="Foto" width="42" height="42" class="me-3" style="object-fit: cover;">
-                                    {% else %}
-                                        <div class="me-3 bg-secondary d-flex align-items-center justify-content-center" style="width: 42px; height: 42px;">
-                                            <i class="fa-solid fa-user text-white-50"></i>
-                                        </div>
-                                    {% endif %}
-                                    <div>
-                                        <strong class="text-white d-block">{{ piloto.nickname }}</strong>
-                                        <small class="text-white-50">{{ team.nome if team else 'Sem Equipe' }}</small>
-                                        <input type="hidden" name="titular_id" value="{{ piloto.id }}">
-                                        <input type="hidden" name="titular_team_{{ piloto.id }}" value="{{ team.id if team else '' }}">
-                                    </div>
-                                </div>
-                            </td>
-                            
-                            <td class="text-center">
-                                {% if status_inicial == 'CONFIRMADO' %}
-                                    <span class="badge bg-success" title="Confirmou Presença"><i class="fa-solid fa-check"></i></span>
-                                {% elif status_inicial == 'JUSTIFICADO' %}
-                                    <span class="badge bg-warning text-dark" data-bs-toggle="tooltip" title="Motivo: {{ registro.justificativa }}">
-                                        <i class="fa-solid fa-comment-dots"></i> Justificou
-                                    </span>
+                            <td class="text-center ps-2">
+                                {% if i == 1 %}
+                                    <span class="badge bg-warning text-dark fw-bold">1º</span>
+                                {% elif i == 2 %}
+                                    <span class="badge bg-light text-dark fw-bold">2º</span>
+                                {% elif i == 3 %}
+                                    <span class="badge text-white fw-bold" style="background:#cd7f32;">3º</span>
                                 {% else %}
-                                    <span class="badge bg-secondary opacity-50">Sem Resposta</span>
+                                    <strong class="text-white">{{ i }}º</strong>
                                 {% endif %}
                             </td>
-
-                            <td class="text-center">
-                                <div class="btn-group" role="group">
-                                    <input type="radio" class="btn-check" name="status_{{ piloto.id }}" id="ok_{{ piloto.id }}" value="OK" 
-                                           {% if presenca_final == 'OK' or presenca_final == 'CONFIRMADO' or presenca_final == 'PENDENTE' %}checked{% endif %} 
-                                           onchange="toggleRow('{{ piloto.id }}', true)">
-                                    <label class="btn btn-outline-success btn-sm" for="ok_{{ piloto.id }}">OK</label>
-
-                                    <input type="radio" class="btn-check" name="status_{{ piloto.id }}" id="fj_{{ piloto.id }}" value="FJ" 
-                                           {% if presenca_final == 'FJ' or presenca_final == 'JUSTIFICADO' %}checked{% endif %} 
-                                           onchange="toggleRow('{{ piloto.id }}', false)">
-                                    <label class="btn btn-outline-warning btn-sm" for="fj_{{ piloto.id }}">FJ</label>
-
-                                    <input type="radio" class="btn-check" name="status_{{ piloto.id }}" id="fnj_{{ piloto.id }}" value="FNJ" 
-                                           {% if presenca_final == 'FNJ' %}checked{% endif %}
-                                           onchange="toggleRow('{{ piloto.id }}', false)">
-                                    <label class="btn btn-outline-danger btn-sm" for="fnj_{{ piloto.id }}">FNJ</label>
-                                </div>
+                            <td>
+                                    <select name="pos_{{ i }}_pilot" class="form-select f1-input pilot-select" data-pos="{{ i }}">
+                                        <option value="" data-team="-">-- Vazio --</option>
+                                        {% for p in (all_pilots or all_eligible_pilots) %}
+                                            {% set p_team = p.teams[0].nome if p.teams else 'Sem Equipe' %}
+                                            <option value="{{ p.id }}" data-team="{{ p_team }}" {% if resultado and resultado.pilot_id == p.id %}selected{% endif %}>
+                                                {{ p.nickname }} ({{ p_team }})
+                                            </option>
+                                        {% endfor %}
+                                    </select>
                             </td>
-                            
-                            <td class="text-center">
-                                <input type="number" name="pos_{{ piloto.id }}" id="pos_{{ piloto.id }}" class="form-control bg-secondary text-white border-0 text-center mx-auto {% if presenca_final != 'OK' and presenca_final != 'CONFIRMADO' and presenca_final != 'PENDENTE' %}opacity-25{% endif %}" style="width: 70px;" min="0" value="{{ resultado.posicao if resultado and resultado.posicao > 0 else '' }}" {% if presenca_final != 'OK' and presenca_final != 'CONFIRMADO' and presenca_final != 'PENDENTE' %}disabled{% endif %}>
+                            <td class="text-center small">
+                                <span id="team_name_{{ i }}" class="{% if resultado and resultado.team %}text-white fw-bold{% else %}text-white-50{% endif %}">
+                                    {% if resultado and resultado.team %}
+                                        {{ resultado.team.nome }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </span>
                             </td>
                             <td class="text-center">
                                 <div class="form-check form-check-inline">
-                                    <input class="form-check-input" type="checkbox" name="dnf_{{ piloto.id }}" id="dnf_{{ piloto.id }}" {% if resultado and resultado.dnf %}checked{% endif %} {% if presenca_final != 'OK' and presenca_final != 'CONFIRMADO' and presenca_final != 'PENDENTE' %}disabled{% endif %}>
-                                    <label class="form-check-label text-white small" for="dnf_{{ piloto.id }}">DNF</label>
+                                    <input class="form-check-input" type="checkbox" name="pos_{{ i }}_dnf" id="dnf_{{ i }}" {% if resultado and resultado.dnf %}checked{% endif %}>
+                                    <label class="form-check-label text-white small" for="dnf_{{ i }}">DNF</label>
                                 </div>
                                 <div class="form-check form-check-inline">
-                                    <input class="form-check-input" type="checkbox" name="dsq_{{ piloto.id }}" id="dsq_{{ piloto.id }}" {% if resultado and resultado.dsq %}checked{% endif %} {% if presenca_final != 'OK' and presenca_final != 'CONFIRMADO' and presenca_final != 'PENDENTE' %}disabled{% endif %}>
-                                    <label class="form-check-label text-danger small fw-bold" for="dsq_{{ piloto.id }}">DSQ</label>
+                                    <input class="form-check-input" type="checkbox" name="pos_{{ i }}_dsq" id="dsq_{{ i }}" {% if resultado and resultado.dsq %}checked{% endif %}>
+                                    <label class="form-check-label text-danger small fw-bold" for="dsq_{{ i }}">DSQ</label>
                                 </div>
                             </td>
                             <td class="text-center">
                                 <div class="form-check form-check-inline" title="Volta Rápida (+1)">
-                                    <input class="form-check-input" type="checkbox" name="vr_{{ piloto.id }}" {% if resultado and resultado.volta_rapida %}checked{% endif %}>
-                                    <i class="fa-solid fa-stopwatch text-white"></i>
+                                    <input class="form-check-input" type="checkbox" name="pos_{{ i }}_vr" id="vr_{{ i }}" {% if resultado and resultado.volta_rapida %}checked{% endif %}>
+                                    <i class="fa-solid fa-stopwatch text-info ms-1"></i>
                                 </div>
                                 <div class="form-check form-check-inline" title="Piloto do Dia (+1)">
-                                    <input class="form-check-input" type="checkbox" name="dotd_{{ piloto.id }}" {% if resultado and resultado.piloto_do_dia %}checked{% endif %}>
-                                    <i class="fa-solid fa-star text-warning"></i>
+                                    <input class="form-check-input" type="checkbox" name="pos_{{ i }}_dotd" {% if resultado and resultado.piloto_do_dia %}checked{% endif %}>
+                                    <i class="fa-solid fa-star text-warning ms-1"></i>
                                 </div>
                                 <div class="form-check form-check-inline" title="Destaque da Live (+1)">
-                                    <input class="form-check-input" type="checkbox" name="fan_{{ piloto.id }}" {% if resultado and resultado.piloto_torcida %}checked{% endif %}>
-                                    <i class="fa-solid fa-comment-dots text-light"></i>
+                                    <input class="form-check-input" type="checkbox" name="pos_{{ i }}_fan" {% if resultado and resultado.piloto_torcida %}checked{% endif %}>
+                                    <i class="fa-solid fa-thumbs-up text-primary ms-1"></i>
+                                </div>
+                            </td>
+                            <td class="text-center">
+                                <div class="d-flex align-items-center justify-content-center gap-1">
+                                    <input type="number" name="pos_{{ i }}_grid_largada" placeholder="Grid" class="form-control form-control-sm f1-input text-center" style="width: 45px;" min="1" title="Grid Largada" value="{{ resultado.grid_largada if resultado and resultado.grid_largada else '' }}">
+                                    <input type="text" name="pos_{{ i }}_tempo_qualy" placeholder="Qualy" class="form-control form-control-sm f1-input text-center font-monospace" style="width: 70px;" title="Tempo Qualy (ex: 1:28.637)" value="{{ resultado.tempo_qualy if resultado and resultado.tempo_qualy else '' }}">
+                                    <input type="text" name="pos_{{ i }}_melhor_volta" placeholder="VR" class="form-control form-control-sm f1-input text-center font-monospace" style="width: 70px;" title="Melhor Volta Corrida (ex: 1:31.412)" value="{{ resultado.melhor_volta if resultado and resultado.melhor_volta else '' }}">
+                                    <input type="number" name="pos_{{ i }}_pit_stops" placeholder="Pits" class="form-control form-control-sm f1-input text-center font-monospace" style="width: 45px;" min="0" title="Paradas no Box" value="{{ resultado.pit_stops if resultado and resultado.pit_stops is not none else '0' }}">
+                                    <input type="text" name="pos_{{ i }}_tempo_total" placeholder="Tempo" class="form-control form-control-sm f1-input text-center font-monospace" style="width: 70px;" title="Ex: 46:30.058 ou +0.270" value="{{ resultado.tempo_total if resultado and resultado.tempo_total else '' }}">
+                                    <input type="text" name="pos_{{ i }}_pneus_stints" placeholder="Pneus" class="form-control form-control-sm f1-input text-center" style="width: 50px;" title="Ex: M,H ou S,M,H" value="{{ resultado.pneus_stints if resultado and resultado.pneus_stints else '' }}">
+                                    <input type="text" name="pos_{{ i }}_penalidades_texto" placeholder="Pen" class="form-control form-control-sm f1-input text-center" style="width: 45px;" title="Ex: +3s" value="{{ resultado.penalidades_texto if resultado and resultado.penalidades_texto else '' }}">
                                 </div>
                             </td>
                         </tr>
@@ -124,233 +247,344 @@
         </div>
     </div>
 
-    <div class="card shadow border-silver mb-4">
-        <div class="card-header bg-dark border-silver">
-            <h5 class="text-danger fw-bold mb-0"><i class="fa-solid fa-user-plus me-2"></i> ADICIONAR RESERVAS (Substitutos)</h5>
+    <!-- PILOTOS AUSENTES DA ETAPA (APENAS TITULARES NÃO SELECIONADOS NA CLASSIFICAÇÃO) -->
+    <div class="f1-card shadow mb-4" style="border-left: 4px solid #f59e0b !important;">
+        <div class="f1-card-header d-flex justify-content-between align-items-center">
+            <h5 class="text-warning fw-bold mb-0" style="font-family: 'Outfit', sans-serif;">
+                <i class="fa-solid fa-user-slash me-2"></i> PILOTOS AUSENTES DA ETAPA (TITULARES)
+            </h5>
+            <span class="badge bg-warning text-dark font-monospace fw-bold">Apenas Titulares Não Classificados</span>
         </div>
-        <div class="card-body bg-dark">
-        {% set ns_res = namespace(total=1) %}
-            {% if reservas_que_correram|length > ns_res.total %}
-                {% set ns_res.total = reservas_que_correram|length %}
-            {% endif %}
-            <div id="reserva-container" data-next-index="{{ ns_res.total }}">
-                {% for i in range(ns_res.total) %}
-                {% set res_existente = reservas_que_correram[i] if i < reservas_que_correram|length else None %}
-                <div class="row align-items-center mb-3 pb-3 border-bottom border-secondary">
-                    <div class="col-md-3">
-                        <label class="small text-white-50">Piloto Reserva</label>
-                        <select name="reserva_pilot" class="form-select bg-secondary text-white border-0">
-                            <option value="">-- Selecione --</option>
-                            {% for r in reservas %}
-                                <option value="{{ r.id }}" {% if res_existente and res_existente.pilot_id == r.id %}selected{% endif %}>{{ r.nickname }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <label class="small text-white-50">Equipe</label>
-                        <select name="reserva_team" class="form-select bg-secondary text-white border-0">
-                            <option value="">-- Selecione --</option>
-                            {% for t in equipes %}
-                                <option value="{{ t.id }}" {% if res_existente and res_existente.team_id == t.id %}selected{% endif %}>{{ t.nome }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-1">
-                        <label class="small text-white-50">Pos</label>
-                        <input type="number" name="reserva_pos" class="form-control bg-secondary text-white border-0 text-center" min="0" value="{{ res_existente.posicao if res_existente and res_existente.posicao > 0 else '' }}">
-                    </div>
-                    
-                    <div class="col-md-2 text-center">
-                        <label class="small text-white-50 d-block">Status</label>
-                        <div class="pt-2">
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="checkbox" name="reserva_dnf_{{ i }}" id="reserva_dnf_{{ i }}" {% if res_existente and res_existente.dnf %}checked{% endif %}>
-                                <label class="form-check-label text-white small" for="reserva_dnf_{{ i }}">DNF</label>
-                            </div>
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="checkbox" name="reserva_dsq_{{ i }}" id="reserva_dsq_{{ i }}" {% if res_existente and res_existente.dsq %}checked{% endif %}>
-                                <label class="form-check-label text-danger small fw-bold" for="reserva_dsq_{{ i }}">DSQ</label>
-                            </div>
-                        </div>
-                    </div>
+        <div class="card-body p-0" style="background: #111827;">
+            <div class="table-responsive">
+                <table class="table table-dark table-hover mb-0 align-middle">
+                    <thead>
+                        <tr class="small text-white-50 bg-black" style="font-size:0.75rem; text-transform:uppercase;">
+                            <th class="ps-4">Piloto Titular</th>
+                            <th class="text-center">Status de Presença na Etapa</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for piloto in (titulares_do_grid or []) | sort(attribute='nickname') %}
+                        {% set resultado_ausente = ausentes_map.get(piloto.id) %}
+                        <tr class="ausente-row" data-pilot-id="{{ piloto.id }}">
+                            <td class="ps-4">
+                                <div class="d-flex align-items-center">
+                                    {% if piloto.foto_url %}
+                                        <img src="{{ url_for('static', filename='uploads/' + piloto.foto_url) }}" alt="Foto" width="40" height="40" class="rounded-circle me-3 border border-secondary" style="object-fit: cover;">
+                                    {% else %}
+                                        <div class="me-3 bg-secondary rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                            <i class="fa-solid fa-user text-white-50"></i>
+                                        </div>
+                                    {% endif %}
+                                    <div>
+                                        <strong class="text-white d-block">{{ piloto.nickname }}</strong>
+                                        <small class="text-white-50">{{ piloto.teams[0].nome if piloto.teams else 'Sem Equipe' }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="text-center">
+                                <div class="btn-group" role="group">
+                                    <input type="radio" class="btn-check" name="status_ausente_{{ piloto.id }}" id="ok_ausente_{{ piloto.id }}" value="OK" 
+                                           {% if not resultado_ausente or resultado_ausente.status_presenca == 'OK' %}checked{% endif %}>
+                                    <label class="btn btn-outline-secondary btn-sm" for="ok_ausente_{{ piloto.id }}">Não Correu</label>
 
-                    <div class="col-md-3 text-center">
-                        <label class="small text-white-50 d-block">Bônus</label>
-                        <div class="pt-2">
-                            <div class="form-check form-check-inline" title="Volta Rápida (+1)">
-                                <input class="form-check-input" type="checkbox" name="reserva_vr_{{ i }}" {% if res_existente and res_existente.volta_rapida %}checked{% endif %}>
-                                <i class="fa-solid fa-stopwatch text-white"></i>
-                            </div>
-                            <div class="form-check form-check-inline" title="Piloto do Dia (+1)">
-                                <input class="form-check-input" type="checkbox" name="reserva_dotd_{{ i }}" {% if res_existente and res_existente.piloto_do_dia %}checked{% endif %}>
-                                <i class="fa-solid fa-star text-warning"></i>
-                            </div>
-                            <div class="form-check form-check-inline" title="Destaque da Live (+1)">
-                                <input class="form-check-input" type="checkbox" name="reserva_fan_{{ i }}" {% if res_existente and res_existente.piloto_torcida %}checked{% endif %}>
-                                <i class="fa-solid fa-comment-dots text-light"></i>
-                            </div>
-                        </div>
-                    </div>
+                                    <input type="radio" class="btn-check" name="status_ausente_{{ piloto.id }}" id="fj_ausente_{{ piloto.id }}" value="FJ" 
+                                           {% if resultado_ausente and resultado_ausente.status_presenca == 'FJ' %}checked{% endif %}>
+                                    <label class="btn btn-outline-warning btn-sm" for="fj_ausente_{{ piloto.id }}">Falta Justificada (FJ)</label>
 
-                    <div class="col-md-1 text-center">
-                        <label class="small text-white-50 d-block">&nbsp;</label>
-                        <div class="pt-2">
-                            <button type="button" class="btn btn-outline-danger btn-sm remove-reserva-btn" title="Remover linha">
-                                <i class="fa-solid fa-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
-                <p class="text-white-50 small mb-0">* Selecione o piloto reserva e a equipe que ele representou nesta corrida.</p>
-                <button type="button" class="btn btn-outline-light btn-sm" id="add-reserva-row">
-                    <i class="fa-solid fa-plus me-1"></i> Adicionar reserva
-                </button>
+                                    <input type="radio" class="btn-check" name="status_ausente_{{ piloto.id }}" id="fnj_ausente_{{ piloto.id }}" value="FNJ" 
+                                           {% if resultado_ausente and resultado_ausente.status_presenca == 'FNJ' %}checked{% endif %}>
+                                    <label class="btn btn-outline-danger btn-sm" for="fnj_ausente_{{ piloto.id }}">Falta NÃO Justificada (FNJ)</label>
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="2" class="p-4 text-center text-white-50 small">
+                                Nenhum piloto titular cadastrado para este grid.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
 
     <div class="d-grid pb-5">
-        <button type="submit" class="btn btn-red btn-lg fw-bold">SALVAR RESULTADOS</button>
+        <button type="submit" class="btn btn-save-results btn-lg py-3">
+            <i class="fa-solid fa-floppy-disk me-2"></i> SALVAR RESULTADOS DA CORRIDA
+        </button>
     </div>
 </form>
 
-<template id="reserva-row-template">
-    <div class="row align-items-center mb-3 pb-3 border-bottom border-secondary">
-        <div class="col-md-3">
-            <label class="small text-white-50">Piloto Reserva</label>
-            <select name="reserva_pilot" class="form-select bg-secondary text-white border-0">
-                <option value="">-- Selecione --</option>
-                {% for r in reservas %}
-                    <option value="{{ r.id }}">{{ r.nickname }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="col-md-2">
-            <label class="small text-white-50">Equipe</label>
-            <select name="reserva_team" class="form-select bg-secondary text-white border-0">
-                <option value="">-- Selecione --</option>
-                {% for t in equipes %}
-                    <option value="{{ t.id }}">{{ t.nome }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="col-md-1">
-            <label class="small text-white-50">Pos</label>
-            <input type="number" name="reserva_pos" class="form-control bg-secondary text-white border-0 text-center" min="0">
-        </div>
-        
-        <div class="col-md-2 text-center">
-            <label class="small text-white-50 d-block">Status</label>
-            <div class="pt-2">
-                <div class="form-check form-check-inline">
-                    <input class="form-check-input" type="checkbox" name="reserva_dnf___INDEX__" id="reserva_dnf___INDEX__">
-                    <label class="form-check-label text-white small" for="reserva_dnf___INDEX__">DNF</label>
-                </div>
-                <div class="form-check form-check-inline">
-                    <input class="form-check-input" type="checkbox" name="reserva_dsq___INDEX__" id="reserva_dsq___INDEX__">
-                    <label class="form-check-label text-danger small fw-bold" for="reserva_dsq___INDEX__">DSQ</label>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-3 text-center">
-            <label class="small text-white-50 d-block">Bônus</label>
-            <div class="pt-2">
-                <div class="form-check form-check-inline" title="Volta Rápida (+1)">
-                    <input class="form-check-input" type="checkbox" name="reserva_vr___INDEX__">
-                    <i class="fa-solid fa-stopwatch text-white"></i>
-                </div>
-                <div class="form-check form-check-inline" title="Piloto do Dia (+1)">
-                    <input class="form-check-input" type="checkbox" name="reserva_dotd___INDEX__">
-                    <i class="fa-solid fa-star text-warning"></i>
-                </div>
-                <div class="form-check form-check-inline" title="Destaque da Live (+1)">
-                    <input class="form-check-input" type="checkbox" name="reserva_fan___INDEX__">
-                    <i class="fa-solid fa-comment-dots text-light"></i>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-1 text-center">
-            <label class="small text-white-50 d-block">&nbsp;</label>
-            <div class="pt-2">
-                <button type="button" class="btn btn-outline-danger btn-sm remove-reserva-btn" title="Remover linha">
-                    <i class="fa-solid fa-trash"></i>
-                </button>
-            </div>
-        </div>
-    </div>
-</template>
-
 <script>
-    function toggleRow(pid, enable) {
-        const posInput = document.getElementById('pos_' + pid);
-        const dnfInput = document.getElementById('dnf_' + pid);
-        const dsqInput = document.getElementById('dsq_' + pid);
-        
-        if (enable) {
-            posInput.disabled = false;
-            dnfInput.disabled = false;
-            dsqInput.disabled = false;
-            posInput.classList.remove('opacity-25');
-        } else {
-            posInput.value = '';
-            posInput.disabled = true;
-            dnfInput.disabled = true;
-            dsqInput.disabled = true;
-            dnfInput.checked = false;
-            dsqInput.checked = false;
-            posInput.classList.add('opacity-25');
-        }
-    }
-
-    // Aguarda o carregamento completo do HTML antes de rodar os scripts
     document.addEventListener("DOMContentLoaded", function() {
-        
-        // 1. Ativa tooltips do Bootstrap (Protegido contra erros)
-        try {
-            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-                return new bootstrap.Tooltip(tooltipTriggerEl);
-            });
-        } catch (e) {
-            console.warn("Tooltips do Bootstrap não puderam ser carregados:", e);
-        }
+        const selects = document.querySelectorAll('.pilot-select');
+        const btnParse = document.getElementById('btn_parse_simhub');
+        const fileInput = document.getElementById('simhub_csv_file');
+        const alertBox = document.getElementById('simhub_alert');
 
-        // 2. Adiciona linhas extras de reserva sob demanda (O botão de adicionar)
-        var container = document.getElementById('reserva-container');
-        var addBtn = document.getElementById('add-reserva-row');
-        var template = document.getElementById('reserva-row-template');
-        
-        if (container && addBtn && template) {
-            addBtn.addEventListener('click', function (event) {
-                event.preventDefault();
-                var nextIndex = parseInt(container.dataset.nextIndex || '0', 10);
-                var html = template.innerHTML.replace(/__INDEX__/g, String(nextIndex));
-                container.insertAdjacentHTML('beforeend', html.trim());
-                container.dataset.nextIndex = String(nextIndex + 1);
-            });
-        }
-
-        // 3. Remover linhas de reserva (Ocultando e limpando dados para preservar os índices do array backend)
-        if (container) {
-            container.addEventListener('click', function (event) {
-                var removeBtn = event.target.closest('.remove-reserva-btn');
-                if (removeBtn) {
-                    event.preventDefault();
-                    var row = removeBtn.closest('.row');
-                    if (row) {
-                        row.style.display = 'none';
-                        row.querySelectorAll('select').forEach(s => s.value = '');
-                        row.querySelectorAll('input[type="number"]').forEach(i => i.value = '');
-                        row.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = false);
+        function updateTeamNames() {
+            selects.forEach(select => {
+                const pos = select.dataset.pos;
+                const selectedOpt = select.options[select.selectedIndex];
+                const teamSpan = document.getElementById(`team_name_${pos}`);
+                if (teamSpan) {
+                    if (selectedOpt && selectedOpt.value) {
+                        const teamName = selectedOpt.dataset.team || 'Sem Equipe';
+                        teamSpan.textContent = teamName;
+                        teamSpan.classList.remove('text-white-50');
+                        teamSpan.classList.add('text-white', 'fw-bold');
+                    } else {
+                        teamSpan.textContent = '-';
+                        teamSpan.classList.remove('text-white', 'fw-bold');
+                        teamSpan.classList.add('text-white-50');
                     }
                 }
             });
         }
+
+        function updateSelectOptions() {
+            const selectedValues = new Set();
+            selects.forEach(s => {
+                if (s.value) {
+                    selectedValues.add(s.value);
+                }
+            });
+
+            selects.forEach(select => {
+                const currentSelectedValue = select.value;
+                select.querySelectorAll('option').forEach(option => {
+                    if (option.value && option.value !== currentSelectedValue && selectedValues.has(option.value)) {
+                        option.style.display = 'none';
+                    } else {
+                        option.style.display = 'block';
+                    }
+                });
+            });
+
+            updateAusentesTable();
+        }
+
+        function updateAusentesTable() {
+            const selectedValues = new Set();
+            selects.forEach(s => {
+                if (s.value) {
+                    selectedValues.add(s.value.toString());
+                }
+            });
+
+            document.querySelectorAll('.ausente-row').forEach(row => {
+                const pilotId = row.dataset.pilotId;
+                if (selectedValues.has(pilotId)) {
+                    row.style.display = 'none';
+                } else {
+                    row.style.display = '';
+                }
+            });
+        }
+
+        selects.forEach(select => {
+            select.addEventListener('change', function() {
+                updateTeamNames();
+                updateSelectOptions();
+            });
+        });
+
+        // --- MANIPULADOR DE UPLOAD DO SIMHUB CSV ---
+        if (btnParse && fileInput) {
+            btnParse.addEventListener('click', function() {
+                const file = fileInput.files[0];
+                if (!file) {
+                    showAlert('danger', '<i class="fa-solid fa-triangle-exclamation me-2"></i> Por favor, selecione um arquivo .csv do SimHub primeiro.');
+                    return;
+                }
+                uploadAndProcess(file, false);
+            });
+        }
+
+        function uploadAndProcess(file, force) {
+            const formData = new FormData();
+            formData.append('file', file);
+            if (force) formData.append('force', 'true');
+
+            btnParse.disabled = true;
+            btnParse.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i> Analisando...';
+
+            fetch("{{ url_for('admin.parse_simhub_csv', race_id=race.id) }}", {
+                method: 'POST',
+                body: formData
+            })
+            .then(async (res) => {
+                const contentType = res.headers.get('content-type') || '';
+                if (!contentType.includes('application/json')) {
+                    const text = await res.text();
+                    throw new Error('Sessão expirada ou resposta inválida do servidor. Por favor, recarregue a página e faça login novamente se necessário.');
+                }
+                return res.json();
+            })
+            .then(data => {
+                btnParse.disabled = false;
+                btnParse.innerHTML = '<i class="fa-solid fa-bolt me-2"></i> PROCESSAR ARQUIVO DO SIMHUB';
+
+                if (!data.success) {
+                    if (data.track_mismatch) {
+                        showTrackMismatchModal(file, data);
+                    } else {
+                        showAlert('danger', data.message || 'Erro ao processar arquivo.');
+                    }
+                    return;
+                }
+
+                applyParsedData(data.parsed_data);
+                
+                let unmatchedHtml = '';
+                if (data.parsed_data.unmatched_drivers && data.parsed_data.unmatched_drivers.length > 0) {
+                    const unNames = data.parsed_data.unmatched_drivers.map(u => u.driver_name).join(', ');
+                    unmatchedHtml = `<div class="mt-2 text-info small"><i class="fa-solid fa-circle-info me-1"></i> Pilotos não pareados na liga: <strong>${unNames}</strong></div>`;
+                }
+
+                let msg = `
+                    <div class="d-flex align-items-start gap-3">
+                        <i class="fa-solid fa-circle-check text-success fs-3 mt-1"></i>
+                        <div>
+                            <strong class="text-white fs-6 d-block">Súmula do SimHub Importada com Sucesso!</strong>
+                            <div class="mt-1">
+                                <span class="badge bg-dark border border-secondary text-info font-monospace me-2">Qualy: ${data.parsed_data.total_qualifying || 0} pilotos</span>
+                                <span class="badge bg-dark border border-secondary text-info font-monospace">Corrida: ${data.parsed_data.total_race || 0} pilotos</span>
+                            </div>
+                            <div class="mt-2 text-warning small fw-bold"><i class="fa-solid fa-triangle-exclamation me-1"></i> Verifique os dados preenchidos abaixo e clique em "SALVAR RESULTADOS" para confirmar.</div>
+                            ${unmatchedHtml}
+                        </div>
+                    </div>
+                `;
+                
+                showAlert('success', msg);
+            })
+            .catch(err => {
+                btnParse.disabled = false;
+                btnParse.innerHTML = '<i class="fa-solid fa-bolt me-2"></i> PROCESSAR ARQUIVO DO SIMHUB';
+                showAlert('danger', err.message || ('Falha ao conectar com o servidor: ' + err));
+            });
+        }
+
+        function showTrackMismatchModal(file, data) {
+            const warningHtml = `
+                <div class="p-3 rounded-3 shadow-lg" style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b;">
+                    <div class="d-flex align-items-start gap-3">
+                        <i class="fa-solid fa-triangle-exclamation text-warning fs-3 mt-1"></i>
+                        <div class="w-100">
+                            <h6 class="fw-bold text-white mb-1"><i class="fa-solid fa-triangle-exclamation me-1"></i> AVISO DE DIVERGÊNCIA DE PISTA</h6>
+                            <p class="text-white-50 small mb-3">${data.warning}</p>
+                            <hr class="border-secondary opacity-25">
+                            <div class="d-flex justify-content-end gap-2">
+                                <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('simhub_alert').classList.add('d-none')">Cancelar</button>
+                                <button type="button" class="btn btn-warning btn-sm fw-bold text-dark" id="btn_force_import">Importar Mesmo Assim</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            alertBox.innerHTML = warningHtml;
+            alertBox.classList.remove('d-none');
+            
+            document.getElementById('btn_force_import').onclick = function() {
+                uploadAndProcess(file, true);
+            };
+        }
+
+        function applyParsedData(parsed) {
+            // 1. Pole Position
+            if (parsed.pole) {
+                if (parsed.pole.pilot_id) {
+                    const poleSel = document.getElementById('pole_pilot_id');
+                    if (poleSel) {
+                        let opt = poleSel.querySelector(`option[value="${parsed.pole.pilot_id}"]`);
+                        if (!opt) {
+                            opt = document.createElement('option');
+                            opt.value = parsed.pole.pilot_id;
+                            opt.textContent = parsed.pole.driver_name || `Piloto ID ${parsed.pole.pilot_id}`;
+                            poleSel.appendChild(opt);
+                        }
+                        poleSel.value = parsed.pole.pilot_id;
+                    }
+                }
+                if (parsed.pole.qualy_time) {
+                    const poleInput = document.getElementById('pole_time');
+                    if (poleInput) poleInput.value = parsed.pole.qualy_time;
+                }
+            }
+
+            // 2. Metadados do GP (SC/VSC, Clima, Voltas)
+            if (parsed.metadata) {
+                const inputSC = document.querySelector('input[name="sc_vsc_info"]');
+                if (inputSC && parsed.metadata.sc_vsc_info) inputSC.value = parsed.metadata.sc_vsc_info;
+
+                const inputClima = document.querySelector('input[name="clima_temp"]');
+                if (inputClima && parsed.metadata.clima_temp) inputClima.value = parsed.metadata.clima_temp;
+
+                const inputVoltas = document.querySelector('input[name="total_voltas"]');
+                if (inputVoltas && parsed.metadata.total_voltas) inputVoltas.value = parsed.metadata.total_voltas;
+            }
+
+            // 3. Posicoes da Corrida
+            const matched = parsed.matched_positions || {};
+            Object.keys(matched).forEach(pos => {
+                const item = matched[pos];
+
+                const selectPilot = document.querySelector(`select[name="pos_${pos}_pilot"]`);
+                if (selectPilot && item.pilot_id) {
+                    let opt = selectPilot.querySelector(`option[value="${item.pilot_id}"]`);
+                    if (!opt) {
+                        opt = document.createElement('option');
+                        opt.value = item.pilot_id;
+                        opt.textContent = item.pilot_nickname || `Piloto ID ${item.pilot_id}`;
+                        selectPilot.appendChild(opt);
+                    }
+                    selectPilot.value = item.pilot_id;
+                }
+
+                const inputGrid = document.querySelector(`input[name="pos_${pos}_grid_largada"]`);
+                if (inputGrid && item.grid_largada) inputGrid.value = item.grid_largada;
+
+                const inputQualy = document.querySelector(`input[name="pos_${pos}_tempo_qualy"]`);
+                if (inputQualy && item.tempo_qualy) inputQualy.value = item.tempo_qualy;
+
+                const inputVR = document.querySelector(`input[name="pos_${pos}_melhor_volta"]`);
+                if (inputVR && item.melhor_volta) inputVR.value = item.melhor_volta;
+
+                const inputPits = document.querySelector(`input[name="pos_${pos}_pit_stops"]`);
+                if (inputPits && item.pit_stops !== undefined) inputPits.value = item.pit_stops;
+
+                const chkVR = document.getElementById(`vr_${pos}`);
+                if (chkVR) chkVR.checked = !!item.volta_rapida;
+            });
+
+            updateTeamNames();
+            updateSelectOptions();
+        }
+
+        function showAlert(type, htmlContent) {
+            alertBox.className = 'mt-3 p-3 rounded-3 shadow-lg border-0';
+            if (type === 'success') {
+                alertBox.style.background = 'rgba(16, 185, 129, 0.15)';
+                alertBox.style.borderLeft = '4px solid #10b981';
+            } else if (type === 'danger') {
+                alertBox.style.background = 'rgba(239, 68, 68, 0.15)';
+                alertBox.style.borderLeft = '4px solid #ef4444';
+            } else {
+                alertBox.style.background = 'rgba(245, 158, 11, 0.15)';
+                alertBox.style.borderLeft = '4px solid #f59e0b';
+            }
+            alertBox.innerHTML = htmlContent;
+            alertBox.classList.remove('d-none');
+        }
+
+        // Execucao Inicial
+        updateTeamNames();
+        updateSelectOptions();
     });
 </script>
 {% endblock %}

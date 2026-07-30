@@ -1,129 +1,137 @@
-from app.models import db, Race, RaceResult, PilotProfile, Team, HomeCache
-from app.utils import PONTUACAO_20, PONTUACAO_22
+from app.models import db, Race, RaceResult, PilotProfile, Team
+from app.services.scoring_service import ScoringService
 
 class RaceResultService:
-    @staticmethod
-    def save_race_results(race_id, form_data):
+    """
+    Serviço para gerenciar a lógica de salvamento e cálculo de resultados de corrida.
+    """
+
+    @classmethod
+    def save_race_results_by_position(cls, race_id, form_data):
         """
-        Processa e salva os resultados de uma corrida a partir de um formulário.
-        Centraliza toda a lógica de pontuação, bônus e status de presença.
+        Salva os resultados da corrida a partir de um formulário organizado por posição.
+        Esta função é o "tradutor" entre o novo formulário e o banco de dados.
         """
         race = Race.query.get_or_404(race_id)
-        if not race.season.ativa:
-            raise ValueError('Temporada encerrada.')
+        
+        # Determina o tamanho do grid para os loops
+        grid_size = race.grid_config.vagas if race.grid_config and race.grid_config.vagas else 22
 
-        # Estornar resultados anteriores para evitar duplicidade
-        team_snapshot = {r.pilot_id: r.team_id for r in RaceResult.query.filter_by(race_id=race.id).all()}
-        RaceResult.query.filter_by(race_id=race.id).delete()
+        # 0. Processa a Pole Position e Metadados do GP/Lobby
+        pole_pilot_id = form_data.get('pole_pilot_id')
+        race.pole_pilot_id = int(pole_pilot_id) if (pole_pilot_id and pole_pilot_id.isdigit()) else None
+        race.pole_time = (form_data.get('pole_time') or '').strip() or None
 
-        # Define a tabela de pontuação a ser usada
-        pontuacao_ativa = PONTUACAO_22 if race.grid_config and race.grid_config.vagas > 20 else PONTUACAO_20
+        race.sc_vsc_info = (form_data.get('sc_vsc_info') or '').strip() or None
+        race.clima_temp = (form_data.get('clima_temp') or '').strip() or None
+        tot_v = form_data.get('total_voltas')
+        race.total_voltas = int(tot_v) if (tot_v and tot_v.isdigit()) else None
+        race.lobby_settings_json = form_data.get('lobby_settings_json') or None
 
-        # 1. PROCESSAR TITULARES
-        titulares_ids = form_data.getlist('titular_id')
-        for pid in titulares_ids:
-            pid_int = int(pid)
-            status_presenca = (form_data.get(f'status_{pid}') or '').strip().upper()
-            if not status_presenca:
-                raise ValueError(f'Faltou preencher status de presença para o titular ID {pid_int}.')
+        # 1. Limpa todos os resultados antigos desta corrida para evitar duplicatas.
+        #    Isso torna a operação de salvar idempotente (o resultado final é o mesmo, não importa quantas vezes você salve).
+        RaceResult.query.filter_by(race_id=race_id).delete()
 
-            equipe_id = team_snapshot.get(pid_int)
-            if equipe_id is None:
-                form_team_raw = (form_data.get(f'titular_team_{pid_int}') or '').strip()
-                if form_team_raw.isdigit():
-                    equipe_id = int(form_team_raw)
-                else:
-                    piloto = PilotProfile.query.get(pid_int)
-                    raise ValueError(f'Não foi possível determinar a equipe para o titular {piloto.nickname if piloto else f"ID {pid_int}"}.')
+        processed_pilots = set()
 
-            if status_presenca == 'OK':
-                posicao = int(form_data.get(f'pos_{pid}') or 0)
-                dnf = form_data.get(f'dnf_{pid}') == 'on'
-                dsq = form_data.get(f'dsq_{pid}') == 'on'
-                vr = form_data.get(f'vr_{pid}') == 'on'
-                dotd = form_data.get(f'dotd_{pid}') == 'on'
-                fan = form_data.get(f'fan_{pid}') == 'on'
+        # 2. Processa a classificação da corrida (pilotos que pontuaram/correram)
+        for i in range(1, grid_size + 1):
+            pilot_id_str = form_data.get(f'pos_{i}_pilot')
+            if not pilot_id_str:
+                continue # Posição vazia, pula para a próxima
 
-                pontos = RaceResultService._calculate_points(
-                    posicao, pontuacao_ativa, race.tipo_etapa, dnf, dsq, vr, dotd, fan
-                )
+            pilot_id = int(pilot_id_str)
 
-                db.session.add(RaceResult(
-                    race_id=race.id, pilot_id=pid_int, team_id=equipe_id,
-                    posicao=posicao, pontos_ganhos=pontos, status_presenca='OK',
-                    dnf=dnf, dsq=dsq, volta_rapida=vr, piloto_do_dia=dotd, piloto_torcida=fan
-                ))
-            else: # FJ ou FNJ
-                db.session.add(RaceResult(
-                    race_id=race.id, pilot_id=pid_int, team_id=equipe_id,
-                    posicao=0, pontos_ganhos=0, status_presenca=status_presenca, ausencia=status_presenca
-                ))
+            # Validação para impedir que o mesmo piloto seja salvo em duas posições
+            if pilot_id in processed_pilots:
+                raise ValueError(f"Piloto com ID {pilot_id} selecionado em mais de uma posição.")
+            processed_pilots.add(pilot_id)
 
-        # 2. PROCESSAR RESERVAS
-        reserva_pids = form_data.getlist('reserva_pilot')
-        reserva_teams = form_data.getlist('reserva_team')
-        reserva_pos = form_data.getlist('reserva_pos')
-
-        for i, r_pid in enumerate(reserva_pids):
-            if not r_pid or not r_pid.strip():
-                continue
-
-            r_pid_int = int(r_pid)
-            r_team_val = reserva_teams[i] if i < len(reserva_teams) else None
-            if not r_team_val or not r_team_val.strip():
-                raise ValueError(f'É obrigatório selecionar uma equipe para o piloto reserva (Linha {i+1}).')
-
-            r_team_id = int(r_team_val)
-            r_team_obj = Team.query.get(r_team_id)
-            if not r_team_obj or r_team_obj.grid_id != race.grid_id:
-                raise ValueError(f'Equipe inválida para o grid desta corrida (Linha {i+1}).')
-
-            r_pos_val = reserva_pos[i] if i < len(reserva_pos) else 0
-            r_pos = int(r_pos_val) if r_pos_val else 0
-
-            r_dnf = form_data.get(f'reserva_dnf_{i}') == 'on'
-            r_dsq = form_data.get(f'reserva_dsq_{i}') == 'on'
-            r_vr = form_data.get(f'reserva_vr_{i}') == 'on'
-            r_dotd = form_data.get(f'reserva_dotd_{i}') == 'on'
-            r_fan = form_data.get(f'reserva_fan_{i}') == 'on'
-
-            r_pontos = RaceResultService._calculate_points(
-                r_pos, pontuacao_ativa, race.tipo_etapa, r_dnf, r_dsq, r_vr, r_dotd, r_fan
+            # Busca a equipe do piloto para esta temporada/grid
+            pilot = PilotProfile.query.get(pilot_id)
+            team_for_this_race = next(
+                (t for t in pilot.teams if t.season_id == race.season_id and t.grid_id == race.grid_id),
+                None
             )
 
-            db.session.add(RaceResult(
-                race_id=race.id, pilot_id=r_pid_int, team_id=r_team_id,
-                posicao=r_pos, pontos_ganhos=r_pontos, status_presenca='OK',
-                dnf=r_dnf, dsq=r_dsq, volta_rapida=r_vr, piloto_do_dia=r_dotd, piloto_torcida=r_fan
-            ))
+            grid_start = form_data.get(f'pos_{i}_grid_largada')
+            grid_start_int = int(grid_start) if (grid_start and grid_start.isdigit()) else None
+            tempo_tot = (form_data.get(f'pos_{i}_tempo_total') or '').strip() or None
+            best_lap = (form_data.get(f'pos_{i}_melhor_volta') or '').strip() or None
+            qualy_t = (form_data.get(f'pos_{i}_tempo_qualy') or '').strip() or None
+            pits_cnt = form_data.get(f'pos_{i}_pit_stops')
+            pits_cnt_int = int(pits_cnt) if (pits_cnt and pits_cnt.isdigit()) else 0
+            stints = (form_data.get(f'pos_{i}_pneus_stints') or '').strip() or None
+            pens = (form_data.get(f'pos_{i}_penalidades_texto') or '').strip() or None
 
-        # 3. FINALIZAR
-        race.status = 'Concluida'
+            # Cria o novo registro de resultado
+            new_result = RaceResult(
+                race_id=race.id,
+                pilot_id=pilot_id,
+                team_id=team_for_this_race.id if team_for_this_race else None,
+                posicao=i,
+                status_presenca='OK',
+                dnf=form_data.get(f'pos_{i}_dnf') == 'on',
+                dsq=form_data.get(f'pos_{i}_dsq') == 'on',
+                volta_rapida=form_data.get(f'pos_{i}_vr') == 'on',
+                piloto_do_dia=form_data.get(f'pos_{i}_dotd') == 'on',
+                piloto_torcida=form_data.get(f'pos_{i}_fan') == 'on',
+                grid_largada=grid_start_int,
+                tempo_total=tempo_tot,
+                melhor_volta=best_lap,
+                tempo_qualy=qualy_t,
+                pit_stops=pits_cnt_int,
+                pneus_stints=stints,
+                penalidades_texto=pens
+            )
+
+            # Usa o ScoringService para calcular os pontos, mantendo a lógica centralizada
+            new_result.pontos_ganhos = ScoringService.calculate_race_points(new_result, grid_size)
+            
+            db.session.add(new_result)
+
+        # 3. Processa os pilotos ausentes (FJ/FNJ)
+        for key, status in form_data.items():
+            if key.startswith('status_ausente_'):
+                if status not in ['FJ', 'FNJ']:
+                    continue # Ignora se o status for 'OK' (Não Correu)
+
+                pilot_id = int(key.split('_')[-1])
+
+                # Garante que um piloto que correu não seja marcado como ausente
+                if pilot_id in processed_pilots:
+                    continue
+
+                # Busca a equipe do piloto (mesma lógica de antes)
+                pilot = PilotProfile.query.get(pilot_id)
+                team_for_this_race = next(
+                    (t for t in pilot.teams if t.season_id == race.season_id and t.grid_id == race.grid_id),
+                    None
+                )
+
+                # Cria um registro para a ausência
+                absent_result = RaceResult(
+                    race_id=race.id,
+                    pilot_id=pilot_id,
+                    team_id=team_for_this_race.id if team_for_this_race else None,
+                    posicao=0, # Posição 0 para ausentes
+                    status_presenca=status,
+                    pontos_ganhos=0 # Ausentes não pontuam
+                )
+                db.session.add(absent_result)
+
+        # 4. Atualiza o status da corrida para 'Concluida' quando resultados são salvos
+        if processed_pilots:
+            race.status = 'Concluida'
+
+        # 5. Invalida o cache da home para refletir os novos resultados
+        from app.models import HomeCache
         HomeCache.query.filter_by(season_id=race.season_id).delete()
+
+        # 6. Confirma todas as alterações no Banco de Dados (Commit)
         db.session.commit()
+        return True
 
-    @staticmethod
-    def _calculate_points(posicao, pontuacao_tabela, tipo_etapa, dnf, dsq, vr, dotd, fan):
-        """
-        Sub-rotina para calcular os pontos de um único resultado.
-        """
-        if dsq:
-            return 0.0
-
-        pontos = 0.0
-        if not dnf and posicao > 0:
-            pontos = float(pontuacao_tabela.get(posicao, 0))
-
-        if tipo_etapa == 'SPRINT':
-            pontos *= 0.5
-        elif tipo_etapa == 'FINAL':
-            pontos *= 2.0
-
-        if vr and not dnf:
-            pontos += 1.0
-        if dotd:
-            pontos += 1.0
-        if fan:
-            pontos += 1.0
-
-        return pontos
+    # A função antiga pode ser mantida para referência ou removida.
+    # @classmethod
+    # def save_race_results(cls, race_id, form_data): ...

@@ -2,7 +2,7 @@ import os
 import secrets
 import shutil
 from datetime import datetime
-from flask import Blueprint, render_template, request, flash, redirect, url_for, current_app, abort
+from flask import Blueprint, render_template, request, flash, redirect, url_for, current_app, abort, jsonify
 from flask_login import login_required, current_user
 from sqlalchemy import func, case
 from app.models import db, User, PilotProfile, Season, Race, RaceResult, Invite, Protesto, VotoComissario, Team, RaceRegistration, SeletivaEntry, News, GridConfig, SeasonChampion, PilotGridPhoto, HomeCache
@@ -14,6 +14,7 @@ from app.services.race_result_service import RaceResultService
 from app.services.stats_service import StatsService
 from app.services.domain_rules import validate_unique_membership_per_grid
 from app.services.team_context import build_team_context
+from app.services.simhub_service import SimHubService
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -1225,6 +1226,60 @@ def generate_grid_text(race_id):
         
     return render_template('admin/grid_text.html', race=race, lista=lista_final, usar_lastro=usar_lastro)
 
+@admin_bp.route('/race/<int:race_id>/parse_simhub_csv', methods=['POST'])
+@login_required
+def parse_simhub_csv(race_id):
+    try:
+        race = Race.query.get_or_404(race_id)
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'message': 'Nenhum arquivo enviado.'}), 400
+
+        file = request.files['file']
+        if not file or file.filename == '':
+            return jsonify({'success': False, 'message': 'Arquivo inválido ou vazio.'}), 400
+
+        filename = file.filename
+        try:
+            content = file.read().decode('utf-8', errors='ignore')
+        except Exception as e:
+            return jsonify({'success': False, 'message': f'Erro ao ler o arquivo: {e}'}), 400
+
+        # 1. Validação de Pista / Etapa
+        is_valid_track, detected_track, warning = SimHubService.validate_track(filename, race.pista, race.nome_gp)
+        force = request.form.get('force') == 'true'
+
+        if not is_valid_track and not force:
+            return jsonify({
+                'success': False,
+                'track_mismatch': True,
+                'detected_track': detected_track,
+                'race_pista': race.pista,
+                'race_nome_gp': race.nome_gp,
+                'warning': warning
+            }), 200
+
+        # 2. Busca lista de pilotos elegíveis para o grid
+        all_pilots = PilotProfile.query.join(User).order_by(PilotProfile.nickname).all()
+        all_eligible_pilots = []
+        race_grid_id_str = str(race.grid_id) if race.grid_id else None
+
+        for p in all_pilots:
+            grid_tokens = [token.strip() for token in (p.grid or '').split(',') if token.strip()]
+            if (race_grid_id_str and race_grid_id_str in grid_tokens) or ('RESERVA' in grid_tokens):
+                all_eligible_pilots.append(p)
+
+        # 3. Faz o parsing do conteúdo CSV (passa pilotos elegíveis e lista completa como fallback)
+        parsed = SimHubService.parse_simhub_csv(content, all_eligible_pilots, all_pilots=all_pilots)
+
+        return jsonify({
+            'success': True,
+            'detected_track': detected_track,
+            'warning': warning,
+            'parsed_data': parsed
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Erro no servidor ao processar telemetria: {str(e)}'}), 500
+
 # --- RESULTADOS DA CORRIDA (COM CHECK-IN, BÔNUS E RESERVAS) ---
 
 @admin_bp.route('/race/<int:race_id>/results', methods=['GET', 'POST'])
@@ -1232,7 +1287,8 @@ def race_results(race_id):
     race = Race.query.get_or_404(race_id)
     if request.method == 'POST':
         try:
-            RaceResultService.save_race_results(race.id, request.form)
+            # PASSO 1: Chamamos a NOVA função de salvamento que criaremos a seguir.
+            RaceResultService.save_race_results_by_position(race.id, request.form)
             flash('Resultados salvos com sucesso!', 'success')
             return redirect(url_for('admin.manage_season', season_id=race.season_id))
         except ValueError as e:
@@ -1241,70 +1297,56 @@ def race_results(race_id):
             return redirect(url_for('admin.race_results', race_id=race.id))
         except Exception as e:
             db.session.rollback()
-            flash(f'Ocorreu um erro inesperado: {e}', 'danger')
-            return redirect(url_for('admin.manage_season', season_id=race.season_id))
+            current_app.logger.error(f"Erro ao salvar resultados da corrida {race.id}: {e}", exc_info=True)
+            flash(f'Erro ao salvar resultados da corrida: {e}', 'danger')
+            return redirect(url_for('admin.race_results', race_id=race.id))
 
     # --- GET: Preparar dados para o formulário de resultados ---
     
     # 1. Busca todos os pilotos
     all_pilots = PilotProfile.query.join(User).order_by(PilotProfile.nickname).all()
     
-    # 2. Filtra pilotos que são elegíveis para o grid desta corrida (via PilotProfile.grid)
-    #    Este é o filtro primário para quais pilotos devem aparecer na página.
-    eligible_pilots_in_profile = []
+    # 2. Filtra pilotos elegíveis e especificamente os TITULARES do grid desta corrida
+    all_eligible_pilots = []
+    titulares_do_grid = []
     race_grid_id_str = str(race.grid_id) if race.grid_id else None
 
     for p in all_pilots:
         grid_tokens = [token.strip() for token in (p.grid or '').split(',') if token.strip()]
-        
-        # Um piloto é elegível se o ID do grid da corrida estiver em seu perfil,
-        # ou se ele tiver 'RESERVA' em seu perfil (reserva geral).
         if (race_grid_id_str and race_grid_id_str in grid_tokens) or ('RESERVA' in grid_tokens):
-            eligible_pilots_in_profile.append(p)
+            all_eligible_pilots.append(p)
+        if race_grid_id_str and race_grid_id_str in grid_tokens and 'RESERVA' not in grid_tokens:
+            titulares_do_grid.append(p)
     
-    # 3. Separa os pilotos elegíveis em Titulares e Reservas
-    titulares = [] # Lista de dicionários: {'piloto': obj, 'team': obj}
-    titulares_ids = set()
-    reservas_disponiveis = [] # Lista de objetos PilotProfile
+    # 3. Resultados já gravados, separados por quem pontuou e quem não
+    resultados_existentes = RaceResult.query.filter_by(race_id=race.id).order_by(RaceResult.posicao).all()
+    results_by_pos = {r.posicao: r for r in resultados_existentes if r.posicao and r.posicao > 0}
+    
+    # 4. Pilotos que já têm um resultado (de qualquer tipo)
+    pilots_with_results_ids = {r.pilot_id for r in resultados_existentes}
+    
+    # 5. Lista de pilotos elegíveis que ainda não têm nenhum resultado gravado para esta corrida
+    pilotos_sem_resultado = [p for p in all_eligible_pilots if p.id not in pilots_with_results_ids]
+    
+    # 6. Resultados de ausentes/não classificados (FJ, FNJ, etc.) para preencher o formulário
+    ausentes_existentes = [r for r in resultados_existentes if not r.posicao or r.posicao <= 0]
+    ausentes_map = {r.pilot_id: r for r in ausentes_existentes}
 
-    for p in eligible_pilots_in_profile:
-        # Um piloto é titular se ele está vinculado a uma equipe que corresponde ao grid e temporada da corrida.
-        team_for_this_grid = next(
-            (t for t in p.teams if t.grid_id == race.grid_id and t.season_id == race.season_id),
-            None
-        )
-        if team_for_this_grid:
-            titulares.append({'piloto': p, 'team': team_for_this_grid})
-            titulares_ids.add(p.id)
-        else:
-            # Se não é titular para este grid, mas é elegível, ele é um reserva disponível.
-            reservas_disponiveis.append(p)
-    
-    # Ordena reservas por nickname para facilitar a seleção no template
-    reservas_disponiveis.sort(key=lambda p: p.nickname)
-    
-    # 3. Equipes Ativas (para selecionar onde o reserva correu)
-    equipes = Team.query.filter_by(ativa=True, grid_id=race.grid_id).all()
-    
-    # 4. Check-ins (Carrega as respostas)
-    checkins = RaceRegistration.query.filter_by(race_id=race.id).all()
-    checkin_map = { r.pilot_id: r for r in checkins }
-    
-    # 5. Resultados já gravados (Para edição/visualização)
-    resultados_existentes = RaceResult.query.filter_by(race_id=race.id).all()
-    results_map = { r.pilot_id: r for r in resultados_existentes }
-    
-    # Identificar reservas que correram (não são titulares do grid)
-    reservas_que_correram = [r for r in resultados_existentes if r.pilot_id not in titulares_ids]
-    
+    # 7. Determina o tamanho do grid para o loop do template
+    grid_size = 22 # Default
+    if race.grid_config and race.grid_config.vagas:
+        grid_size = race.grid_config.vagas
+
     return render_template('admin/race_results.html', 
                            race=race, 
-                           titulares=titulares, 
-                           reservas=reservas_disponiveis,
-                           equipes=equipes,
-                           checkin_map=checkin_map,
-                           results_map=results_map,
-                           reservas_que_correram=reservas_que_correram)
+                           all_pilots=all_pilots,
+                           all_eligible_pilots=all_eligible_pilots,
+                           titulares_do_grid=titulares_do_grid,
+                           results_by_pos=results_by_pos,
+                           pilotos_sem_resultado=pilotos_sem_resultado,
+                           ausentes_existentes=ausentes_existentes,
+                           ausentes_map=ausentes_map,
+                           grid_size=grid_size)
 # --- GESTÃO DE PILOTOS E CONVITES ---
 
 # A função _get_pilot_grid_names_from_ids (que causava o erro) foi removida

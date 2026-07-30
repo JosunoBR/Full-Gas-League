@@ -175,6 +175,12 @@ class Race(db.Model):
     registrations = db.relationship('RaceRegistration', backref='race_parent', lazy=True, cascade="all, delete-orphan")
     protestos = db.relationship('Protesto', back_populates='etapa', lazy=True, cascade="all, delete-orphan")
 
+    # METADADOS DE TELEMETRIA E LOBBY (Estilo Overtake F1)
+    sc_vsc_info = db.Column(db.String(255), nullable=True)
+    clima_temp = db.Column(db.String(100), nullable=True)
+    total_voltas = db.Column(db.Integer, nullable=True)
+    lobby_settings_json = db.Column(db.Text, nullable=True)
+
     grid_config = db.relationship('GridConfig', backref='races')
 
     def to_dict(self):
@@ -214,17 +220,43 @@ class RaceResult(db.Model):
     status_presenca = db.Column(db.String(10), nullable=False, default='OK')
     ausencia = db.Column(db.String(10), nullable=True)
 
+    # Detalhes Avançados da Corrida (Estilo Overtake F1)
+    grid_largada = db.Column(db.Integer, nullable=True)
+    tempo_total = db.Column(db.String(30), nullable=True)
+    melhor_volta = db.Column(db.String(20), nullable=True)
+    tempo_qualy = db.Column(db.String(20), nullable=True)
+    pit_stops = db.Column(db.Integer, nullable=True, default=0)
+    pneus_stints = db.Column(db.String(50), nullable=True)
+    penalidades_texto = db.Column(db.String(100), nullable=True)
+
+    # Detalhes da Corrida Sprint
+    posicao_sprint = db.Column(db.Integer, nullable=True)
+    pontos_sprint = db.Column(db.Float, nullable=True, default=0.0)
+    tempo_sprint = db.Column(db.String(30), nullable=True)
+    melhor_volta_sprint = db.Column(db.String(20), nullable=True)
+
     def to_dict(self):
         return {
             'posicao': self.posicao,
             'pontos': self.pontos_ganhos,
-            'piloto': self.pilot.nickname,
+            'piloto': self.pilot.nickname if self.pilot else 'N/A',
             'equipe': self.team_snapshot.nome if self.team_snapshot else 'N/A',
             'status_presenca': self.status_presenca,
             'dnf': self.dnf,
             'dsq': self.dsq,
             'vr': self.volta_rapida,
-            'dotd': self.piloto_do_dia
+            'dotd': self.piloto_do_dia,
+            'grid_largada': self.grid_largada,
+            'tempo_total': self.tempo_total,
+            'melhor_volta': self.melhor_volta,
+            'tempo_qualy': self.tempo_qualy,
+            'pit_stops': self.pit_stops,
+            'pneus_stints': self.pneus_stints,
+            'penalidades_texto': self.penalidades_texto,
+            'posicao_sprint': self.posicao_sprint,
+            'pontos_sprint': self.pontos_sprint,
+            'tempo_sprint': self.tempo_sprint,
+            'melhor_volta_sprint': self.melhor_volta_sprint
         }
 
 class Protesto(db.Model):

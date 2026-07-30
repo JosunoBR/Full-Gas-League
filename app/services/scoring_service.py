@@ -1,9 +1,36 @@
 from sqlalchemy import func, case
 from app.models import db, RaceResult, Race, Protesto, PilotProfile, Team
-from app.utils import calcular_perda
+from app.utils import calcular_perda, PONTUACAO_20, PONTUACAO_22
 from app.services.team_context import normalize_team_name
 
 class ScoringService:
+    @staticmethod
+    def calculate_race_points(result, grid_size=22):
+        """
+        Calcula a pontuação obtida por um piloto em uma corrida com base na sua posição final,
+        tamanho do grid e bônus acumulados (VR, DOTD, FAN).
+        """
+        if not result or getattr(result, 'dnf', False) or getattr(result, 'dsq', False):
+            return 0.0
+        if getattr(result, 'status_presenca', 'OK') in ['FJ', 'FNJ']:
+            return 0.0
+
+        pos = getattr(result, 'posicao', None)
+        if not pos or pos <= 0:
+            return 0.0
+
+        table = PONTUACAO_22 if grid_size >= 22 else PONTUACAO_20
+        base_points = float(table.get(int(pos), 0))
+
+        bonus = 0.0
+        if getattr(result, 'volta_rapida', False):
+            bonus += 1.0
+        if getattr(result, 'piloto_do_dia', False):
+            bonus += 1.0
+        if getattr(result, 'piloto_torcida', False):
+            bonus += 1.0
+
+        return base_points + bonus
     @staticmethod
     def calculate_pilot_total_points(pilot_id, season_id, grid_id):
         """
@@ -17,8 +44,8 @@ class ScoringService:
             Race.grid_id == grid_id
         ).all()
         
-        # Soma pontos das corridas
-        pontos_corridas = float(sum(r.pontos_ganhos or 0 for r in resultados))
+        # Soma pontos das corridas (incluindo Sprint se houver)
+        pontos_corridas = float(sum((r.pontos_ganhos or 0) + (getattr(r, 'pontos_sprint', 0) or 0) for r in resultados))
         
         # Soma punições do tribunal para este grid específico nesta temporada
         punicoes_tribunal = Protesto.query.join(Race).filter(

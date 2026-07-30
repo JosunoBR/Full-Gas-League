@@ -520,16 +520,21 @@
     {% for race in calendar[grid.id] %}
                 {% if race.status == 'Concluida' %}
                 <div class="modal fade race-summary-modal" id="modalRace{{ race.id }}" tabindex="-1" aria-hidden="true" data-race-id="{{ race.id }}">
-                    <div class="modal-dialog modal-lg modal-dialog-centered">
-                        <div class="modal-content bg-dark border-silver text-white">
-                            <div class="modal-header border-secondary">
-                                <h5 class="modal-title fw-bold"><i class="fa-solid fa-flag-checkered text-danger me-2"></i> Resultado: {{ race.nome_gp }}</h5>
-                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+                        <div class="modal-content bg-dark border-silver text-white shadow-lg">
+                            <div class="modal-header border-secondary bg-black bg-gradient py-3">
+                                <div>
+                                    <h5 class="modal-title fw-bold mb-0 text-white d-flex align-items-center gap-2">
+                                        <i class="fa-solid fa-flag-checkered text-danger"></i> Resultado: {{ race.nome_gp }}
+                                    </h5>
+                                    <small class="text-white-50"><i class="fa-solid fa-location-dot me-1 text-danger"></i>{{ race.pista }} &bull; {{ race.data_corrida.strftime('%d/%m/%Y') if race.data_corrida else 'TBA' }}</small>
+                                </div>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
                             </div>
-                            <div class="modal-body p-0">
+                            <div class="modal-body p-0 bg-dark">
                                 <div class="race-summary-content p-4 text-center text-white-50">
                                     <div class="spinner-border text-danger mb-3" role="status" aria-hidden="true"></div>
-                                    <div>Carregando súmula...</div>
+                                    <div>Carregando súmula completa da etapa...</div>
                                 </div>
                             </div>
                         </div>
@@ -1582,7 +1587,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function buildRaceSummaryHtml(summary) {
         const results = Array.isArray(summary.results) ? summary.results : [];
-        if (!results.length) {
+        const qualyData = summary.qualifying || { pole_sitter: null, results: [] };
+        const qualyResults = Array.isArray(qualyData.results) ? qualyData.results : [];
+        const h = summary.highlights || {};
+
+        if (!results.length && !qualyResults.length) {
             return `
                 <div class="p-4 text-center text-white-50">
                     Nenhum resultado disponível para esta corrida.
@@ -1590,7 +1599,98 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
         }
 
-        // Ordenação visual: Classificados (1) -> DNF (2) -> DSQ (3) -> Sem Pos/0º (4)
+        const tabUid = 'sess_' + Math.random().toString(36).substring(2, 9);
+
+        // Render Tyre Compound Badge
+        function getTyreBadge(compound) {
+            const c = (compound || '').toUpperCase();
+            if (c === 'S') return `<span class="tyre-badge tyre-S" title="Soft (Macio)">S</span>`;
+            if (c === 'M') return `<span class="tyre-badge tyre-M" title="Medium (Médio)">M</span>`;
+            if (c === 'H') return `<span class="tyre-badge tyre-H" title="Hard (Duro)">H</span>`;
+            if (c === 'I') return `<span class="tyre-badge tyre-I" title="Intermediate (Intermediário)">I</span>`;
+            if (c === 'W') return `<span class="tyre-badge tyre-W" title="Wet (Chuva)">W</span>`;
+            return `<span class="badge bg-secondary me-1">${escapeHtml(c)}</span>`;
+        }
+
+        // --- ABA CORRIDA ---
+        let highlightsHtml = '';
+        const hasVencedor = !!h.vencedor;
+        const hasVR = !!h.volta_rapida;
+        const hasEscalador = !!h.maior_escalador;
+        const hasDotd = !!h.dotd;
+
+        if (hasVencedor || hasVR || hasEscalador || hasDotd) {
+            highlightsHtml = `
+                <div class="row g-3 mb-4">
+                    ${hasVencedor ? `
+                        <div class="col-6 col-md-3">
+                            <div class="race-highlight-card h-100 border-start border-4 border-warning">
+                                <small class="text-warning fw-bold text-uppercase d-block mb-1" style="font-size: 0.7rem;">
+                                    <i class="fa-solid fa-trophy me-1"></i> Vencedor
+                                </small>
+                                <div class="d-flex align-items-center gap-2">
+                                    <img src="${h.vencedor.foto_url ? '/static/uploads/' + h.vencedor.foto_url : '/static/img/NP.jpg'}" class="rounded-circle border border-warning" width="36" height="36" style="object-fit: cover;">
+                                    <div class="text-truncate">
+                                        <strong class="text-white d-block text-truncate small">${escapeHtml(h.vencedor.nickname)}</strong>
+                                        <small class="text-white-50" style="font-size: 0.7rem;">${escapeHtml(h.vencedor.equipe)}</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ` : ''}
+                    ${hasVR ? `
+                        <div class="col-6 col-md-3">
+                            <div class="race-highlight-card h-100 border-start border-4 border-info">
+                                <small class="text-info fw-bold text-uppercase d-block mb-1" style="font-size: 0.7rem;">
+                                    <i class="fa-solid fa-stopwatch me-1"></i> Volta mais rápida
+                                </small>
+                                <div class="d-flex align-items-center gap-2">
+                                    <img src="${h.volta_rapida.foto_url ? '/static/uploads/' + h.volta_rapida.foto_url : '/static/img/NP.jpg'}" class="rounded-circle border border-info" width="36" height="36" style="object-fit: cover;">
+                                    <div class="text-truncate">
+                                        <strong class="text-white d-block text-truncate small">${escapeHtml(h.volta_rapida.nickname)}</strong>
+                                        <small class="text-info fw-bold" style="font-size: 0.75rem;">${escapeHtml(h.volta_rapida.tempo)}</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ` : ''}
+                    ${hasEscalador ? `
+                        <div class="col-6 col-md-3">
+                            <div class="race-highlight-card h-100 border-start border-4 border-success">
+                                <small class="text-success fw-bold text-uppercase d-block mb-1" style="font-size: 0.7rem;">
+                                    <i class="fa-solid fa-rocket me-1"></i> Maior Escalador
+                                </small>
+                                <div class="d-flex align-items-center gap-2">
+                                    <img src="${h.maior_escalador.foto_url ? '/static/uploads/' + h.maior_escalador.foto_url : '/static/img/NP.jpg'}" class="rounded-circle border border-success" width="36" height="36" style="object-fit: cover;">
+                                    <div class="text-truncate">
+                                        <strong class="text-white d-block text-truncate small">${escapeHtml(h.maior_escalador.nickname)}</strong>
+                                        <small class="text-success fw-bold" style="font-size: 0.7rem;">P${h.maior_escalador.largada} &#10140; P${h.maior_escalador.chegada} (+${h.maior_escalador.ganho})</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ` : ''}
+                    ${hasDotd ? `
+                        <div class="col-6 col-md-3">
+                            <div class="race-highlight-card h-100 border-start border-4 border-primary">
+                                <small class="text-primary fw-bold text-uppercase d-block mb-1" style="font-size: 0.7rem;">
+                                    <i class="fa-solid fa-star me-1"></i> Piloto do Dia
+                                </small>
+                                <div class="d-flex align-items-center gap-2">
+                                    <img src="${h.dotd.foto_url ? '/static/uploads/' + h.dotd.foto_url : '/static/img/NP.jpg'}" class="rounded-circle border border-primary" width="36" height="36" style="object-fit: cover;">
+                                    <div class="text-truncate">
+                                        <strong class="text-white d-block text-truncate small">${escapeHtml(h.dotd.nickname)}</strong>
+                                        <small class="text-white-50" style="font-size: 0.7rem;">Destaque Votado</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        // Ordenação visual das posições da corrida
         results.sort((a, b) => {
             const getRank = (r) => {
                 if (r.dsq) return 3;
@@ -1600,56 +1700,558 @@ document.addEventListener('DOMContentLoaded', function() {
             };
             const rankA = getRank(a);
             const rankB = getRank(b);
-            
             if (rankA !== rankB) return rankA - rankB;
-            
-            // Desempate por posição (tratando nulos como fim da lista)
-            const posA = (a.posicao !== null && a.posicao !== undefined) ? a.posicao : 9999;
-            const posB = (b.posicao !== null && b.posicao !== undefined) ? b.posicao : 9999;
+            const posA = (a.posicao !== null && a.posicao !== undefined && a.posicao > 0) ? a.posicao : 9999;
+            const posB = (b.posicao !== null && b.posicao !== undefined && b.posicao > 0) ? b.posicao : 9999;
             return posA - posB;
         });
 
-        const rows = results.map((res) => {
+        const raceRows = results.map((res) => {
             let posCell;
             if (res.dsq) {
-                posCell = '<span class="badge bg-danger">DSQ</span>';
+                posCell = '<span class="badge bg-danger shadow-sm">DSQ</span>';
             } else if (res.dnf) {
-                posCell = '<span class="badge bg-secondary">DNF</span>';
+                posCell = '<span class="badge bg-secondary shadow-sm">DNF</span>';
             } else if (res.ausencia || !res.posicao) {
                 posCell = '<span class="badge bg-dark border border-secondary text-secondary">DNS</span>';
+            } else if (res.posicao === 1) {
+                posCell = '<span class="badge bg-warning text-dark fw-bold shadow-sm" style="font-size:0.85rem;"><i class="fa-solid fa-medal me-1"></i>1º</span>';
+            } else if (res.posicao === 2) {
+                posCell = '<span class="badge bg-light text-dark fw-bold shadow-sm" style="font-size:0.85rem;"><i class="fa-solid fa-medal me-1"></i>2º</span>';
+            } else if (res.posicao === 3) {
+                posCell = '<span class="badge text-white fw-bold shadow-sm" style="background:#cd7f32; font-size:0.85rem;"><i class="fa-solid fa-medal me-1"></i>3º</span>';
             } else {
-                posCell = `${escapeHtml(res.posicao)}º`;
+                posCell = `<strong class="text-white">${res.posicao}º</strong>`;
             }
 
-            const extras = [
-                res.vr ? '<span class="badge bg-primary me-1" title="Volta Rápida">VR</span>' : '',
-                res.dotd ? '<span class="badge bg-warning text-dark" title="Piloto do Dia">DOTD</span>' : ''
+            const fotoUrl = res.pilot?.foto_url ? `/static/uploads/${res.pilot.foto_url}` : '/static/img/NP.jpg';
+            const nick = escapeHtml(res.pilot?.nickname || 'Piloto Removido');
+            
+            const badges = [
+                res.vr ? '<span class="badge text-white ms-1" style="background-color:#9333ea;" title="Volta Rápida">VR</span>' : '',
+                res.dotd ? '<span class="badge bg-warning text-dark ms-1" title="Piloto do Dia">DOTD</span>' : ''
             ].join('');
+
+            const teamLogo = res.team?.logo_url ? `<img src="/static/uploads/${res.team.logo_url}" class="rounded-circle me-1" width="18" height="18" style="object-fit:cover;">` : '';
+            const teamName = escapeHtml(res.team?.nome || '-');
+
+            let gridCell = '-';
+            if (res.grid_largada) {
+                gridCell = `P${res.grid_largada}`;
+                if (res.delta_grid !== null && res.delta_grid !== undefined) {
+                    if (res.delta_grid > 0) {
+                        gridCell += ` <span class="badge bg-success-subtle text-success border border-success ms-1" style="font-size:0.65rem;">&#9650;${res.delta_grid}</span>`;
+                    } else if (res.delta_grid < 0) {
+                        gridCell += ` <span class="badge bg-danger-subtle text-danger border border-danger ms-1" style="font-size:0.65rem;">&#9660;${Math.abs(res.delta_grid)}</span>`;
+                    } else {
+                        gridCell += ` <span class="badge bg-secondary-subtle text-white-50 border border-secondary ms-1" style="font-size:0.65rem;">&#9644;</span>`;
+                    }
+                }
+            }
+
+            const bestLapCell = res.melhor_volta ? `<span class="font-monospace text-info">${escapeHtml(res.melhor_volta)}</span>` : '-';
+            const pitsCell = res.pit_stops !== undefined && res.pit_stops !== null ? `<span class="badge bg-dark border border-secondary text-info font-monospace">${res.pit_stops} ${res.pit_stops === 1 ? 'pit' : 'pits'}</span>` : '-';
+            const tempoCell = res.tempo_total ? `<span class="font-monospace text-white">${escapeHtml(res.tempo_total)}</span>` : '-';
+
+            let pneusHtml = '-';
+            if (Array.isArray(res.pneus) && res.pneus.length > 0) {
+                pneusHtml = res.pneus.map(getTyreBadge).join('');
+            }
+
+            const penCell = res.penalidades ? `<span class="badge bg-danger-subtle text-danger border border-danger" style="font-size:0.7rem;">${escapeHtml(res.penalidades)}</span>` : '-';
+            const ptsCell = `<strong class="text-warning font-monospace fs-6">${escapeHtml(Number(res.pontos || 0).toString())}</strong>`;
 
             return `
                 <tr>
-                    <td class="ps-3 fw-bold">${posCell}</td>
-                    <td class="fw-bold">${escapeHtml(res.pilot?.nickname || 'Piloto Removido')}</td>
-                    <td class="text-white-50">${escapeHtml(res.team?.nome || '-')}</td>
-                    <td class="text-center fw-bold text-info">${escapeHtml(Number(res.pontos || 0).toString())}</td>
-                    <td class="text-center">${extras || '<span class="text-white-50">-</span>'}</td>
+                    <td class="ps-3 text-center align-middle">${posCell}</td>
+                    <td class="align-middle">
+                        <div class="d-flex align-items-center">
+                            <img src="${fotoUrl}" class="rounded-circle me-2 border border-secondary" width="30" height="30" style="object-fit: cover;">
+                            <div>
+                                <span class="fw-bold text-white d-block lead-nickname">${nick} ${badges}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="align-middle text-white-50 small">
+                        <div class="d-flex align-items-center">
+                            ${teamLogo}
+                            <span>${teamName}</span>
+                        </div>
+                    </td>
+                    <td class="align-middle text-center small">${gridCell}</td>
+                    <td class="align-middle text-center small">${bestLapCell}</td>
+                    <td class="align-middle text-center small">${pitsCell}</td>
+                    <td class="align-middle text-center small">${tempoCell}</td>
+                    <td class="align-middle text-center">${pneusHtml}</td>
+                    <td class="align-middle text-center small">${penCell}</td>
+                    <td class="pe-3 text-center align-middle">${ptsCell}</td>
                 </tr>
             `;
         }).join('');
 
-        return `
-            <table class="table table-dark table-striped mb-0 small">
-                <thead>
-                    <tr class="text-warning">
-                        <th class="ps-3">Pos</th>
-                        <th>Piloto</th>
-                        <th>Equipe</th>
-                        <th class="text-center">Pts</th>
-                        <th class="text-center">Extras</th>
+        // Busca os 3 primeiros colocados para o Card de Pódio Overtake F1
+        const p1 = results.find(r => r.posicao === 1);
+        const p2 = results.find(r => r.posicao === 2);
+        const p3 = results.find(r => r.posicao === 3);
+
+        let podiumHtml = '';
+        if (p1 || p2 || p3) {
+            podiumHtml = `
+                <div class="row g-2 mb-4">
+                    <!-- 1º LUGAR (VENCEDOR / P1) -->
+                    ${p1 ? `
+                    <div class="col-12 col-md-4">
+                        <div class="p-3 rounded-3 position-relative overflow-hidden shadow-sm" style="background: linear-gradient(135deg, rgba(255,215,0,0.12) 0%, #141620 100%); border: 1px solid rgba(255, 215, 0, 0.3); border-top: 4px solid #ffd700;">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="badge bg-warning text-dark font-monospace fw-bold px-2 py-1" style="font-size:0.75rem;">
+                                    <i class="fa-solid fa-trophy me-1"></i> 1º LUGAR (P1)
+                                </span>
+                                <small class="text-warning font-monospace fw-bold" style="font-size:0.7rem;">+${p1.pontos || 35} PTS</small>
+                            </div>
+                            <div class="d-flex align-items-center gap-3">
+                                <img src="${p1.pilot?.foto_url ? '/static/uploads/' + p1.pilot.foto_url : '/static/img/NP.jpg'}" class="rounded-circle border border-2 border-warning shadow" width="46" height="46" style="object-fit: cover;">
+                                <div class="text-truncate">
+                                    <strong class="text-white d-block text-truncate fw-bold" style="font-size: 0.95rem;">${escapeHtml(p1.pilot?.nickname || 'Piloto')}</strong>
+                                    <small class="text-white-50 d-flex align-items-center gap-1 font-monospace" style="font-size:0.75rem;">
+                                        ${p1.team?.logo_url ? `<img src="/static/uploads/${p1.team.logo_url}" width="14" height="14" style="object-fit:cover;" class="rounded-circle">` : ''}
+                                        ${escapeHtml(p1.team?.nome || 'Equipe')}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    ` : ''}
+
+                    <!-- 2º LUGAR (P2) -->
+                    ${p2 ? `
+                    <div class="col-6 col-md-4">
+                        <div class="p-3 rounded-3 position-relative overflow-hidden shadow-sm" style="background: linear-gradient(135deg, rgba(226,232,240,0.08) 0%, #141620 100%); border: 1px solid rgba(226, 232, 240, 0.2); border-top: 4px solid #e2e8f0;">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="badge bg-light text-dark font-monospace fw-bold px-2 py-1" style="font-size:0.75rem;">
+                                    <i class="fa-solid fa-medal me-1"></i> 2º LUGAR (P2)
+                                </span>
+                                <small class="text-light font-monospace fw-bold" style="font-size:0.7rem;">+${p2.pontos || 30} PTS</small>
+                            </div>
+                            <div class="d-flex align-items-center gap-3">
+                                <img src="${p2.pilot?.foto_url ? '/static/uploads/' + p2.pilot.foto_url : '/static/img/NP.jpg'}" class="rounded-circle border border-2 border-light shadow" width="44" height="44" style="object-fit: cover;">
+                                <div class="text-truncate">
+                                    <strong class="text-white d-block text-truncate fw-bold" style="font-size: 0.9rem;">${escapeHtml(p2.pilot?.nickname || 'Piloto')}</strong>
+                                    <small class="text-white-50 d-flex align-items-center gap-1 font-monospace" style="font-size:0.75rem;">
+                                        ${p2.team?.logo_url ? `<img src="/static/uploads/${p2.team.logo_url}" width="14" height="14" style="object-fit:cover;" class="rounded-circle">` : ''}
+                                        ${escapeHtml(p2.team?.nome || 'Equipe')}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    ` : ''}
+
+                    <!-- 3º LUGAR (P3) -->
+                    ${p3 ? `
+                    <div class="col-6 col-md-4">
+                        <div class="p-3 rounded-3 position-relative overflow-hidden shadow-sm" style="background: linear-gradient(135deg, rgba(205,127,50,0.1) 0%, #141620 100%); border: 1px solid rgba(205, 127, 50, 0.25); border-top: 4px solid #cd7f32;">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="badge text-white font-monospace fw-bold px-2 py-1" style="background:#cd7f32; font-size:0.75rem;">
+                                    <i class="fa-solid fa-medal me-1"></i> 3º LUGAR (P3)
+                                </span>
+                                <small class="text-warning font-monospace fw-bold" style="font-size:0.7rem;">+${p3.pontos || 27} PTS</small>
+                            </div>
+                            <div class="d-flex align-items-center gap-3">
+                                <img src="${p3.pilot?.foto_url ? '/static/uploads/' + p3.pilot.foto_url : '/static/img/NP.jpg'}" class="rounded-circle border border-2 shadow" style="border-color:#cd7f32 !important; object-fit: cover;" width="44" height="44">
+                                <div class="text-truncate">
+                                    <strong class="text-white d-block text-truncate fw-bold" style="font-size: 0.9rem;">${escapeHtml(p3.pilot?.nickname || 'Piloto')}</strong>
+                                    <small class="text-white-50 d-flex align-items-center gap-1 font-monospace" style="font-size:0.75rem;">
+                                        ${p3.team?.logo_url ? `<img src="/static/uploads/${p3.team.logo_url}" width="14" height="14" style="object-fit:cover;" class="rounded-circle">` : ''}
+                                        ${escapeHtml(p3.team?.nome || 'Equipe')}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        const raceTabHtml = `
+            ${podiumHtml}
+            ${highlightsHtml}
+            <div class="table-responsive rounded border border-secondary-subtle">
+                <table class="table table-dark table-hover table-striped mb-0 align-middle small">
+                    <thead class="bg-black text-white-50 border-bottom border-secondary" style="font-size:0.75rem; text-transform:uppercase;">
+                        <tr>
+                            <th class="ps-3 text-center" style="width: 60px;">Pos</th>
+                            <th>Piloto</th>
+                            <th>Equipe</th>
+                            <th class="text-center">Grid</th>
+                            <th class="text-center">Melhor Volta</th>
+                            <th class="text-center">Pits</th>
+                            <th class="text-center">Tempo / Gap</th>
+                            <th class="text-center">Pneus</th>
+                            <th class="text-center">Penalidades</th>
+                            <th class="pe-3 text-center" style="width: 70px;">Pontos</th>
+                        </tr>
+                    </thead>
+                    <tbody>${raceRows}</tbody>
+                </table>
+            </div>
+        `;
+
+        // --- ABA QUALIFYING ---
+        const pole = qualyData.pole_sitter;
+        let qualyHighlightHtml = '';
+
+        if (pole) {
+            const poleFoto = pole.foto_url ? `/static/uploads/${pole.foto_url}` : '/static/img/NP.jpg';
+            qualyHighlightHtml = `
+                <div class="mb-4">
+                    <div class="race-highlight-card border-start border-4" style="border-color: #a78bfa !important;">
+                        <small class="fw-bold text-uppercase d-block mb-1" style="color: #a78bfa; font-size: 0.75rem;">
+                            <i class="fa-solid fa-flag-checkered me-1"></i> Pole Position da Etapa
+                        </small>
+                        <div class="d-flex align-items-center gap-3">
+                            <img src="${poleFoto}" class="rounded-circle border" width="42" height="42" style="object-fit: cover; border-color: #a78bfa !important;">
+                            <div>
+                                <strong class="text-white d-block fs-6">${escapeHtml(pole.nickname)}</strong>
+                                <small class="font-monospace fw-bold" style="color: #a78bfa;">Tempo: ${escapeHtml(pole.tempo)}</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        const qualyRows = qualyResults.map((q) => {
+            const qFoto = q.pilot?.foto_url ? `/static/uploads/${q.pilot.foto_url}` : '/static/img/NP.jpg';
+            const qNick = escapeHtml(q.pilot?.nickname || 'Piloto Removido');
+            const qTeamLogo = q.team?.logo_url ? `<img src="/static/uploads/${q.team.logo_url}" class="rounded-circle me-1" width="18" height="18" style="object-fit:cover;">` : '';
+            const qTeamName = escapeHtml(q.team?.nome || '-');
+
+            const isPolePos = q.qualy_pos === 1;
+            const posBadge = isPolePos ? `<span class="badge text-dark fw-bold shadow-sm" style="background:#a78bfa; font-size:0.85rem;"><i class="fa-solid fa-flag-checkered me-1"></i>1º</span>` : `<strong class="text-white">${q.qualy_pos}º</strong>`;
+            const gapBadge = q.gap === 'POLE' ? `<span class="badge text-dark font-monospace fw-bold" style="background:#a78bfa;">POLE</span>` : `<span class="font-monospace text-white-50">${escapeHtml(q.gap)}</span>`;
+
+            return `
+                <tr>
+                    <td class="ps-3 text-center align-middle">${posBadge}</td>
+                    <td class="align-middle">
+                        <div class="d-flex align-items-center">
+                            <img src="${qFoto}" class="rounded-circle me-2 border border-secondary" width="30" height="30" style="object-fit: cover;">
+                            <span class="fw-bold text-white">${qNick}</span>
+                        </div>
+                    </td>
+                    <td class="align-middle text-white-50 small">
+                        <div class="d-flex align-items-center">
+                            ${qTeamLogo}
+                            <span>${qTeamName}</span>
+                        </div>
+                    </td>
+                    <td class="align-middle text-center font-monospace text-info fw-bold">${escapeHtml(q.tempo_qualy)}</td>
+                    <td class="pe-3 align-middle text-center small">${gapBadge}</td>
+                </tr>
+            `;
+        }).join('');
+
+        const qualyTabHtml = `
+            ${qualyHighlightHtml}
+            <div class="table-responsive rounded border border-secondary-subtle">
+                <table class="table table-dark table-hover table-striped mb-0 align-middle small">
+                    <thead class="bg-black text-white-50 border-bottom border-secondary" style="font-size:0.75rem; text-transform:uppercase;">
+                        <tr>
+                            <th class="ps-3 text-center" style="width: 70px;">Grid</th>
+                            <th>Piloto</th>
+                            <th>Equipe</th>
+                            <th class="text-center">Tempo Qualy</th>
+                            <th class="pe-3 text-center" style="width: 100px;">Intervalo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${qualyRows || '<tr><td colspan="5" class="text-center py-4 text-muted">Sem dados de Qualificação gravados para esta corrida.</td></tr>'}
+                    </tbody>
+                </table>
+            </div>
+        `;
+
+        // --- ABA SPRINT (SE HOUVER) ---
+        const sprintData = summary.sprint || { has_sprint: false, results: [] };
+        const sprintResults = Array.isArray(sprintData.results) ? sprintData.results : [];
+        let sprintTabHtml = '';
+
+        if (sprintResults.length > 0) {
+            const sprintWinner = sprintResults[0];
+            const sWinnerFoto = sprintWinner?.pilot?.foto_url ? `/static/uploads/${sprintWinner.pilot.foto_url}` : '/static/img/NP.jpg';
+            const sWinnerNick = escapeHtml(sprintWinner?.pilot?.nickname || 'Piloto Removido');
+            const sWinnerTeam = escapeHtml(sprintWinner?.team?.nome || '-');
+
+            const sprintHighlightHtml = `
+                <div class="mb-4">
+                    <div class="race-highlight-card border-start border-4 border-warning">
+                        <small class="text-warning fw-bold text-uppercase d-block mb-1" style="font-size: 0.75rem;">
+                            <i class="fa-solid fa-bolt me-1"></i> Vencedor da Corrida Sprint
+                        </small>
+                        <div class="d-flex align-items-center gap-3">
+                            <img src="${sWinnerFoto}" class="rounded-circle border border-warning" width="42" height="42" style="object-fit: cover;">
+                            <div>
+                                <strong class="text-white d-block fs-6">${sWinnerNick}</strong>
+                                <small class="text-white-50">${sWinnerTeam}</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            const sprintRows = sprintResults.map((s) => {
+                const sFoto = s.pilot?.foto_url ? `/static/uploads/${s.pilot.foto_url}` : '/static/img/NP.jpg';
+                const sNick = escapeHtml(s.pilot?.nickname || 'Piloto Removido');
+                const sTeamLogo = s.team?.logo_url ? `<img src="/static/uploads/${s.team.logo_url}" class="rounded-circle me-1" width="18" height="18" style="object-fit:cover;">` : '';
+                const sTeamName = escapeHtml(s.team?.nome || '-');
+                const sPosBadge = s.posicao_sprint === 1 ? `<span class="badge bg-warning text-dark fw-bold shadow-sm" style="font-size:0.85rem;"><i class="fa-solid fa-medal me-1"></i>1º</span>` : `<strong class="text-white">${s.posicao_sprint}º</strong>`;
+                const sBestLap = s.melhor_volta_sprint ? `<span class="font-monospace text-info">${escapeHtml(s.melhor_volta_sprint)}</span>` : '-';
+                const sPts = `<strong class="text-warning font-monospace fs-6">${escapeHtml(Number(s.pontos_sprint || 0).toString())}</strong>`;
+
+                return `
+                    <tr>
+                        <td class="ps-3 text-center align-middle">${sPosBadge}</td>
+                        <td class="align-middle">
+                            <div class="d-flex align-items-center">
+                                <img src="${sFoto}" class="rounded-circle me-2 border border-secondary" width="30" height="30" style="object-fit: cover;">
+                                <span class="fw-bold text-white">${sNick}</span>
+                            </div>
+                        </td>
+                        <td class="align-middle text-white-50 small">
+                            <div class="d-flex align-items-center">
+                                ${sTeamLogo}
+                                <span>${sTeamName}</span>
+                            </div>
+                        </td>
+                        <td class="align-middle text-center small">${sBestLap}</td>
+                        <td class="pe-3 align-middle text-center">${sPts}</td>
                     </tr>
-                </thead>
-                <tbody>${rows}</tbody>
-            </table>
+                `;
+            }).join('');
+
+            sprintTabHtml = `
+                ${sprintHighlightHtml}
+                <div class="table-responsive rounded border border-secondary-subtle">
+                    <table class="table table-dark table-hover table-striped mb-0 align-middle small">
+                        <thead class="bg-black text-white-50 border-bottom border-secondary" style="font-size:0.75rem; text-transform:uppercase;">
+                            <tr>
+                                <th class="ps-3 text-center" style="width: 70px;">Pos</th>
+                                <th>Piloto</th>
+                                <th>Equipe</th>
+                                <th class="text-center">Melhor Volta</th>
+                                <th class="pe-3 text-center" style="width: 80px;">Pontos</th>
+                            </tr>
+                        </thead>
+                        <tbody>${sprintRows}</tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        const meta = summary.race_metadata || {};
+        const trackName = (meta.pista || meta.nome_gp || 'CIRCUITO DA ETAPA').toUpperCase();
+        const gpName = meta.nome_gp || meta.pista || 'Grande Prêmio';
+
+        const heroBannerHtml = `
+            <div class="hero-track-banner mb-3 p-3 rounded-3 position-relative overflow-hidden shadow-sm" style="background: linear-gradient(135deg, #161822 0%, #0c0d12 100%); border: 1px solid rgba(255, 255, 255, 0.08); border-left: 5px solid #e10600;">
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                    <div>
+                        <span class="text-danger fw-bold text-uppercase font-monospace d-block mb-1" style="letter-spacing: 1px; font-size: 0.7rem;">
+                            <i class="fa-solid fa-location-dot me-1"></i> CIRCUIT OVERVIEW
+                        </span>
+                        <h2 class="text-white fw-extrabold mb-0 text-uppercase" style="font-family: 'Outfit', sans-serif; letter-spacing: 0.5px; font-size: 1.6rem; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">
+                            ${escapeHtml(trackName)}
+                        </h2>
+                        <small class="text-white-50 font-monospace" style="font-size: 0.8rem;">
+                            <i class="fa-solid fa-flag-checkered me-1 text-danger"></i> ${escapeHtml(gpName)} &bull; FULLGAS LEAGUE
+                        </small>
+                    </div>
+                    <div>
+                        <span class="badge bg-dark border border-secondary text-white px-3 py-2 font-monospace shadow-sm" style="font-size: 0.75rem;">
+                            <i class="fa-solid fa-cloud-sun me-1 text-warning"></i> ${escapeHtml(meta.clima_temp || 'Pista: 24°C | Ar: 20°C')}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const headerCardsHtml = `
+            ${heroBannerHtml}
+            <div class="row g-2 mb-3">
+                <div class="col-6 col-md-3">
+                    <div class="race-highlight-card h-100">
+                        <small class="text-white-50 fw-bold text-uppercase d-block mb-1 font-monospace" style="font-size: 0.65rem;">
+                            <i class="fa-solid fa-flag me-1 text-danger"></i> GRAND PRIX
+                        </small>
+                        <strong class="text-white small d-block text-truncate font-monospace">${escapeHtml(gpName)}</strong>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="race-highlight-card h-100">
+                        <small class="text-white-50 fw-bold text-uppercase d-block mb-1 font-monospace" style="font-size: 0.65rem;">
+                            <i class="fa-solid fa-stopwatch me-1 text-danger"></i> SESSÃO
+                        </small>
+                        <strong class="text-white small d-block font-monospace">Corrida Principal</strong>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="race-highlight-card h-100">
+                        <small class="text-white-50 fw-bold text-uppercase d-block mb-1 font-monospace" style="font-size: 0.65rem;">
+                            <i class="fa-solid fa-shield-halved me-1 text-warning"></i> SC / VSC
+                        </small>
+                        <strong class="text-white small font-monospace d-block text-truncate">${escapeHtml(meta.sc_vsc_info || 'Sem SC / VSC')}</strong>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="race-highlight-card h-100">
+                        <small class="text-white-50 fw-bold text-uppercase d-block mb-1 font-monospace" style="font-size: 0.65rem;">
+                            <i class="fa-solid fa-rotate-right me-1 text-danger"></i> VOLTAS
+                        </small>
+                        <strong class="text-white small font-monospace d-block">${escapeHtml((meta.total_voltas || 29).toString())} voltas</strong>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const lobbySettingsHtml = `
+            <div class="card bg-dark-subtle border border-secondary-subtle rounded-3 mb-4 overflow-hidden" style="background: #12141a !important;">
+                <div class="card-header bg-black border-secondary p-3 d-flex justify-content-between align-items-center" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#lobbyCollapse_${tabUid}">
+                    <span class="text-white fw-bold small text-uppercase font-monospace mb-0">
+                        <i class="fa-solid fa-gear me-2 text-danger"></i> CONFIGURAÇÕES DO LOBBY & REGRAS
+                    </span>
+                    <i class="fa-solid fa-chevron-down text-white-50 small"></i>
+                </div>
+                <div id="lobbyCollapse_${tabUid}" class="collapse show">
+                    <div class="card-body p-3 small text-white-50" style="background: rgba(15,16,22,0.6);">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <strong class="text-white d-block text-uppercase mb-2 font-monospace border-bottom border-secondary pb-1" style="font-size: 0.7rem; color: #e10600 !important;">REGRAS & SIMULAÇÃO</strong>
+                                <div class="d-flex justify-content-between mb-1"><span>Colisões:</span><strong class="text-white">On</strong></div>
+                                <div class="d-flex justify-content-between mb-1"><span>Corte de curva:</span><strong class="text-white">Strict</strong></div>
+                                <div class="d-flex justify-content-between mb-1"><span>Parc Fermé:</span><strong class="text-white">Sim</strong></div>
+                                <div class="d-flex justify-content-between mb-1"><span>Volta de formação:</span><strong class="text-white">Não</strong></div>
+                                <div class="d-flex justify-content-between mb-1"><span>Carros iguais:</span><strong class="text-white">Sim</strong></div>
+                            </div>
+                            <div class="col-md-4">
+                                <strong class="text-white d-block text-uppercase mb-2 font-monospace border-bottom border-secondary pb-1" style="font-size: 0.7rem; color: #e10600 !important;">SC & BANDEIRAS</strong>
+                                <div class="d-flex justify-content-between mb-1"><span>Safety Car:</span><strong class="text-white">Standard</strong></div>
+                                <div class="d-flex justify-content-between mb-1"><span>Bandeira Vermelha:</span><strong class="text-white">Off</strong></div>
+                            </div>
+                            <div class="col-md-4">
+                                <strong class="text-white d-block text-uppercase mb-2 font-monospace border-bottom border-secondary pb-1" style="font-size: 0.7rem; color: #e10600 !important;">DANO & REALISMO</strong>
+                                <div class="d-flex justify-content-between mb-1"><span>Dano:</span><strong class="text-white">Standard</strong></div>
+                                <div class="d-flex justify-content-between mb-1"><span>Taxa de dano:</span><strong class="text-white">Standard</strong></div>
+                                <div class="d-flex justify-content-between mb-1"><span>Superfície:</span><strong class="text-white">Realistic</strong></div>
+                                <div class="d-flex justify-content-between mb-1"><span>Combustível baixo:</span><strong class="text-white">Hard</strong></div>
+                                <div class="d-flex justify-content-between mb-1"><span>Temp. Pneu:</span><strong class="text-white">Surface & Carcass</strong></div>
+                            </div>
+                        </div>
+                        <hr class="border-secondary opacity-25 my-2">
+                        <div class="row g-2">
+                            <div class="col-12">
+                                <strong class="text-white d-block text-uppercase mb-1 font-monospace" style="font-size: 0.7rem; color: #e10600 !important;">ASSISTÊNCIAS DO LOBBY (HOST)</strong>
+                                <div class="d-flex flex-wrap gap-3 small text-white-50">
+                                    <span>Câmbio: <strong class="text-white">Manual</strong></span>
+                                    <span>Freio: <strong class="text-white">Off</strong></span>
+                                    <span>Direção: <strong class="text-white">Não</strong></span>
+                                    <span>Linha dinâmica: <strong class="text-white">Off</strong></span>
+                                    <span>ERS: <strong class="text-white">Não</strong></span>
+                                    <span>DRS: <strong class="text-white">Não</strong></span>
+                                    <span>Pit: <strong class="text-white">Não</strong></span>
+                                    <span>Largada: <strong class="text-white">Manual</strong></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        return `
+            <style>
+                .race-highlight-card {
+                    background: #141620;
+                    border: 1px solid rgba(255, 255, 255, 0.08);
+                    border-radius: 8px;
+                    padding: 12px;
+                    transition: transform 0.2s ease, border-color 0.2s ease;
+                }
+                .race-highlight-card:hover {
+                    border-color: rgba(225, 6, 0, 0.4);
+                }
+                .tyre-badge {
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: 22px;
+                    height: 22px;
+                    border-radius: 50%;
+                    font-size: 0.7rem;
+                    font-weight: 800;
+                    margin-right: 3px;
+                }
+                .tyre-S { background: #e10600; color: #fff; border: 1px solid #ff4d4d; }
+                .tyre-M { background: #ffd700; color: #000; border: 1px solid #fff; }
+                .tyre-H { background: #ffffff; color: #000; border: 1px solid #ccc; }
+                .tyre-I { background: #10b981; color: #fff; border: 1px solid #34d399; }
+                .tyre-W { background: #3b82f6; color: #fff; border: 1px solid #60a5fa; }
+                .session-nav .nav-link {
+                    color: #9ca3af;
+                    border: 1px solid rgba(255,255,255,0.1);
+                    font-size: 0.8rem;
+                    padding: 6px 18px;
+                }
+                .session-nav .nav-link.active {
+                    background-color: #e10600 !important;
+                    color: #ffffff !important;
+                    border-color: #e10600 !important;
+                }
+            </style>
+
+            <div class="p-3">
+                ${headerCardsHtml}
+
+                <!-- NAVEGAÇÃO DE ABAS DE SESSÃO DA ETAPA -->
+                <ul class="nav nav-pills session-nav mb-3 justify-content-center gap-2" id="${tabUid}" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active rounded-pill fw-bold" id="${tabUid}-race-tab" data-bs-toggle="pill" data-bs-target="#${tabUid}-race" type="button" role="tab">
+                            <i class="fa-solid fa-flag-checkered me-1"></i> CORRIDA
+                        </button>
+                    </li>
+                    ${sprintResults.length > 0 ? `
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link rounded-pill fw-bold text-warning" id="${tabUid}-sprint-tab" data-bs-toggle="pill" data-bs-target="#${tabUid}-sprint" type="button" role="tab">
+                            <i class="fa-solid fa-bolt me-1"></i> SPRINT
+                        </button>
+                    </li>
+                    ` : ''}
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link rounded-pill fw-bold" id="${tabUid}-qualy-tab" data-bs-toggle="pill" data-bs-target="#${tabUid}-qualy" type="button" role="tab">
+                            <i class="fa-solid fa-stopwatch me-1"></i> QUALIFYING
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="tab-content" id="${tabUid}-content">
+                    <div class="tab-pane fade show active" id="${tabUid}-race" role="tabpanel">
+                        ${raceTabHtml}
+                    </div>
+                    ${sprintResults.length > 0 ? `
+                    <div class="tab-pane fade" id="${tabUid}-sprint" role="tabpanel">
+                        ${sprintTabHtml}
+                    </div>
+                    ` : ''}
+                    <div class="tab-pane fade" id="${tabUid}-qualy" role="tabpanel">
+                        ${qualyTabHtml}
+                    </div>
+                </div>
+
+                <!-- SEÇÃO DE CONFIGURAÇÕES DO LOBBY (ESTILO OVERTAKE F1) -->
+                <div class="mt-4">
+                    ${lobbySettingsHtml}
+                </div>
+            </div>
         `;
     }
 

@@ -40,6 +40,28 @@ def atualizar_banco():
                     print("- Adicionando coluna 'grid_id' em pilot_grid_photo...")
                     conn.execute(text("ALTER TABLE pilot_grid_photo ADD COLUMN grid_id INTEGER"))
             
+            # --- RACE RESULT (Campos Detalhados de Corrida Estilo Overtake F1) ---
+            novas_colunas = [
+                ("grid_largada", "INTEGER"),
+                ("tempo_total", "VARCHAR(30)"),
+                ("melhor_volta", "VARCHAR(20)"),
+                ("tempo_qualy", "VARCHAR(20)"),
+                ("pit_stops", "INTEGER DEFAULT 0"),
+                ("pneus_stints", "VARCHAR(50)"),
+                ("penalidades_texto", "VARCHAR(100)"),
+                ("posicao_sprint", "INTEGER"),
+                ("pontos_sprint", "FLOAT DEFAULT 0.0"),
+                ("tempo_sprint", "VARCHAR(30)"),
+                ("melhor_volta_sprint", "VARCHAR(20)")
+            ]
+            for col_nome, col_tipo in novas_colunas:
+                try:
+                    conn.execute(text(f"SELECT {col_nome} FROM race_result LIMIT 1"))
+                except:
+                    print(f"- Adicionando coluna '{col_nome}' em race_result...")
+                    conn.execute(text(f"ALTER TABLE race_result ADD COLUMN {col_nome} {col_tipo}"))
+
+            conn.commit()
         print("Concluído! O banco antigo agora é compatível com o novo sistema.")
 
 if __name__ == "__main__":
