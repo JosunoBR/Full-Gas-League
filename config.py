@@ -18,7 +18,8 @@ class Config:
     # Aumenta a tolerância de espera do SQLite para evitar "database is locked"
     SQLALCHEMY_ENGINE_OPTIONS = {
         'connect_args': {
-            'timeout': 30
+            'timeout': 60,
+            'check_same_thread': False
         }
     }
     
