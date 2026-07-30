@@ -4,6 +4,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, View } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import AuthProvider, { AuthContext } from './src/context/AuthContext';
 import Login from './src/screens/Login';
@@ -35,11 +36,13 @@ function Routes() {
 
 export default function App() {
   return (
-    <NavigationContainer>
-      <AuthProvider>
-        <StatusBar style="light" />
-        <Routes />
-      </AuthProvider>
-    </NavigationContainer>
+    <SafeAreaProvider>
+      <NavigationContainer>
+        <AuthProvider>
+          <StatusBar style="light" />
+          <Routes />
+        </AuthProvider>
+      </NavigationContainer>
+    </SafeAreaProvider>
   );
 }
