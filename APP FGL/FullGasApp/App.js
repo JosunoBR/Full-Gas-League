@@ -7,7 +7,7 @@ import { ActivityIndicator, View } from 'react-native';
 
 import AuthProvider, { AuthContext } from './src/context/AuthContext';
 import Login from './src/screens/Login';
-import Home from './src/screens/Home';
+import AppNavigator from './src/navigation/AppNavigator';
 
 const Stack = createStackNavigator();
 
@@ -25,7 +25,7 @@ function Routes() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {signed ? (
-        <Stack.Screen name="Home" component={Home} />
+        <Stack.Screen name="MainApp" component={AppNavigator} />
       ) : (
         <Stack.Screen name="Login" component={Login} />
       )}

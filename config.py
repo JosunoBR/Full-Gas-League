@@ -14,6 +14,13 @@ class Config:
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or f'sqlite:///{db_path}'
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+    # Aumenta a tolerância de espera do SQLite para evitar "database is locked"
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'connect_args': {
+            'timeout': 30
+        }
+    }
     
     # --- CONFIGURAÇÃO DE UPLOAD ---
     # Define a pasta onde as fotos vão ficar

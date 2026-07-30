@@ -1,11 +1,12 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
-from app.models import db, User, News, Season, Race, PilotProfile, Team, RaceResult, GridConfig, RaceRegistration, Protesto
+from app.models import db, User, News, Season, Race, PilotProfile, Team, RaceResult, GridConfig, RaceRegistration, Protesto, SeasonChampion
 from app.services.team_context import build_team_context
 from app.services.scoring_service import ScoringService
 from app.services.calendar_service import CalendarService
 from app.services.standings_service import StandingsService
 from app.services.discipline_service import DisciplineService
+from app.services.notification_service import NotificationService
 from app.utils import calcular_perda
 from datetime import datetime, timedelta
 
@@ -168,6 +169,14 @@ def get_profile():
             # Log para debug
             print(f"[API] Piloto {pilot.id} ({pilot.nickname}) não tem resultados na temporada {active_season.id}, mas tem {len(pilot.race_results)} resultados no total")
 
+    quali_ban = False
+    advertencias = 0
+    if p_grid_id:
+        quali_ban = DisciplineService.is_quali_banned(pilot.id, p_grid_id)
+        if active_season:
+            cnh_info = DisciplineService.get_pilot_discipline_stats(pilot.id, active_season.id, p_grid_id)
+            advertencias = cnh_info.get('advertencias', 0)
+
     profile_data = {
         "id": pilot.id,
         "nickname": pilot.nickname,
@@ -176,6 +185,9 @@ def get_profile():
         "equipe_atual": current_team_name,
         "cnh_pontos": dynamic_cnh,
         "cnh_status": cnh_status,
+        "advertencias": advertencias,
+        "quali_ban": quali_ban,
+        "grid_id": p_grid_id,
         "lastro_veiculo": lastro_veiculo,
         "desempenho_temporada": desempenho_temporada
     }
@@ -237,8 +249,12 @@ def perform_checkin():
 
     race_id = request.json.get('race_id', None)
     status = request.json.get('status', None)
+    justificativa = request.json.get('justificativa', None)
 
-    if not race_id or status not in ["CONFIRMADO", "AUSENTE"]:
+    if status == "AUSENTE":
+        status = "JUSTIFICADO"
+
+    if not race_id or status not in ["CONFIRMADO", "JUSTIFICADO"]:
         return jsonify({"msg": "Parâmetros inválidos"}), 400
 
     race = db.session.get(Race, race_id)
@@ -252,12 +268,14 @@ def perform_checkin():
     registration = RaceRegistration.query.filter_by(race_id=race.id, pilot_id=pilot.id).first()
     if registration:
         registration.status = status
+        registration.justificativa = justificativa
         registration.data_resposta = datetime.utcnow()
     else:
         registration = RaceRegistration(
             race_id=race.id,
             pilot_id=pilot.id,
             status=status,
+            justificativa=justificativa,
             data_resposta=datetime.utcnow()
         )
         db.session.add(registration)
@@ -365,3 +383,178 @@ def get_all_pilots():
 def get_teams():
     equipes = Team.query.filter_by(ativa=True).all()
     return jsonify([t.to_dict() for t in equipes])
+
+# --- FASE 2: PROTESTOS & DEFESAS ---
+
+@api_bp.route('/protests', methods=['GET'])
+@jwt_required()
+def get_protests():
+    user_id = get_jwt_identity()
+    user = db.session.get(User, user_id)
+    if not user or not user.pilot_profile:
+        return jsonify({"msg": "Perfil não encontrado"}), 404
+
+    pilot = user.pilot_profile
+    protestos_feitos = Protesto.query.filter_by(acusador_id=pilot.id).order_by(Protesto.data_criacao.desc()).all()
+    protestos_recebidos = Protesto.query.filter_by(acusado_id=pilot.id).order_by(Protesto.data_criacao.desc()).all()
+
+    def serialize_p(p):
+        return {
+            "id": p.id,
+            "etapa": p.etapa.nome_gp if p.etapa else "N/A",
+            "acusador": p.acusador.nickname if p.acusador else "N/A",
+            "acusado": p.acusado.nickname if p.acusado else "N/A",
+            "acusador_id": p.acusador_id,
+            "acusado_id": p.acusado_id,
+            "video_link": p.video_link,
+            "minuto": p.minuto,
+            "descricao": p.descricao,
+            "video_defesa": p.video_defesa,
+            "argumento_defesa": p.argumento_defesa,
+            "status": p.status,
+            "veredito": p.veredito_final,
+            "data": p.data_criacao.strftime('%d/%m/%Y %H:%M') if p.data_criacao else None
+        }
+
+    return jsonify({
+        "protestos_feitos": [serialize_p(p) for p in protestos_feitos],
+        "protestos_recebidos": [serialize_p(p) for p in protestos_recebidos]
+    }), 200
+
+@api_bp.route('/protests/create', methods=['POST'])
+@jwt_required()
+def create_protest():
+    user_id = get_jwt_identity()
+    user = db.session.get(User, user_id)
+    if not user or not user.pilot_profile:
+        return jsonify({"msg": "Perfil não encontrado"}), 404
+
+    if not request.is_json:
+        return jsonify({"msg": "Requisicao deve ser JSON"}), 400
+
+    data = request.json
+    etapa_id = data.get('etapa_id')
+    acusado_id = data.get('acusado_id')
+    video_link = data.get('video_link')
+    minuto = data.get('minuto')
+    descricao = data.get('descricao')
+
+    if not etapa_id or not acusado_id or not video_link:
+        return jsonify({"msg": "Campos obrigatórios ausentes"}), 400
+
+    race = db.session.get(Race, etapa_id)
+    acusado = db.session.get(PilotProfile, acusado_id)
+    if not race or not acusado:
+        return jsonify({"msg": "Corrida ou piloto não encontrado"}), 404
+
+    protesto = Protesto(
+        etapa_id=race.id,
+        grid_id=race.grid_id,
+        acusador_id=user.pilot_profile.id,
+        acusado_id=acusado.id,
+        video_link=video_link,
+        minuto=minuto,
+        descricao=descricao,
+        status='AGUARDANDO_DEFESA',
+        data_criacao=datetime.utcnow()
+    )
+    db.session.add(protesto)
+    db.session.commit()
+
+    # Notificação Push via FCM para o acusado
+    if acusado.fcm_token:
+        try:
+            NotificationService.send_single_notification(
+                token=acusado.fcm_token,
+                title="🚨 Novo Protesto Registrado",
+                body=f"Você recebeu um protesto no {race.nome_gp} de {user.pilot_profile.nickname}. Acesse o app para se defender.",
+                data={"protest_id": str(protesto.id)}
+            )
+        except Exception as err:
+            print(f"[API] Erro notificação protesto: {err}")
+
+    return jsonify({"msg": "Protesto aberto com sucesso", "id": protesto.id}), 201
+
+@api_bp.route('/protests/<int:protest_id>/defense', methods=['POST'])
+@jwt_required()
+def submit_defense(protest_id):
+    user_id = get_jwt_identity()
+    user = db.session.get(User, user_id)
+    if not user or not user.pilot_profile:
+        return jsonify({"msg": "Perfil não encontrado"}), 404
+
+    protesto = db.session.get(Protesto, protest_id)
+    if not protesto:
+        return jsonify({"msg": "Protesto não encontrado"}), 404
+
+    if protesto.acusado_id != user.pilot_profile.id:
+        return jsonify({"msg": "Sem permissão para defender este protesto"}), 403
+
+    if not request.is_json:
+        return jsonify({"msg": "Requisicao deve ser JSON"}), 400
+
+    data = request.json
+    protesto.video_defesa = data.get('video_defesa')
+    protesto.argumento_defesa = data.get('argumento_defesa')
+    if protesto.status == 'AGUARDANDO_DEFESA':
+        protesto.status = 'EM_VOTACAO'
+
+    db.session.commit()
+    return jsonify({"msg": "Defesa enviada com sucesso!"}), 200
+
+# --- FASE 4: HEAD-TO-HEAD & EQUIPE ---
+
+@api_bp.route('/head-to-head/<int:p1_id>/<int:p2_id>', methods=['GET'])
+def get_head_to_head(p1_id, p2_id):
+    p1 = db.session.get(PilotProfile, p1_id)
+    p2 = db.session.get(PilotProfile, p2_id)
+    if not p1 or not p2:
+        return jsonify({"msg": "Pilotos não encontrados"}), 404
+
+    # Busca resultados da temporada ativa
+    active_season = Season.query.filter_by(ativa=True).first()
+    s_id = active_season.id if active_season else None
+
+    res1 = RaceResult.query.join(Race).filter(RaceResult.pilot_id == p1.id, Race.season_id == s_id).all() if s_id else []
+    res2 = RaceResult.query.join(Race).filter(RaceResult.pilot_id == p2.id, Race.season_id == s_id).all() if s_id else []
+
+    races_map1 = {r.race_id: r for r in res1}
+    races_map2 = {r.race_id: r for r in res2}
+    common_races = set(races_map1.keys()) & set(races_map2.keys())
+
+    h2h_races_p1 = 0
+    h2h_races_p2 = 0
+    for r_id in common_races:
+        pos1 = races_map1[r_id].posicao
+        pos2 = races_map2[r_id].posicao
+        if pos1 > 0 and (pos2 == 0 or pos1 < pos2):
+            h2h_races_p1 += 1
+        elif pos2 > 0 and (pos1 == 0 or pos2 < pos1):
+            h2h_races_p2 += 1
+
+    return jsonify({
+        "p1": {"id": p1.id, "nickname": p1.nickname, "foto": p1.foto_url, "h2h_vitorias": h2h_races_p1},
+        "p2": {"id": p2.id, "nickname": p2.nickname, "foto": p2.foto_url, "h2h_vitorias": h2h_races_p2},
+        "corridas_em_comum": len(common_races)
+    }), 200
+
+# --- FASE 5: HALL DA FAMA ---
+
+@api_bp.route('/hall-of-fame', methods=['GET'])
+def get_hall_of_fame():
+    champions = SeasonChampion.query.all()
+    result = []
+    for c in champions:
+        result.append({
+            "season": c.season.nome if c.season else "N/A",
+            "grid": c.grid,
+            "category": c.category,
+            "position": c.position,
+            "name": c.name,
+            "team_name": c.team_name,
+            "image_url": c.image_url,
+            "pontos": c.pontos,
+            "vitorias": c.vitorias
+        })
+    return jsonify(result), 200
+

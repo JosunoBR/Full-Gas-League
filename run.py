@@ -8,27 +8,21 @@ from app.routes.public import public_bp
 from app.routes.admin import admin_bp
 from app.routes.api import api_bp # Importa a nova API
 from config import Config
-from sqlalchemy import text
-import os
-from datetime import datetime, timezone, timedelta
+from sqlalchemy import text, event
+from sqlalchemy.engine import Engine
 
-# Configuração do App
-app = Flask(__name__, template_folder='app/templates', static_folder='app/static')
-app.config.from_object(Config)
-
-# Copy default pilot profile photo to NP.jpg if it doesn't exist
-try:
-    static_img_dir = os.path.join(app.static_folder, 'img')
-    os.makedirs(static_img_dir, exist_ok=True)
-    default_img_path = os.path.join(static_img_dir, 'NP.jpg')
-    if not os.path.exists(default_img_path):
-        src_image = r"C:\Users\Josué\.gemini\antigravity-ide\brain\8b04a6c0-e451-43f8-ae95-47880bb0dad9\media__1783902550571.jpg"
-        if os.path.exists(src_image):
-            import shutil
-            shutil.copy(src_image, default_img_path)
-            print("Successfully copied default pilot profile photo to NP.jpg")
-except Exception as e:
-    print(f"Error copying default pilot profile photo: {e}")
+# Previne 'database is locked' configurando WAL e timeout no conector do SQLite
+@event.listens_for(Engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    if type(dbapi_connection).__module__ in ('sqlite3', 'pysqlite2.dbapi2'):
+        cursor = dbapi_connection.cursor()
+        try:
+            cursor.execute("PRAGMA journal_mode=WAL")
+            cursor.execute("PRAGMA busy_timeout=30000")
+        except Exception:
+            pass
+        finally:
+            cursor.close()
 
 # Inicialização do Banco de Dados
 db.init_app(app)

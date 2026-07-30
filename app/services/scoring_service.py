@@ -90,25 +90,77 @@ class ScoringService:
         }
 
     @staticmethod
-    def build_constructors_for_home(season_id, grid_configs, canonical_teams, alias_ids_by_key=None):
+    def preload_season_points(season_id):
+        """
+        Retorna um dicionário {(pilot_id, grid_id): total_pontos} com a pontuação de TODOS
+        os pilotos/grids da temporada em apenas 3 consultas SQL agregadas.
+        """
+        results = (
+            db.session.query(
+                RaceResult.pilot_id,
+                Race.grid_id,
+                func.sum(
+                    func.coalesce(RaceResult.pontos_ganhos, 0.0) +
+                    func.coalesce(RaceResult.pontos_sprint, 0.0)
+                ).label("pontos_corridas")
+            )
+            .join(Race, RaceResult.race_id == Race.id)
+            .filter(Race.season_id == season_id)
+            .group_by(RaceResult.pilot_id, Race.grid_id)
+            .all()
+        )
+        
+        race_points = {(r.pilot_id, r.grid_id): float(r.pontos_corridas or 0.0) for r in results}
+
+        protestos = (
+            db.session.query(
+                Protesto.acusado_id,
+                Protesto.grid_id,
+                Protesto.veredito_final
+            )
+            .join(Race, Protesto.etapa_id == Race.id)
+            .filter(Race.season_id == season_id, Protesto.status == 'CONCLUIDO')
+            .all()
+        )
+        
+        punish_map = {}
+        for p in protestos:
+            key = (p.acusado_id, p.grid_id)
+            perda = calcular_perda(p.veredito_final)
+            punish_map[key] = punish_map.get(key, 0.0) + perda
+
+        pilotos = PilotProfile.query.with_entities(PilotProfile.id, PilotProfile.penalidade_campeonato).all()
+        manual_map = {p.id: float(p.penalidade_campeonato or 0.0) for p in pilotos}
+
+        all_keys = set(race_points.keys()).union(set(punish_map.keys()))
+        points_map = {}
+        for (pid, gid) in all_keys:
+            pts = race_points.get((pid, gid), 0.0) - punish_map.get((pid, gid), 0.0) - manual_map.get(pid, 0.0)
+            points_map[(pid, gid)] = round(pts, 1)
+
+        return points_map
+
+    @staticmethod
+    def build_constructors_for_home(season_id, grid_configs, canonical_teams, alias_ids_by_key=None, points_map=None):
         """
         Build constructors table by grid.
         Source of truth is the sum of total points of all pilots registered (titulars) in the team.
         """
+        if points_map is None:
+            points_map = ScoringService.preload_season_points(season_id)
+
         constructors = {g.id: [] for g in grid_configs}
 
         for team in canonical_teams:
             if not team.grid_id or team.grid_id not in constructors:
                 continue
             
-            # Soma a pontuação total calculada de todos os pilotos cadastrados (titulares e reservas) na equipe
             todos_pilotos = list(team.pilots) + list(team.reserves)
             total_pts = sum(
-                ScoringService.calculate_pilot_total_points(pilot.id, season_id, team.grid_id)
+                points_map.get((pilot.id, team.grid_id), 0.0)
                 for pilot in todos_pilotos
             )
             
-            # Soma as vitórias dos pilotos cadastrados (titulares e reservas) na equipe neste grid/temporada
             total_wins = 0
             for pilot in todos_pilotos:
                 res_no_grid = [r for r in pilot.race_results if r.race.season_id == season_id and r.race.grid_id == team.grid_id]

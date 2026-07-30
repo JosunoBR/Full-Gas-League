@@ -70,10 +70,13 @@ class StandingsService:
         grid_configs = GridConfig.query.filter_by(season_id=season_id).order_by(GridConfig.ordem).all()
         grid_configs_json = [{'id': g.id, 'nome': g.nome, 'vagas': g.vagas, 'exibir_lastro': g.exibir_lastro} for g in grid_configs]
         
+        # Precarrega em lote todos os pontos da temporada de forma otimizada em poucas consultas
+        points_cache = ScoringService.preload_season_points(season_id)
+        
         # 3. Contexto de Equipes e Construtores
         team_ctx = build_team_context(season_id)
         raw_constructors = ScoringService.build_constructors_for_home(
-            season_id, grid_configs, team_ctx["canonical_teams"], team_ctx["alias_ids_by_key"]
+            season_id, grid_configs, team_ctx["canonical_teams"], team_ctx["alias_ids_by_key"], points_map=points_cache
         )
         # Serializa as equipes nos construtores para que possam ser salvas no JSON
         constructors = {}
@@ -91,8 +94,6 @@ class StandingsService:
         # Versão enxuta apenas para os gráficos (menos memória no JS do navegador)
         standings_chart = { g.id: [] for g in grid_configs }
         pilots_by_grid = { g.id: [] for g in grid_configs }
-        
-        points_cache = {}
 
         for g in grid_configs:
             for item in team_ctx["participants_by_grid"].get(g.id, []):
@@ -152,10 +153,6 @@ class StandingsService:
             'pilots_by_grid': pilots_by_grid
         }
 
-        if not cache:
-            cache = HomeCache(season_id=season_id)
-            db.session.add(cache)
-            
         def json_serial(obj):
             if isinstance(obj, (datetime, date)):
                 return obj.isoformat()
@@ -163,9 +160,18 @@ class StandingsService:
                 return obj.to_dict()
             return str(obj)
 
-        cache.data_json = json.dumps(data, default=json_serial)
-        cache.last_updated = datetime.utcnow()
-        db.session.commit()
+        try:
+            if not cache:
+                cache = HomeCache(season_id=season_id)
+                db.session.add(cache)
+
+            cache.data_json = json.dumps(data, default=json_serial)
+            cache.last_updated = datetime.utcnow()
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            print(f"AVISO: Bloqueio temporário ao salvar HomeCache ({e}). Retornando dados calculados diretamente.")
+
         return data
 
     @staticmethod

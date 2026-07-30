@@ -1,4 +1,4 @@
-﻿import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image, ActivityIndicator, Alert, ScrollView } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
 import api, { SERVER_BASE_URL } from '../services/api';
@@ -151,16 +151,22 @@ export default function Home() {
         </TouchableOpacity>
       </View>
 
+      {profile?.quali_ban && (
+        <View style={styles.qualiBanBanner}>
+          <Text style={styles.qualiBanText}>⛔ ATENÇÃO: Você está cumprindo Punição de Quali Ban nesta etapa.</Text>
+        </View>
+      )}
+
       <View style={styles.statsContainer}>
         <View style={styles.statBox}>
-          <Text style={[styles.statValue, { color: profile?.cnh_pontos <= 0 ? '#E60000' : '#FFF' }]}>
-            {profile?.cnh_pontos}
+          <Text style={[styles.statValue, { color: profile?.cnh_pontos <= 0 ? '#E60000' : (profile?.cnh_pontos <= 10 ? '#FFCC00' : '#28a745') }]}>
+            {profile?.cnh_pontos} / 25
           </Text>
-          <Text style={styles.statLabel}>Pontos CNH</Text>
+          <Text style={styles.statLabel}>Carteira CNH</Text>
         </View>
         <View style={styles.statBox}>
           <Text style={[styles.statValue, { color: '#00BFFF' }]}>{profile?.lastro_veiculo || 'N/A'}</Text>
-          <Text style={styles.statLabel}>Carro da Próxima</Text>
+          <Text style={styles.statLabel}>Carro de Lastro</Text>
         </View>
       </View>
 
@@ -270,6 +276,19 @@ const styles = StyleSheet.create({
   editButtonText: {
     color: '#FFF',
     fontSize: 14,
+  },
+  qualiBanBanner: {
+    backgroundColor: '#dc3545',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 15,
+    alignItems: 'center',
+  },
+  qualiBanText: {
+    color: '#FFF',
+    fontWeight: 'bold',
+    fontSize: 13,
+    textAlign: 'center',
   },
   statsContainer: {
     flexDirection: 'row',

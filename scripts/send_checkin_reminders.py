@@ -19,53 +19,56 @@ def send_checkin_reminders():
     with app.app_context():
         print("--- Iniciando verificação de lembretes de check-in ---")
         
-        # Define o intervalo: de AGORA até 48h no futuro
+        # Define o intervalo estrito: Apenas corridas hoje ou nas próximas 24h (véspera do GP)
         now = datetime.utcnow()
-        lookahead_start = now # Começa a cobrar 48h antes e continua até a hora da corrida
-        lookahead_end = now + timedelta(hours=48)
+        today = now.date()
+        tomorrow = today + timedelta(days=1)
 
-        # 1. Encontra corridas agendadas dentro do intervalo
+        # 1. Encontra apenas corridas agendadas para hoje ou amanhã (janela de 24h)
         races_to_remind = Race.query.filter(
-            Race.data_corrida >= lookahead_start.date(),
-            Race.data_corrida <= lookahead_end.date(),
+            Race.data_corrida >= today,
+            Race.data_corrida <= tomorrow,
             Race.status == 'Agendada'
         ).all()
 
         if not races_to_remind:
-            print("Nenhuma corrida encontrada no intervalo para enviar lembretes.")
+            print("Nenhuma corrida agendada nas próximas 24h para enviar lembretes.")
             return
 
-        print(f"Encontradas {len(races_to_remind)} corridas no período.")
+        print(f"Encontradas {len(races_to_remind)} corridas na janela de 24h.")
         
         for race in races_to_remind:
-            print(f"
-Processando corrida: '{race.nome_gp}' do grid '{race.grid}'")
+            print(f"\nProcessando corrida: '{race.nome_gp}' do grid ID {race.grid_id} ('{race.grid}')")
             
-            # 2. Encontra todos os pilotos que deveriam correr (vinculados ao grid)
-            # Este passo é crucial para encontrar quem AINDA NÃO respondeu.
-            all_pilots_in_grid = PilotProfile.query.filter(
-                (PilotProfile.teams.any(grid_id=race.grid_id)) |
-                (PilotProfile.reserve_teams.any(grid_id=race.grid_id))
-            ).all()
+            # 2. Encontra os pilotos vinculados ao grid desta corrida específica
+            if race.grid_id:
+                all_pilots_in_grid = PilotProfile.query.filter(
+                    (PilotProfile.teams.any(grid_id=race.grid_id)) |
+                    (PilotProfile.reserve_teams.any(grid_id=race.grid_id))
+                ).all()
+            else:
+                all_pilots_in_grid = PilotProfile.query.filter(PilotProfile.grid != 'SEM_GRID').all()
 
             if not all_pilots_in_grid:
-                print("Nenhum piloto encontrado para este grid.")
+                print("Nenhum piloto ativo encontrado para este grid.")
                 continue
 
-            # 3. Encontra quem JÁ respondeu ao check-in
+            # 3. Encontra quem JÁ respondeu (CONFIRMADO ou JUSTIFICADO)
             registrations = RaceRegistration.query.filter_by(race_id=race.id).all()
-            pilots_who_responded_ids = {reg.pilot_id for reg in registrations}
+            pilots_who_responded_ids = {
+                reg.pilot_id for reg in registrations 
+                if reg.status in ['CONFIRMADO', 'JUSTIFICADO']
+            }
             
-            # 4. Determina quem está pendente e coleta os tokens
+            # 4. Determina quem está pendente e possui token FCM registrado
             pending_pilots_tokens = []
             for pilot in all_pilots_in_grid:
-                if pilot.id not in pilots_who_responded_ids:
-                    if pilot.fcm_token:
-                        pending_pilots_tokens.append(pilot.fcm_token)
-                        print(f"  -> Lembrete para: {pilot.nickname} (ID: {pilot.id})")
+                if pilot.id not in pilots_who_responded_ids and pilot.fcm_token:
+                    pending_pilots_tokens.append(pilot.fcm_token)
+                    print(f"  -> Lembrete (24h) para: {pilot.nickname} (ID: {pilot.id})")
             
             if not pending_pilots_tokens:
-                print("Todos os pilotos do grid já responderam ao check-in.")
+                print("Todos os pilotos deste grid já responderam ou não possuem dispositivo registrado.")
                 continue
 
             # 5. Envia a notificação em massa
