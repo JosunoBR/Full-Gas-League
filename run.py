@@ -108,7 +108,7 @@ if UPLOAD_FOLDER:
 CORS(app)
 
 # Configuração JWT (Segurança do App)
-app.config["JWT_SECRET_KEY"] = "fullgas-app-secret-key-2024"  # Troque por algo seguro em produção
+app.config["JWT_SECRET_KEY"] = os.environ.get('JWT_SECRET_KEY') or "fullgas-league-jwt-secret-key-2026-production"
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(days=30) # App manterá login por 30 dias
 jwt = JWTManager(app)
 
