@@ -210,6 +210,10 @@ def dashboard():
 
 @admin_bp.route('/analytics')
 def analytics():
+    if current_user.role not in ['SUPER_ADM', 'ADM']:
+        flash('Acesso negado. Área exclusiva para Administradores.', 'danger')
+        return redirect(url_for('admin.dashboard'))
+
     hoje = datetime.utcnow().date()
     inicio_dia = datetime.combine(hoje, datetime.min.time())
     
