@@ -369,9 +369,18 @@ def get_grid_evolution(grid_id):
     Retorna os dados de evolução de pontos para o gráfico da Home.
     Carregamento sob demanda (Lazy Loading).
     """
-    season = Season.query.filter_by(ativa=True).order_by(Season.id.asc()).first()
-    if not season: return jsonify([])
-    data = StandingsService.get_evolution_data(season.id, grid_id)
+    grid = GridConfig.query.get(grid_id)
+    season_id = grid.season_id if grid else None
+
+    if not season_id:
+        season = Season.query.filter_by(ativa=True).order_by(Season.id.asc()).first()
+        if not season:
+            season = Season.query.order_by(Season.id.desc()).first()
+        if not season:
+            return jsonify([])
+        season_id = season.id
+
+    data = StandingsService.get_evolution_data(season_id, grid_id)
     return jsonify(data)
 
 @api_bp.route('/pilots', methods=['GET'])

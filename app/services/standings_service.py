@@ -198,21 +198,36 @@ class StandingsService:
         Calcula a evolução de pontos apenas para o grid solicitado.
         """
         team_ctx = build_team_context(season_id)
-        participants = team_ctx["participants_by_grid"].get(grid_id, [])
+        participants = list(team_ctx["participants_by_grid"].get(grid_id, []))
+        
+        # Garante incluir também pilotos que possuem resultados na corrida mas não estão em equipes registradas
+        existing_pilot_ids = {item["pilot"].id for item in participants if item.get("pilot")}
+        
+        extra_results = db.session.query(RaceResult.pilot_id, PilotProfile)\
+            .join(Race, RaceResult.race_id == Race.id)\
+            .join(PilotProfile, RaceResult.pilot_id == PilotProfile.id)\
+            .filter(Race.season_id == season_id, Race.grid_id == grid_id)\
+            .distinct().all()
+            
+        for pilot_id, pilot_obj in extra_results:
+            if pilot_id not in existing_pilot_ids:
+                existing_pilot_ids.add(pilot_id)
+                participants.append({
+                    "pilot": pilot_obj,
+                    "team": None,
+                    "is_reserve": False
+                })
         
         chart_data = []
         
         for item in participants:
             p = item["pilot"]
-            # Ignora reservas para o gráfico principal se desejar, ou mantém
-            # Aqui mantemos todos para permitir filtros
-            
             evol = ScoringService.generate_points_evolution(p.id, grid_id, season_id)
             
             if evol:
                 chart_data.append({
                     "piloto": {'id': p.id, 'nickname': p.nickname, 'nome_real': p.nome_real},
-                    "team_name": item["team"].nome if item["team"] else "Sem Equipe",
+                    "team_name": item["team"].nome if item.get("team") else "Sem Equipe",
                     "evolucao": evol,
                     # Pontos totais para ordenação "Top 5"
                     "pontos": ScoringService.calculate_pilot_total_points(p.id, season_id, grid_id)
