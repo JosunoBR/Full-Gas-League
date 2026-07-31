@@ -492,31 +492,18 @@ def get_calendar(grid):
 
 @api_bp.route('/race/<int:race_id>/results', methods=['GET'])
 def get_race_results(race_id):
-    summary = CalendarService.get_race_summary(race_id)
+    """
+    Endpoint utilizado exclusivamente pelo portal WEB (Bootstrap Modal na Home).
+    Retorna a estrutura completa e intocada do CalendarService.get_race_summary.
+    """
+    try:
+        summary = CalendarService.get_race_summary(race_id)
+    except Exception as exc:
+        print(f"[API] Erro em get_race_results({race_id}): {exc}")
+        return jsonify({'error': 'Erro interno ao carregar a súmula.'}), 500
+
     if not summary:
-        race = db.session.get(Race, race_id)
-        if not race:
-            return jsonify({'error': 'Corrida não encontrada'}), 404
-        return jsonify({
-            "id": race.id,
-            "nome_gp": race.nome_gp,
-            "pista": race.pista or "Circuito Geral",
-            "data_corrida": race.data_corrida.strftime('%d/%m/%Y') if race.data_corrida else "A definir",
-            "resultados": []
-        })
-
-    # Adiciona propriedades diretas para o App Mobile sem alterar a estrutura do Site
-    if 'resultados' in summary and summary['resultados']:
-        valid_res = [r for r in summary['resultados'] if r.get('posicao') and r.get('posicao') > 0]
-        valid_res.sort(key=lambda x: x.get('posicao', 999))
-        
-        for r in valid_res:
-            p_obj = r.get('pilot') or {}
-            t_obj = r.get('team') or {}
-            r['piloto'] = p_obj.get('nickname') or p_obj.get('nome_real') or 'Piloto'
-            r['equipe'] = t_obj.get('nome') or 'Sem Equipe'
-
-        summary['resultados'] = valid_res
+        return jsonify({'error': 'Corrida nao encontrada'}), 404
 
     # Serialização segura da data
     data_corrida = summary.get('data_corrida')
@@ -527,6 +514,52 @@ def get_race_results(race_id):
             pass
 
     return jsonify(summary)
+
+@api_bp.route('/app/race/<int:race_id>/summary', methods=['GET'])
+def get_app_race_summary(race_id):
+    """
+    Endpoint exclusivo e otimizado para a súmula do aplicativo móvel (React Native).
+    Maneja nulos, previne erros de tipagem e garante formato simples e previsível.
+    """
+    race = db.session.get(Race, race_id)
+    if not race:
+        return jsonify({'error': 'Corrida não encontrada'}), 404
+
+    # Busca os resultados ordenados por posição
+    results = (
+        RaceResult.query.filter_by(race_id=race.id)
+        .filter(RaceResult.posicao.isnot(None), RaceResult.posicao > 0)
+        .order_by(RaceResult.posicao.asc())
+        .all()
+    )
+
+    clean_results = []
+    for r in results:
+        # Filtra presença
+        if r.status_presenca in ['AUSENTE', 'JUSTIFICADO', 'NC']:
+            continue
+
+        pilot_name = r.pilot.nickname if (r.pilot and r.pilot.nickname) else (r.pilot.nome_real if r.pilot else "Piloto")
+        team_name = r.team_snapshot.nome if r.team_snapshot else "Sem Equipe"
+        grid_start = r.grid_largada if r.grid_largada and r.grid_largada > 0 else None
+
+        clean_results.append({
+            "posicao": r.posicao,
+            "piloto": pilot_name,
+            "equipe": team_name,
+            "grid_largada": grid_start,
+            "pontos": round(r.pontos_ganhos or 0.0, 1)
+        })
+
+    data_str = race.data_corrida.strftime('%d/%m/%Y') if race.data_corrida else "A definir"
+
+    return jsonify({
+        "id": race.id,
+        "nome_gp": race.nome_gp,
+        "pista": race.pista or "Circuito Geral",
+        "data_corrida": data_str,
+        "resultados": clean_results
+    })
 
 @api_bp.route('/standings/<int:grid_id>/evolution', methods=['GET'])
 def get_grid_evolution(grid_id):

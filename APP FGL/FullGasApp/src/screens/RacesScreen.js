@@ -71,7 +71,7 @@ export default function RacesScreen() {
     setLoadingSummary(true);
     setSummaryModalVisible(true);
     try {
-      const res = await api.get(`/race/${raceId}/results`);
+      const res = await api.get(`/app/race/${raceId}/summary`);
       setSelectedRaceSummary(res.data);
     } catch (error) {
       console.log('[RacesScreen] Erro ao carregar súmula:', error?.message);
