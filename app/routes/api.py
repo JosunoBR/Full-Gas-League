@@ -493,8 +493,8 @@ def get_calendar(grid):
 @api_bp.route('/race/<int:race_id>/results', methods=['GET'])
 def get_race_results(race_id):
     """
-    Endpoint utilizado exclusivamente pelo portal WEB (Bootstrap Modal na Home).
-    Retorna a estrutura completa e intocada do CalendarService.get_race_summary.
+    Retorna a súmula da corrida formatada para o site e o app móvel.
+    Contém as chaves 'results' (web) e 'resultados' (app) para 100% de compatibilidade.
     """
     try:
         summary = CalendarService.get_race_summary(race_id)
@@ -503,9 +503,35 @@ def get_race_results(race_id):
         return jsonify({'error': 'Erro interno ao carregar a súmula.'}), 500
 
     if not summary:
-        return jsonify({'error': 'Corrida nao encontrada'}), 404
+        race = db.session.get(Race, race_id)
+        if not race:
+            return jsonify({'error': 'Corrida nao encontrada'}), 404
+        return jsonify({
+            "id": race.id,
+            "nome_gp": race.nome_gp,
+            "pista": race.pista or "Circuito Geral",
+            "data_corrida": race.data_corrida.strftime('%d/%m/%Y') if race.data_corrida else "A definir",
+            "results": [],
+            "resultados": []
+        })
 
-    # Serialização segura da data
+    res_list = summary.get('results') or summary.get('resultados') or []
+    
+    valid_res = [r for r in res_list if r.get('posicao') and r.get('posicao') > 0]
+    if not valid_res:
+        valid_res = res_list
+
+    valid_res.sort(key=lambda x: x.get('posicao', 999) if x.get('posicao') and x.get('posicao') > 0 else 999)
+
+    for r in valid_res:
+        p_obj = r.get('pilot') or {}
+        t_obj = r.get('team') or {}
+        r['piloto'] = p_obj.get('nickname') or p_obj.get('nome_real') or r.get('piloto') or 'Piloto'
+        r['equipe'] = t_obj.get('nome') or r.get('equipe') or 'Sem Equipe'
+
+    summary['results'] = valid_res
+    summary['resultados'] = valid_res
+
     data_corrida = summary.get('data_corrida')
     if data_corrida is not None:
         try:
@@ -517,71 +543,8 @@ def get_race_results(race_id):
 
 @api_bp.route('/app/race/<int:race_id>/summary', methods=['GET'])
 def get_app_race_summary(race_id):
-    """
-    Endpoint exclusivo para a súmula do aplicativo móvel.
-    Maneja nulos, garante dados de equipe/piloto com fallbacks e previne listas vazias.
-    """
-    race = db.session.get(Race, race_id)
-    if not race:
-        return jsonify({'error': 'Corrida não encontrada'}), 404
-
-    results = RaceResult.query.filter_by(race_id=race.id).all()
-    if not results:
-        return jsonify({
-            "id": race.id,
-            "nome_gp": race.nome_gp,
-            "pista": race.pista or "Circuito Geral",
-            "data_corrida": race.data_corrida.strftime('%d/%m/%Y') if race.data_corrida else "A definir",
-            "resultados": []
-        })
-
-    # 1. Filtra os que efetivamente correram (posicao > 0 e presenca valida)
-    valid_results = [
-        r for r in results 
-        if r.posicao and r.posicao > 0 and (r.status_presenca or '').upper() not in ['AUSENTE', 'JUSTIFICADO', 'NC']
-    ]
-
-    # 2. Fallback: Se o filtro de presenca esvaziar, pega qualquer resultado com posicao > 0
-    if not valid_results:
-        valid_results = [r for r in results if r.posicao and r.posicao > 0]
-
-    # 3. Fallback 2: Se ainda assim estiver vazio, pega todos os resultados cadastrados
-    if not valid_results:
-        valid_results = results
-
-    # Ordena da P1 em diante
-    valid_results.sort(key=lambda x: x.posicao if (x.posicao and x.posicao > 0) else 999)
-
-    clean_results = []
-    for idx, r in enumerate(valid_results, start=1):
-        pilot_obj = r.pilot or (db.session.get(PilotProfile, r.pilot_id) if r.pilot_id else None)
-        pilot_name = pilot_obj.nickname if (pilot_obj and pilot_obj.nickname) else (pilot_obj.nome_real if pilot_obj else "Piloto")
-
-        team_obj = r.team_snapshot or (db.session.get(Team, r.team_id) if r.team_id else None)
-        team_name = team_obj.nome if team_obj else "Sem Equipe"
-
-        pos_val = r.posicao if (r.posicao and r.posicao > 0) else idx
-        grid_start = r.grid_largada if (r.grid_largada and r.grid_largada > 0) else None
-
-        clean_results.append({
-            "posicao": pos_val,
-            "piloto": pilot_name,
-            "equipe": team_name,
-            "grid_largada": grid_start,
-            "pontos": round(r.pontos_ganhos or 0.0, 1),
-            "dnf": bool(r.dnf),
-            "dsq": bool(r.dsq)
-        })
-
-    data_str = race.data_corrida.strftime('%d/%m/%Y') if race.data_corrida else "A definir"
-
-    return jsonify({
-        "id": race.id,
-        "nome_gp": race.nome_gp,
-        "pista": race.pista or "Circuito Geral",
-        "data_corrida": data_str,
-        "resultados": clean_results
-    })
+    """Alias exclusivo apontando para a mesma lógica unificada."""
+    return get_race_results(race_id)
 
 @api_bp.route('/standings/<int:grid_id>/evolution', methods=['GET'])
 def get_grid_evolution(grid_id):

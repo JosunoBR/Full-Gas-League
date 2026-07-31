@@ -71,7 +71,7 @@ export default function RacesScreen() {
     setLoadingSummary(true);
     setSummaryModalVisible(true);
     try {
-      const res = await api.get(`/app/race/${raceId}/summary`);
+      const res = await api.get(`/race/${raceId}/results`);
       setSelectedRaceSummary(res.data);
     } catch (error) {
       console.log('[RacesScreen] Erro ao carregar súmula:', error?.message);
@@ -158,27 +158,33 @@ export default function RacesScreen() {
 
                 <Text style={[styles.summaryGp, { fontSize: 16, marginTop: 15, marginBottom: 8 }]}>Classificação da Prova</Text>
 
-                {selectedRaceSummary.resultados && selectedRaceSummary.resultados.length > 0 ? (
-                  selectedRaceSummary.resultados.map((res, i) => {
-                    const gridStartStr = res.grid_largada ? (String(res.grid_largada).startsWith('P') ? res.grid_largada : `P${res.grid_largada}`) : null;
-                    return (
-                      <View key={i} style={styles.summaryRow}>
-                        <Text style={styles.posText}>{res.posicao}º</Text>
-                        
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.pilotText}>{res.piloto}</Text>
-                          <Text style={styles.teamText}>
-                            {res.equipe}{gridStartStr ? ` • Grid: ${gridStartStr}` : ''}
-                          </Text>
-                        </View>
+                {(() => {
+                  const raceResults = (selectedRaceSummary && (selectedRaceSummary.resultados || selectedRaceSummary.results)) || [];
+                  return raceResults.length > 0 ? (
+                    raceResults.map((res, i) => {
+                      const pilotName = res.piloto || (res.pilot ? (res.pilot.nickname || res.pilot.nome_real) : 'Piloto');
+                      const teamName = res.equipe || (res.team ? res.team.nome : 'Sem Equipe');
+                      const gridStartStr = res.grid_largada ? (String(res.grid_largada).startsWith('P') ? res.grid_largada : `P${res.grid_largada}`) : null;
 
-                        <Text style={styles.ptsText}>+{res.pontos} pts</Text>
-                      </View>
-                    );
-                  })
-                ) : (
-                  <Text style={styles.emptyText}>Resultados ainda não lançados para esta corrida.</Text>
-                )}
+                      return (
+                        <View key={i} style={styles.summaryRow}>
+                          <Text style={styles.posText}>{res.posicao}º</Text>
+                          
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.pilotText}>{pilotName}</Text>
+                            <Text style={styles.teamText}>
+                              {teamName}{gridStartStr ? ` • Grid: ${gridStartStr}` : ''}
+                            </Text>
+                          </View>
+
+                          <Text style={styles.ptsText}>+{res.pontos} pts</Text>
+                        </View>
+                      );
+                    })
+                  ) : (
+                    <Text style={styles.emptyText}>Resultados ainda não lançados para esta corrida.</Text>
+                  );
+                })()}
               </ScrollView>
             ) : (
               <Text style={styles.emptyText}>Informações da etapa indisponíveis.</Text>
