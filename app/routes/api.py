@@ -377,48 +377,66 @@ def get_news():
 
 from app.services.standings_service import StandingsService
 
-def get_active_home_data():
-    season = Season.query.filter_by(ativa=True).order_by(Season.id.asc()).first()
-    if not season:
-        season = Season.query.order_by(Season.id.desc()).first()
-    if not season:
-        return None, {}
-    data = StandingsService.get_home_data(season.id)
-    return season, data
-
-def find_grid_cfg_in_data(grid_identifier, grid_configs):
-    if not grid_identifier or not grid_configs:
-        return None
-    grid_str = str(grid_identifier).strip()
+def get_all_active_seasons_data():
+    active_seasons = Season.query.filter_by(ativa=True).order_by(Season.id.desc()).all()
+    if not active_seasons:
+        active_seasons = Season.query.order_by(Season.id.desc()).all()
     
+    seasons_data = []
+    for s in active_seasons:
+        d = StandingsService.get_home_data(s.id)
+        if d:
+            seasons_data.append((s, d))
+    return seasons_data
+
+def find_grid_and_data(grid_identifier):
+    if not grid_identifier:
+        return None, None, None
+    grid_str = str(grid_identifier).strip()
+    seasons_data = get_all_active_seasons_data()
+
     if grid_str.isdigit():
         target_id = int(grid_str)
-        matched = next((g for g in grid_configs if g['id'] == target_id), None)
-        if matched:
-            return matched
+        for s, d in seasons_data:
+            for g in d.get('grid_configs', []):
+                if g['id'] == target_id:
+                    return s, d, g
 
-    matched = next((g for g in grid_configs if g['nome'].lower() == grid_str.lower()), None)
-    if matched:
-        return matched
+    for s, d in seasons_data:
+        for g in d.get('grid_configs', []):
+            if g['nome'].lower() == grid_str.lower():
+                return s, d, g
 
-    matched = next((g for g in grid_configs if grid_str.lower() in g['nome'].lower() or g['nome'].lower() in grid_str.lower()), None)
-    if matched:
-        return matched
+    for s, d in seasons_data:
+        for g in d.get('grid_configs', []):
+            if grid_str.lower() in g['nome'].lower() or g['nome'].lower() in grid_str.lower():
+                return s, d, g
 
-    return grid_configs[0] if grid_configs else None
+    if seasons_data:
+        s, d = seasons_data[0]
+        cfgs = d.get('grid_configs', [])
+        return s, d, cfgs[0] if cfgs else None
+
+    return None, None, None
 
 @api_bp.route('/grid-configs', methods=['GET'])
 def get_grid_configs():
-    season, data = get_active_home_data()
-    configs = data.get('grid_configs', [])
-    return jsonify([{"id": c['id'], "nome": c['nome']} for c in configs])
+    seasons_data = get_all_active_seasons_data()
+    all_configs = []
+    seen_names = set()
+
+    for s, d in seasons_data:
+        for c in d.get('grid_configs', []):
+            if c['nome'] not in seen_names:
+                seen_names.add(c['nome'])
+                all_configs.append({"id": c['id'], "nome": c['nome']})
+
+    return jsonify(all_configs)
 
 @api_bp.route('/constructors/<grid>', methods=['GET'])
 def get_constructors_standings(grid):
-    season, data = get_active_home_data()
-    grid_configs = data.get('grid_configs', [])
-    cfg = find_grid_cfg_in_data(grid, grid_configs)
-    if not cfg:
+    s, data, cfg = find_grid_and_data(grid)
+    if not cfg or not data:
         return jsonify([])
     
     raw_list = data.get('constructors', {}).get(cfg['id'], [])
@@ -438,10 +456,8 @@ def get_constructors_standings(grid):
 
 @api_bp.route('/standings/<grid>', methods=['GET'])
 def get_standings(grid):
-    season, data = get_active_home_data()
-    grid_configs = data.get('grid_configs', [])
-    cfg = find_grid_cfg_in_data(grid, grid_configs)
-    if not cfg:
+    s, data, cfg = find_grid_and_data(grid)
+    if not cfg or not data:
         return jsonify([])
     
     raw_list = data.get('standings', {}).get(cfg['id'], [])
@@ -461,10 +477,8 @@ def get_standings(grid):
 
 @api_bp.route('/calendar/<grid>', methods=['GET'])
 def get_calendar(grid):
-    season, data = get_active_home_data()
-    grid_configs = data.get('grid_configs', [])
-    cfg = find_grid_cfg_in_data(grid, grid_configs)
-    if not cfg:
+    s, data, cfg = find_grid_and_data(grid)
+    if not cfg or not data:
         return jsonify([])
     
     raw_races = data.get('calendar', {}).get(cfg['id'], [])
