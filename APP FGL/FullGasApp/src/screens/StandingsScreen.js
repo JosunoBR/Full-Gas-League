@@ -161,16 +161,23 @@ export default function StandingsScreen() {
           )
         ) : (
           teams.length > 0 ? (
-            teams.map((t, idx) => (
-              <View key={t.id || idx} style={styles.row}>
-                <Text style={styles.posText}>{t.posicao || (idx + 1)}º</Text>
-                <View style={styles.pilotDetails}>
-                  <Text style={styles.nickname}>{t.nome}</Text>
-                  <Text style={styles.teamGrid}>🏆 {t.vitorias || 0} Vitória(s)</Text>
+            teams.map((t, idx) => {
+              const logoUrl = t.logo 
+                ? (t.logo.startsWith('http') ? t.logo : `${SERVER_BASE_URL}/static/uploads/${t.logo}`)
+                : 'https://via.placeholder.com/50';
+
+              return (
+                <View key={t.id || idx} style={styles.row}>
+                  <Text style={styles.posText}>{t.posicao || (idx + 1)}º</Text>
+                  <Image source={{ uri: logoUrl }} style={styles.avatar} />
+                  <View style={styles.pilotDetails}>
+                    <Text style={styles.nickname}>{t.nome}</Text>
+                    <Text style={styles.teamGrid}>🏆 {t.vitorias || 0} Vitória(s)</Text>
+                  </View>
+                  <Text style={styles.pointsText}>{t.pontos} pts</Text>
                 </View>
-                <Text style={styles.pointsText}>{t.pontos} pts</Text>
-              </View>
-            ))
+              );
+            })
           ) : (
             <Text style={styles.emptyText}>Nenhuma pontuação de construtores registrada para o grid {selectedGrid}.</Text>
           )

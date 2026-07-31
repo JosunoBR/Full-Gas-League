@@ -426,9 +426,11 @@ def get_constructors_standings(grid):
     for idx, item in enumerate(raw_list, start=1):
         eq_data = item.get('equipe') or {}
         eq_nome = eq_data.get('nome') if isinstance(eq_data, dict) else str(eq_data)
+        eq_logo = eq_data.get('logo_url') if isinstance(eq_data, dict) else None
         result.append({
             "posicao": idx,
             "nome": eq_nome,
+            "logo": eq_logo,
             "pontos": round(item.get('pontos', 0.0), 1),
             "vitorias": item.get('vitorias', 0)
         })
@@ -490,31 +492,35 @@ def get_calendar(grid):
 
 @api_bp.route('/race/<int:race_id>/results', methods=['GET'])
 def get_race_results(race_id):
-    """
-    Retorna um resumo leve e totalmente serializável da corrida,
-    usado na súmula do modal da Home.
-    """
-    try:
-        summary = CalendarService.get_race_summary(race_id)
-    except Exception as exc:
-        # Fallback defensivo: nunca deixar a requisição "pendurada"
-        # e sempre retornar um JSON simples em caso de falha interna.
-        print(f"[API] Erro em get_race_results({race_id}): {exc}")
-        return jsonify({'error': 'Erro interno ao carregar a súmula.'}), 500
+    race = db.session.get(Race, race_id)
+    if not race:
+        return jsonify({'error': 'Corrida não encontrada'}), 404
 
-    if not summary:
-        return jsonify({'error': 'Corrida nao encontrada'}), 404
+    results = RaceResult.query.filter_by(race_id=race.id).order_by(RaceResult.posicao.asc()).all()
+    
+    clean_results = []
+    for r in results:
+        pilot_name = r.pilot.nickname if r.pilot else "Piloto Desconhecido"
+        team_name = r.team_snapshot.nome if r.team_snapshot else "Sem Equipe"
+        grid_start = r.grid_largada if r.grid_largada else "-"
+        
+        clean_results.append({
+            "posicao": r.posicao if r.posicao else "-",
+            "piloto": pilot_name,
+            "equipe": team_name,
+            "grid_largada": grid_start,
+            "pontos": round(r.pontos_ganhos or 0.0, 1),
+            "dnf": bool(r.dnf),
+            "dsq": bool(r.dsq)
+        })
 
-    # Serialização segura de datas
-    data_corrida = summary.get('data_corrida')
-    if data_corrida is not None:
-        try:
-            summary['data_corrida'] = data_corrida.isoformat()
-        except AttributeError:
-            # Se já vier como string/None, não faz nada
-            pass
-
-    return jsonify(summary)
+    return jsonify({
+        "id": race.id,
+        "nome_gp": race.nome_gp,
+        "pista": race.pista or "Circuito Geral",
+        "data_corrida": race.data_corrida.strftime('%d/%m/%Y') if race.data_corrida else "A definir",
+        "resultados": clean_results
+    })
 
 @api_bp.route('/standings/<int:grid_id>/evolution', methods=['GET'])
 def get_grid_evolution(grid_id):

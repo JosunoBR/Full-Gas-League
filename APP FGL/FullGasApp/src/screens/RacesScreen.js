@@ -146,35 +146,36 @@ export default function RacesScreen() {
       <Modal visible={summaryModalVisible} animationType="slide" transparent={true}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
-            <Text style={styles.modalTitle}>Detalhes da Etapa</Text>
+            <Text style={styles.modalTitle}>📊 Súmula da Etapa</Text>
             
             {loadingSummary ? (
               <ActivityIndicator size="large" color="#E60000" style={{ marginVertical: 30 }} />
             ) : selectedRaceSummary ? (
-              <ScrollView style={{ maxHeight: 400 }}>
+              <ScrollView style={{ maxHeight: 420 }}>
                 <Text style={styles.summaryGp}>{selectedRaceSummary.nome_gp}</Text>
-                <Text style={styles.summaryInfo}>Pista: {selectedRaceSummary.pista}</Text>
-                <Text style={styles.summaryInfo}>Data: {selectedRaceSummary.data_corrida || 'N/A'}</Text>
+                <Text style={styles.summaryInfo}>📍 Pista: {selectedRaceSummary.pista}</Text>
+                <Text style={styles.summaryInfo}>📅 Data: {selectedRaceSummary.data_corrida || 'A definir'}</Text>
 
-                {selectedRaceSummary.pole_sitter && (
-                  <View style={styles.poleBox}>
-                    <Text style={styles.poleTitle}>⏱️ Pole Position</Text>
-                    <Text style={styles.poleText}>{selectedRaceSummary.pole_sitter} ({selectedRaceSummary.pole_time || 'N/A'})</Text>
-                  </View>
-                )}
+                <Text style={[styles.summaryGp, { fontSize: 16, marginTop: 15, marginBottom: 8 }]}>Classificação da Prova</Text>
 
-                <Text style={[styles.summaryGp, { fontSize: 16, marginTop: 15 }]}>Classificação da Corrida</Text>
-                {selectedRaceSummary.resultados && selectedRaceSummary.resultados.map((res, i) => (
-                  <View key={i} style={styles.summaryRow}>
-                    <Text style={styles.posText}>P{res.posicao}</Text>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.pilotText}>{res.piloto}</Text>
-                      <Text style={styles.teamText}>{res.equipe} • {res.pit_stops || 0} Pit(s)</Text>
-                      {res.pneus_stints && <Text style={styles.stintsText}>Pneus: {res.pneus_stints}</Text>}
+                {selectedRaceSummary.resultados && selectedRaceSummary.resultados.length > 0 ? (
+                  selectedRaceSummary.resultados.map((res, i) => (
+                    <View key={i} style={styles.summaryRow}>
+                      <Text style={styles.posText}>P{res.posicao}</Text>
+                      
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.pilotText}>{res.piloto}</Text>
+                        <Text style={styles.teamText}>
+                          {res.equipe} • Largada: P{res.grid_largada} ➔ Chegada: P{res.posicao}
+                        </Text>
+                      </View>
+
+                      <Text style={styles.ptsText}>+{res.pontos} pts</Text>
                     </View>
-                    <Text style={styles.ptsText}>+{res.pontos} pts</Text>
-                  </View>
-                ))}
+                  ))
+                ) : (
+                  <Text style={styles.emptyText}>Resultados ainda não lançados para esta corrida.</Text>
+                )}
               </ScrollView>
             ) : (
               <Text style={styles.emptyText}>Informações da etapa indisponíveis.</Text>
