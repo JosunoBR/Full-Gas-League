@@ -375,158 +375,116 @@ def get_news():
     noticias = News.query.order_by(News.data_publicacao.desc()).limit(10).all()
     return jsonify([n.to_dict() for n in noticias])
 
-def resolve_grid_config(season_id, grid_identifier):
-    if not season_id or not grid_identifier:
+from app.services.standings_service import StandingsService
+
+def get_active_home_data():
+    season = Season.query.filter_by(ativa=True).order_by(Season.id.asc()).first()
+    if not season:
+        season = Season.query.order_by(Season.id.desc()).first()
+    if not season:
+        return None, {}
+    data = StandingsService.get_home_data(season.id)
+    return season, data
+
+def find_grid_cfg_in_data(grid_identifier, grid_configs):
+    if not grid_identifier or not grid_configs:
         return None
     grid_str = str(grid_identifier).strip()
     
     if grid_str.isdigit():
-        cfg = db.session.get(GridConfig, int(grid_str))
-        if cfg and cfg.season_id == season_id:
-            return cfg
-    
-    cfg = GridConfig.query.filter(GridConfig.season_id == season_id, func.lower(GridConfig.nome) == grid_str.lower()).first()
-    if cfg:
-        return cfg
+        target_id = int(grid_str)
+        matched = next((g for g in grid_configs if g['id'] == target_id), None)
+        if matched:
+            return matched
 
-    cfg = GridConfig.query.filter(GridConfig.season_id == season_id, func.lower(GridConfig.nome).contains(grid_str.lower())).first()
-    if cfg:
-        return cfg
+    matched = next((g for g in grid_configs if g['nome'].lower() == grid_str.lower()), None)
+    if matched:
+        return matched
 
-    all_cfgs = GridConfig.query.filter_by(season_id=season_id).all()
-    for c in all_cfgs:
-        if c.nome and (c.nome.lower() in grid_str.lower() or grid_str.lower() in c.nome.lower()):
-            return c
+    matched = next((g for g in grid_configs if grid_str.lower() in g['nome'].lower() or g['nome'].lower() in grid_str.lower()), None)
+    if matched:
+        return matched
 
-    return None
+    return grid_configs[0] if grid_configs else None
 
 @api_bp.route('/grid-configs', methods=['GET'])
 def get_grid_configs():
-    season = Season.query.filter_by(ativa=True).order_by(Season.id.asc()).first()
-    if not season:
-        season = Season.query.order_by(Season.id.desc()).first()
-        if not season:
-            return jsonify([])
-    configs = GridConfig.query.filter_by(season_id=season.id).order_by(GridConfig.ordem).all()
-    if not configs:
-        # Se não houver GridConfig no banco, deriva dos textos de grid das corridas
-        race_grids = db.session.query(Race.grid).filter_by(season_id=season.id).distinct().all()
-        grid_names = [g[0] for g in race_grids if g[0]]
-        if not grid_names:
-            grid_names = ["ELITE", "ADVANCED", "INITIAL"]
-        return jsonify([{"id": idx + 1, "nome": gname} for idx, gname in enumerate(grid_names)])
-    return jsonify([{"id": c.id, "nome": c.nome} for c in configs])
+    season, data = get_active_home_data()
+    configs = data.get('grid_configs', [])
+    return jsonify([{"id": c['id'], "nome": c['nome']} for c in configs])
 
 @api_bp.route('/constructors/<grid>', methods=['GET'])
 def get_constructors_standings(grid):
-    season = Season.query.filter_by(ativa=True).order_by(Season.id.asc()).first()
-    if not season:
-        season = Season.query.order_by(Season.id.desc()).first()
-        if not season:
-            return jsonify([])
-
-    grid_cfg = resolve_grid_config(season.id, grid)
-    grid_configs = [grid_cfg] if grid_cfg else GridConfig.query.filter_by(season_id=season.id).all()
+    season, data = get_active_home_data()
+    grid_configs = data.get('grid_configs', [])
+    cfg = find_grid_cfg_in_data(grid, grid_configs)
+    if not cfg:
+        return jsonify([])
     
-    team_ctx = build_team_context(season.id)
-    raw_constructors = ScoringService.build_constructors_for_home(
-        season.id, grid_configs, team_ctx["canonical_teams"], team_ctx["alias_ids_by_key"]
-    )
-    
-    teams_list = []
-    if grid_cfg and grid_cfg.id in raw_constructors:
-        teams_list = raw_constructors[grid_cfg.id]
-    else:
-        for g_id, t_list in raw_constructors.items():
-            teams_list.extend(t_list)
-
+    raw_list = data.get('constructors', {}).get(cfg['id'], [])
     result = []
-    for idx, item in enumerate(teams_list, start=1):
+    for idx, item in enumerate(raw_list, start=1):
+        eq_data = item.get('equipe') or {}
+        eq_nome = eq_data.get('nome') if isinstance(eq_data, dict) else str(eq_data)
         result.append({
             "posicao": idx,
-            "nome": item["equipe"].nome,
-            "pontos": round(item["pontos"], 1),
-            "vitorias": item["vitorias"]
+            "nome": eq_nome,
+            "pontos": round(item.get('pontos', 0.0), 1),
+            "vitorias": item.get('vitorias', 0)
         })
     return jsonify(result)
 
 @api_bp.route('/standings/<grid>', methods=['GET'])
 def get_standings(grid):
-    season = Season.query.filter_by(ativa=True).order_by(Season.id.asc()).first()
-    if not season:
-        season = Season.query.order_by(Season.id.desc()).first()
-        if not season:
-            return jsonify([])
+    season, data = get_active_home_data()
+    grid_configs = data.get('grid_configs', [])
+    cfg = find_grid_cfg_in_data(grid, grid_configs)
+    if not cfg:
+        return jsonify([])
     
-    grid_cfg = resolve_grid_config(season.id, grid)
-    team_ctx = build_team_context(season.id)
-    
-    participants = []
-    if grid_cfg:
-        participants = team_ctx["participants_by_grid"].get(grid_cfg.id, [])
-
-    if not participants and team_ctx["participants_by_grid"]:
-        for g_id, p_list in team_ctx["participants_by_grid"].items():
-            participants.extend(p_list)
-
+    raw_list = data.get('standings', {}).get(cfg['id'], [])
     ranking = []
-    seen_pilot_ids = set()
-
-    for item in participants:
-        p = item["pilot"]
-        if p.id in seen_pilot_ids:
-            continue
-        seen_pilot_ids.add(p.id)
-
-        grid_id_for_calc = grid_cfg.id if grid_cfg else None
-        pts_finais = ScoringService.calculate_pilot_total_points(p.id, season.id, grid_id_for_calc)
-
+    for item in raw_list:
+        p_data = item.get('piloto') or item.get('pilot') or {}
         ranking.append({
-            'id': p.id,
-            'nickname': p.nickname,
-            'pontos': round(pts_finais, 1),
-            'telefone': p.telefone,
-            'foto': p.foto_url
+            'id': p_data.get('id'),
+            'nickname': p_data.get('nickname') or p_data.get('nome_real'),
+            'pontos': round(item.get('pontos', 0.0), 1),
+            'vitorias': item.get('vitorias', 0),
+            'foto': item.get('foto_url'),
+            'equipe': item.get('team_name', 'Sem Equipe')
         })
-    
     ranking.sort(key=lambda x: x['pontos'], reverse=True)
     return jsonify(ranking)
 
 @api_bp.route('/calendar/<grid>', methods=['GET'])
 def get_calendar(grid):
-    season = Season.query.filter_by(ativa=True).order_by(Season.id.asc()).first()
-    if not season:
-        season = Season.query.order_by(Season.id.desc()).first()
-        if not season:
-            return jsonify([])
-
-    grid_cfg = resolve_grid_config(season.id, grid)
-
-    if grid_cfg:
-        corridas = Race.query.filter_by(season_id=season.id, grid_id=grid_cfg.id).order_by(Race.data_corrida).all()
-        if not corridas:
-            corridas = Race.query.filter(
-                Race.season_id == season.id,
-                func.lower(Race.grid).contains(grid_cfg.nome.lower())
-            ).order_by(Race.data_corrida).all()
-    else:
-        corridas = Race.query.filter(
-            Race.season_id == season.id,
-            func.lower(Race.grid).contains(str(grid).lower())
-        ).order_by(Race.data_corrida).all()
-
-    if not corridas:
-        corridas = Race.query.filter_by(season_id=season.id).order_by(Race.data_corrida).all()
-
+    season, data = get_active_home_data()
+    grid_configs = data.get('grid_configs', [])
+    cfg = find_grid_cfg_in_data(grid, grid_configs)
+    if not cfg:
+        return jsonify([])
+    
+    raw_races = data.get('calendar', {}).get(cfg['id'], [])
     result = []
-    for r in corridas:
+    for r in raw_races:
+        d_val = r.get('data_corrida')
+        if hasattr(d_val, 'strftime'):
+            dt_str = d_val.strftime('%d/%m/%Y')
+        elif isinstance(d_val, str):
+            dt_str = d_val[:10]
+        else:
+            dt_str = "A definir"
+
+        st_val = r.get('status') or ("Concluida" if r.get('vencedor') else "Agendada")
+
         result.append({
-            "id": r.id,
-            "nome_gp": r.nome_gp,
-            "pista": r.pista or "Circuito Geral",
-            "data": r.data_corrida.strftime('%d/%m/%Y às %H:%M') if r.data_corrida else "A definir",
-            "grid": r.grid_config.nome if r.grid_config else (r.grid or "Geral"),
-            "status": "Concluida" if r.race_results else "Agendada"
+            "id": r.get('id'),
+            "nome_gp": r.get('nome_gp'),
+            "pista": r.get('pista') or "Circuito Geral",
+            "data": dt_str,
+            "grid": cfg['nome'],
+            "status": "Concluida" if str(st_val).upper() in ['CONCLUIDA', 'CONCLUÍDA'] else "Agendada"
         })
     return jsonify(result)
 
