@@ -40,7 +40,7 @@ def atualizar_banco():
                     print("- Adicionando coluna 'grid_id' em pilot_grid_photo...")
                     conn.execute(text("ALTER TABLE pilot_grid_photo ADD COLUMN grid_id INTEGER"))
             
-            # --- RACE RESULT (Campos Detalhados de Corrida Estilo Overtake F1) ---
+            # --- RACE RESULT (Campos Detalhados de Corrida FullGas League) ---
             novas_colunas = [
                 ("grid_largada", "INTEGER"),
                 ("tempo_total", "VARCHAR(30)"),

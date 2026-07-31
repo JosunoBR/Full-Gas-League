@@ -175,7 +175,7 @@ class Race(db.Model):
     registrations = db.relationship('RaceRegistration', backref='race_parent', lazy=True, cascade="all, delete-orphan")
     protestos = db.relationship('Protesto', back_populates='etapa', lazy=True, cascade="all, delete-orphan")
 
-    # METADADOS DE TELEMETRIA E LOBBY (Estilo Overtake F1)
+    # METADADOS DE TELEMETRIA E LOBBY (FullGas League)
     sc_vsc_info = db.Column(db.String(255), nullable=True)
     clima_temp = db.Column(db.String(100), nullable=True)
     total_voltas = db.Column(db.Integer, nullable=True)
@@ -220,7 +220,7 @@ class RaceResult(db.Model):
     status_presenca = db.Column(db.String(10), nullable=False, default='OK')
     ausencia = db.Column(db.String(10), nullable=True)
 
-    # Detalhes Avançados da Corrida (Estilo Overtake F1)
+    # Detalhes Avançados da Corrida (FullGas League)
     grid_largada = db.Column(db.Integer, nullable=True)
     tempo_total = db.Column(db.String(30), nullable=True)
     melhor_volta = db.Column(db.String(20), nullable=True)
