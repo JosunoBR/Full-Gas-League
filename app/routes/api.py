@@ -505,36 +505,28 @@ def get_race_results(race_id):
             "resultados": []
         })
 
-    clean_results = []
-    for r in summary.get('resultados', []):
-        pos = r.get('posicao')
-        if not pos or pos <= 0:
-            continue
-
-        pilot_info = r.get('pilot') or {}
-        team_info = r.get('team') or {}
+    # Adiciona propriedades diretas para o App Mobile sem alterar a estrutura do Site
+    if 'resultados' in summary and summary['resultados']:
+        valid_res = [r for r in summary['resultados'] if r.get('posicao') and r.get('posicao') > 0]
+        valid_res.sort(key=lambda x: x.get('posicao', 999))
         
-        pilot_name = pilot_info.get('nickname') or pilot_info.get('nome_real') or 'Piloto'
-        team_name = team_info.get('nome') or 'Sem Equipe'
-        grid_start = r.get('grid_largada')
-        
-        clean_results.append({
-            "posicao": r.get('posicao'),
-            "piloto": pilot_name,
-            "equipe": team_name,
-            "grid_largada": f"P{grid_start}" if grid_start else "N/A",
-            "pontos": round(r.get('pontos', 0.0), 1),
-            "dnf": r.get('dnf', False),
-            "dsq": r.get('dsq', False)
-        })
+        for r in valid_res:
+            p_obj = r.get('pilot') or {}
+            t_obj = r.get('team') or {}
+            r['piloto'] = p_obj.get('nickname') or p_obj.get('nome_real') or 'Piloto'
+            r['equipe'] = t_obj.get('nome') or 'Sem Equipe'
 
-    return jsonify({
-        "id": summary.get('id'),
-        "nome_gp": summary.get('nome_gp'),
-        "pista": summary.get('pista') or "Circuito Geral",
-        "data_corrida": summary.get('data_formatada') or "A definir",
-        "resultados": clean_results
-    })
+        summary['resultados'] = valid_res
+
+    # Serialização segura da data
+    data_corrida = summary.get('data_corrida')
+    if data_corrida is not None:
+        try:
+            summary['data_corrida'] = data_corrida.isoformat()
+        except AttributeError:
+            pass
+
+    return jsonify(summary)
 
 @api_bp.route('/standings/<int:grid_id>/evolution', methods=['GET'])
 def get_grid_evolution(grid_id):

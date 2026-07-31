@@ -159,20 +159,23 @@ export default function RacesScreen() {
                 <Text style={[styles.summaryGp, { fontSize: 16, marginTop: 15, marginBottom: 8 }]}>Classificação da Prova</Text>
 
                 {selectedRaceSummary.resultados && selectedRaceSummary.resultados.length > 0 ? (
-                  selectedRaceSummary.resultados.map((res, i) => (
-                    <View key={i} style={styles.summaryRow}>
-                      <Text style={styles.posText}>{res.posicao}º</Text>
-                      
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.pilotText}>{res.piloto}</Text>
-                        <Text style={styles.teamText}>
-                          {res.equipe}{res.grid_largada && res.grid_largada !== 'N/A' ? ` • Grid: ${res.grid_largada}` : ''}
-                        </Text>
-                      </View>
+                  selectedRaceSummary.resultados.map((res, i) => {
+                    const gridStartStr = res.grid_largada ? (String(res.grid_largada).startsWith('P') ? res.grid_largada : `P${res.grid_largada}`) : null;
+                    return (
+                      <View key={i} style={styles.summaryRow}>
+                        <Text style={styles.posText}>{res.posicao}º</Text>
+                        
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.pilotText}>{res.piloto}</Text>
+                          <Text style={styles.teamText}>
+                            {res.equipe}{gridStartStr ? ` • Grid: ${gridStartStr}` : ''}
+                          </Text>
+                        </View>
 
-                      <Text style={styles.ptsText}>+{res.pontos} pts</Text>
-                    </View>
-                  ))
+                        <Text style={styles.ptsText}>+{res.pontos} pts</Text>
+                      </View>
+                    );
+                  })
                 ) : (
                   <Text style={styles.emptyText}>Resultados ainda não lançados para esta corrida.</Text>
                 )}
