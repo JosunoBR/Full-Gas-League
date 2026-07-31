@@ -26,7 +26,7 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
     if type(dbapi_connection).__module__ in ('sqlite3', 'pysqlite2.dbapi2'):
         cursor = dbapi_connection.cursor()
         try:
-            cursor.execute("PRAGMA journal_mode=WAL")
+            cursor.execute("PRAGMA journal_mode=DELETE")
             cursor.execute("PRAGMA busy_timeout=30000")
         except Exception:
             pass
