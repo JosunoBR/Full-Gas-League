@@ -492,33 +492,47 @@ def get_calendar(grid):
 
 @api_bp.route('/race/<int:race_id>/results', methods=['GET'])
 def get_race_results(race_id):
-    race = db.session.get(Race, race_id)
-    if not race:
-        return jsonify({'error': 'Corrida não encontrada'}), 404
+    summary = CalendarService.get_race_summary(race_id)
+    if not summary:
+        race = db.session.get(Race, race_id)
+        if not race:
+            return jsonify({'error': 'Corrida não encontrada'}), 404
+        return jsonify({
+            "id": race.id,
+            "nome_gp": race.nome_gp,
+            "pista": race.pista or "Circuito Geral",
+            "data_corrida": race.data_corrida.strftime('%d/%m/%Y') if race.data_corrida else "A definir",
+            "resultados": []
+        })
 
-    results = RaceResult.query.filter_by(race_id=race.id).order_by(RaceResult.posicao.asc()).all()
-    
     clean_results = []
-    for r in results:
-        pilot_name = r.pilot.nickname if r.pilot else "Piloto Desconhecido"
-        team_name = r.team_snapshot.nome if r.team_snapshot else "Sem Equipe"
-        grid_start = r.grid_largada if r.grid_largada else "-"
+    for r in summary.get('resultados', []):
+        pos = r.get('posicao')
+        if not pos or pos <= 0:
+            continue
+
+        pilot_info = r.get('pilot') or {}
+        team_info = r.get('team') or {}
+        
+        pilot_name = pilot_info.get('nickname') or pilot_info.get('nome_real') or 'Piloto'
+        team_name = team_info.get('nome') or 'Sem Equipe'
+        grid_start = r.get('grid_largada')
         
         clean_results.append({
-            "posicao": r.posicao if r.posicao else "-",
+            "posicao": r.get('posicao'),
             "piloto": pilot_name,
             "equipe": team_name,
-            "grid_largada": grid_start,
-            "pontos": round(r.pontos_ganhos or 0.0, 1),
-            "dnf": bool(r.dnf),
-            "dsq": bool(r.dsq)
+            "grid_largada": f"P{grid_start}" if grid_start else "N/A",
+            "pontos": round(r.get('pontos', 0.0), 1),
+            "dnf": r.get('dnf', False),
+            "dsq": r.get('dsq', False)
         })
 
     return jsonify({
-        "id": race.id,
-        "nome_gp": race.nome_gp,
-        "pista": race.pista or "Circuito Geral",
-        "data_corrida": race.data_corrida.strftime('%d/%m/%Y') if race.data_corrida else "A definir",
+        "id": summary.get('id'),
+        "nome_gp": summary.get('nome_gp'),
+        "pista": summary.get('pista') or "Circuito Geral",
+        "data_corrida": summary.get('data_formatada') or "A definir",
         "resultados": clean_results
     })
 

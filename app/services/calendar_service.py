@@ -58,12 +58,18 @@ class CalendarService:
             "data_formatada": race.data_corrida.strftime('%d/%m/%Y') if race.data_corrida else 'TBA',
         }
 
-        if race.status == 'Concluida':
-            # Ordena resultados colocando sem posição no final
-            sorted_results = sorted(
-                race.results,
-                key=lambda x: x.posicao if x.posicao is not None and x.posicao > 0 else 999,
-            )
+        if race.results:
+            # Filtra apenas pilotos que efetivamente participaram da corrida (posicao > 0)
+            valid_results = [
+                r for r in race.results 
+                if r.posicao and r.posicao > 0 and r.status_presenca not in ['AUSENTE', 'JUSTIFICADO', 'NC']
+            ]
+            
+            if not valid_results:
+                valid_results = [r for r in race.results if r.posicao and r.posicao > 0]
+
+            # Ordena resultados estritamente da P1 em diante
+            sorted_results = sorted(valid_results, key=lambda x: x.posicao)
 
             clean_results = []
             vencedor_info = None

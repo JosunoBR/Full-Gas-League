@@ -161,12 +161,12 @@ export default function RacesScreen() {
                 {selectedRaceSummary.resultados && selectedRaceSummary.resultados.length > 0 ? (
                   selectedRaceSummary.resultados.map((res, i) => (
                     <View key={i} style={styles.summaryRow}>
-                      <Text style={styles.posText}>P{res.posicao}</Text>
+                      <Text style={styles.posText}>{res.posicao}º</Text>
                       
                       <View style={{ flex: 1 }}>
                         <Text style={styles.pilotText}>{res.piloto}</Text>
                         <Text style={styles.teamText}>
-                          {res.equipe} • Largada: P{res.grid_largada} ➔ Chegada: P{res.posicao}
+                          {res.equipe}{res.grid_largada && res.grid_largada !== 'N/A' ? ` • Grid: ${res.grid_largada}` : ''}
                         </Text>
                       </View>
 
