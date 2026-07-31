@@ -42,58 +42,6 @@ def init_schema():
             db.create_all()
         except Exception:
             pass
-        try:
-            # Verifica se coluna exibir_home existe na tabela season
-            try:
-                db.session.execute(text("SELECT exibir_home FROM season LIMIT 1"))
-            except Exception:
-                db.session.rollback()
-                try:
-                    db.session.execute(text("ALTER TABLE season ADD COLUMN exibir_home INTEGER DEFAULT 1 NOT NULL"))
-                    db.session.commit()
-                except Exception:
-                    db.session.rollback()
-
-            novas_colunas = [
-                ("grid_largada", "INTEGER"),
-                ("tempo_total", "VARCHAR(30)"),
-                ("melhor_volta", "VARCHAR(20)"),
-                ("tempo_qualy", "VARCHAR(20)"),
-                ("pit_stops", "INTEGER DEFAULT 0"),
-                ("pneus_stints", "VARCHAR(50)"),
-                ("penalidades_texto", "VARCHAR(100)"),
-                ("posicao_sprint", "INTEGER"),
-                ("pontos_sprint", "FLOAT DEFAULT 0.0"),
-                ("tempo_sprint", "VARCHAR(30)"),
-                ("melhor_volta_sprint", "VARCHAR(20)")
-            ]
-            for col_nome, col_tipo in novas_colunas:
-                try:
-                    db.session.execute(text(f"SELECT {col_nome} FROM race_result LIMIT 1"))
-                except Exception:
-                    db.session.rollback()
-                    try:
-                        db.session.execute(text(f"ALTER TABLE race_result ADD COLUMN {col_nome} {col_tipo}"))
-                        db.session.commit()
-                    except Exception:
-                        db.session.rollback()
-
-            race_novas_colunas = [
-                ("sc_vsc_info", "VARCHAR(255)"),
-                ("clima_temp", "VARCHAR(100)"),
-                ("total_voltas", "INTEGER"),
-                ("lobby_settings_json", "TEXT")
-            ]
-            for col_nome, col_tipo in race_novas_colunas:
-                try:
-                    db.session.execute(text(f"SELECT {col_nome} FROM race LIMIT 1"))
-                except Exception:
-                    db.session.rollback()
-                    try:
-                        db.session.execute(text(f"ALTER TABLE race ADD COLUMN {col_nome} {col_tipo}"))
-                        db.session.commit()
-                    except Exception:
-                        db.session.rollback()
         finally:
             db.session.remove()
 
