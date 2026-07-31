@@ -6,6 +6,8 @@ import { AuthContext } from '../context/AuthContext';
 export default function RacesScreen() {
   const { tokenReady } = useContext(AuthContext);
   const [races, setRaces] = useState([]);
+  const [activeGrids, setActiveGrids] = useState([]);
+  const [selectedGrid, setSelectedGrid] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -14,12 +16,34 @@ export default function RacesScreen() {
   const [selectedRaceSummary, setSelectedRaceSummary] = useState(null);
   const [loadingSummary, setLoadingSummary] = useState(false);
 
-  const fetchCalendar = async () => {
+  const initGridsAndCalendar = async (targetGrid = null) => {
     try {
-      const profileRes = await api.get('/profile');
-      const grid = profileRes.data?.grid_id || 'ELITE';
-      const calendarRes = await api.get(`/calendar/${grid}`);
-      setRaces(calendarRes.data || []);
+      const [gridConfigsRes, profileRes] = await Promise.all([
+        api.get('/grid-configs').catch(() => ({ data: [] })),
+        api.get('/profile').catch(() => ({ data: {} }))
+      ]);
+
+      const gridNames = (gridConfigsRes.data || []).map(g => g.nome);
+      setActiveGrids(gridNames);
+
+      // Tenta selecionar o grid do perfil do piloto, ou o target, ou o primeiro ativo
+      let activeTarget = targetGrid;
+      if (!activeTarget) {
+        if (selectedGrid && gridNames.includes(selectedGrid)) {
+          activeTarget = selectedGrid;
+        } else if (profileRes.data?.grid_id && gridConfigsRes.data) {
+          const matchedConfig = gridConfigsRes.data.find(c => c.id === profileRes.data.grid_id);
+          activeTarget = matchedConfig ? matchedConfig.nome : (gridNames.length > 0 ? gridNames[0] : '');
+        } else {
+          activeTarget = gridNames.length > 0 ? gridNames[0] : '';
+        }
+      }
+
+      if (activeTarget) {
+        setSelectedGrid(activeTarget);
+        const calendarRes = await api.get(`/calendar/${encodeURIComponent(activeTarget)}`);
+        setRaces(calendarRes.data || []);
+      }
     } catch (error) {
       console.log('[RacesScreen] Erro ao carregar calendário:', error?.message);
     } finally {
@@ -29,12 +53,18 @@ export default function RacesScreen() {
   };
 
   useEffect(() => {
-    if (tokenReady) fetchCalendar();
+    if (tokenReady) initGridsAndCalendar();
   }, [tokenReady]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchCalendar();
+    initGridsAndCalendar(selectedGrid);
+  };
+
+  const handleGridChange = (grid) => {
+    setSelectedGrid(grid);
+    setLoading(true);
+    initGridsAndCalendar(grid);
   };
 
   const handleOpenSummary = async (raceId) => {
@@ -69,6 +99,21 @@ export default function RacesScreen() {
         <Text style={styles.title}>🏁 Corridas & Calendário</Text>
         <Text style={styles.subtitle}>Etapas, briefing de lobby e súmula da corrida</Text>
       </View>
+
+      {/* Grid Selector Tabs */}
+      {activeGrids.length > 0 && (
+        <View style={styles.gridTabs}>
+          {activeGrids.map((g) => (
+            <TouchableOpacity 
+              key={g} 
+              style={[styles.gridTab, selectedGrid === g && styles.gridTabActive]}
+              onPress={() => handleGridChange(g)}
+            >
+              <Text style={[styles.gridTabText, selectedGrid === g && styles.gridTabTextActive]}>{g}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
 
       {races.length > 0 ? (
         races.map((race, idx) => (
@@ -319,5 +364,29 @@ const styles = StyleSheet.create({
   closeBtnText: {
     color: '#FFF',
     fontWeight: 'bold',
+  },
+  gridTabs: {
+    flexDirection: 'row',
+    marginBottom: 15,
+    backgroundColor: '#1e2745',
+    borderRadius: 8,
+    padding: 4,
+  },
+  gridTab: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 6,
+  },
+  gridTabActive: {
+    backgroundColor: '#E60000',
+  },
+  gridTabText: {
+    color: '#AAA',
+    fontWeight: 'bold',
+    fontSize: 13,
+  },
+  gridTabTextActive: {
+    color: '#FFF',
   },
 });

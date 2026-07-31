@@ -36,8 +36,8 @@ export default function StandingsScreen() {
       if (activeTarget) {
         setSelectedGrid(activeTarget);
         const [standingsRes, constructorsRes] = await Promise.all([
-          api.get(`/standings/${activeTarget}`).catch(() => ({ data: [] })),
-          api.get(`/constructors/${activeTarget}`).catch(() => ({ data: [] }))
+          api.get(`/standings/${encodeURIComponent(activeTarget)}`).catch(() => ({ data: [] })),
+          api.get(`/constructors/${encodeURIComponent(activeTarget)}`).catch(() => ({ data: [] }))
         ]);
         setStandings(standingsRes.data || []);
         setTeams(constructorsRes.data || []);
