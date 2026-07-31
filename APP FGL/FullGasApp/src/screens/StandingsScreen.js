@@ -7,10 +7,11 @@ export default function StandingsScreen() {
   const { tokenReady } = useContext(AuthContext);
   const [standings, setStandings] = useState([]);
   const [teams, setTeams] = useState([]);
+  const [activeGrids, setActiveGrids] = useState([]);
+  const [selectedGrid, setSelectedGrid] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const [selectedGrid, setSelectedGrid] = useState('ELITE');
   const [viewCategory, setViewCategory] = useState('PILOTS'); // 'PILOTS' ou 'TEAMS'
 
   // Modal Head-to-Head (X-Ray)
@@ -19,16 +20,28 @@ export default function StandingsScreen() {
   const [loadingH2H, setLoadingH2H] = useState(false);
   const [currentPilotId, setCurrentPilotId] = useState(null);
 
-  const fetchStandings = async (gridName) => {
+  const initGridsAndFetch = async (targetGrid = null) => {
     try {
-      const [standingsRes, teamsRes, profileRes] = await Promise.all([
-        api.get(`/standings/${gridName}`),
-        api.get('/teams').catch(() => ({ data: [] })),
+      const [gridConfigsRes, profileRes] = await Promise.all([
+        api.get('/grid-configs').catch(() => ({ data: [] })),
         api.get('/profile').catch(() => ({ data: {} }))
       ]);
-      setStandings(standingsRes.data || []);
-      setTeams(teamsRes.data || []);
+
       if (profileRes.data?.id) setCurrentPilotId(profileRes.data.id);
+
+      const gridNames = (gridConfigsRes.data || []).map(g => g.nome);
+      setActiveGrids(gridNames);
+
+      const activeTarget = targetGrid || (gridNames.includes(selectedGrid) ? selectedGrid : (gridNames.length > 0 ? gridNames[0] : ''));
+      if (activeTarget) {
+        setSelectedGrid(activeTarget);
+        const [standingsRes, constructorsRes] = await Promise.all([
+          api.get(`/standings/${activeTarget}`).catch(() => ({ data: [] })),
+          api.get(`/constructors/${activeTarget}`).catch(() => ({ data: [] }))
+        ]);
+        setStandings(standingsRes.data || []);
+        setTeams(constructorsRes.data || []);
+      }
     } catch (error) {
       console.log('[StandingsScreen] Erro ao carregar classificação:', error?.message);
     } finally {
@@ -38,17 +51,18 @@ export default function StandingsScreen() {
   };
 
   useEffect(() => {
-    if (tokenReady) fetchStandings(selectedGrid);
-  }, [tokenReady, selectedGrid]);
+    if (tokenReady) initGridsAndFetch();
+  }, [tokenReady]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchStandings(selectedGrid);
+    initGridsAndFetch(selectedGrid);
   };
 
   const handleGridChange = (grid) => {
     setSelectedGrid(grid);
     setLoading(true);
+    initGridsAndFetch(grid);
   };
 
   const handleOpenH2H = async (opponentId) => {
@@ -82,7 +96,7 @@ export default function StandingsScreen() {
     >
       <View style={styles.header}>
         <Text style={styles.title}>🏆 Classificação & Equipes</Text>
-        <Text style={styles.subtitle}>Tabela de pontos & comparativo X-Ray</Text>
+        <Text style={styles.subtitle}>Tabela oficial da temporada & comparativo X-Ray</Text>
       </View>
 
       {/* Mode Switch (Pilotos vs Construtores) */}
@@ -97,24 +111,22 @@ export default function StandingsScreen() {
           style={[styles.catTab, viewCategory === 'TEAMS' && styles.catTabActive]}
           onPress={() => setViewCategory('TEAMS')}
         >
-          <Text style={[styles.catTabText, viewCategory === 'TEAMS' && styles.catTabTextActive]}>🛡️ Equipes</Text>
+          <Text style={[styles.catTabText, viewCategory === 'TEAMS' && styles.catTabTextActive]}>🛡️ Construtores (Equipes)</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Grid Selector */}
-      {viewCategory === 'PILOTS' && (
-        <View style={styles.gridTabs}>
-          {['ELITE', 'PRO', 'LIGHT'].map((g) => (
-            <TouchableOpacity 
-              key={g} 
-              style={[styles.gridTab, selectedGrid === g && styles.gridTabActive]}
-              onPress={() => handleGridChange(g)}
-            >
-              <Text style={[styles.gridTabText, selectedGrid === g && styles.gridTabTextActive]}>{g}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
+      {/* Grid Selector (Ativos) */}
+      <View style={styles.gridTabs}>
+        {activeGrids.map((g) => (
+          <TouchableOpacity 
+            key={g} 
+            style={[styles.gridTab, selectedGrid === g && styles.gridTabActive]}
+            onPress={() => handleGridChange(g)}
+          >
+            <Text style={[styles.gridTabText, selectedGrid === g && styles.gridTabTextActive]}>{g}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
       {/* Standings / Teams List */}
       <View style={styles.card}>
@@ -151,15 +163,16 @@ export default function StandingsScreen() {
           teams.length > 0 ? (
             teams.map((t, idx) => (
               <View key={t.id || idx} style={styles.row}>
-                <Text style={styles.posText}>{idx + 1}º</Text>
+                <Text style={styles.posText}>{t.posicao || (idx + 1)}º</Text>
                 <View style={styles.pilotDetails}>
                   <Text style={styles.nickname}>{t.nome}</Text>
-                  <Text style={styles.teamGrid}>Grid: {t.grid}</Text>
+                  <Text style={styles.teamGrid}>🏆 {t.vitorias || 0} Vitória(s)</Text>
                 </View>
+                <Text style={styles.pointsText}>{t.pontos} pts</Text>
               </View>
             ))
           ) : (
-            <Text style={styles.emptyText}>Nenhuma equipe cadastrada.</Text>
+            <Text style={styles.emptyText}>Nenhuma pontuação de construtores registrada para o grid {selectedGrid}.</Text>
           )
         )}
       </View>

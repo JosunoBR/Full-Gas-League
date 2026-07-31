@@ -141,14 +141,7 @@ export default function Home() {
           style={styles.profileImage}
         />
         <Text style={styles.userName}>{profile?.nickname || user?.username}</Text>
-        <Text style={styles.teamName}>{profile?.equipe_atual}</Text>
-        
-        <TouchableOpacity 
-          style={styles.editButton} 
-          onPress={() => Alert.alert('Em breve', 'A edição de perfil direto pelo aplicativo será liberada nas próximas atualizações.')}
-        >
-          <Text style={styles.editButtonText}>Editar Perfil</Text>
-        </TouchableOpacity>
+        <Text style={styles.teamName}>🏎️ {profile?.equipe_atual || 'Sem Equipe'}</Text>
       </View>
 
       {profile?.quali_ban && (
@@ -169,6 +162,26 @@ export default function Home() {
           <Text style={styles.statLabel}>Carro de Lastro</Text>
         </View>
       </View>
+
+      {/* Pontuação nos Campeonatos / Grids */}
+      {profile?.pontuacao_campeonatos && profile.pontuacao_campeonatos.length > 0 && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>🏆 Meus Campeonatos (Pontuação)</Text>
+          {profile.pontuacao_campeonatos.map((camp, idx) => (
+            <View key={idx} style={styles.campRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.campGridName}>Grid {camp.grid_nome}</Text>
+                <Text style={styles.campTeam}>{camp.equipe}</Text>
+              </View>
+
+              <View style={{ alignItems: 'flex-end' }}>
+                <Text style={styles.campPos}>{camp.posicao}º Lugar</Text>
+                <Text style={styles.campPts}>{camp.pontos} pts • {camp.vitorias} Vit</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
 
       {nextRace ? (
         <View style={styles.card}>
@@ -405,5 +418,33 @@ const styles = StyleSheet.create({
     color: '#E60000',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  campRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2a365c',
+  },
+  campGridName: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  campTeam: {
+    color: '#00BFFF',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  campPos: {
+    color: '#FFCC00',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  campPts: {
+    color: '#AAA',
+    fontSize: 12,
+    marginTop: 2,
   },
 });

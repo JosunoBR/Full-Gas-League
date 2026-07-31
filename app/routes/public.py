@@ -382,7 +382,10 @@ def public_profile(pilot_id):
             meus_pontos_camp = ScoringService.calculate_pilot_total_points(perfil.id, s_id, grid_id_calc)
         
         all_races_season = Race.query.filter_by(season_id=s_id).order_by(Race.data_corrida).all()
-        corridas = [r for r in all_races_season if get_grid_name(r) == g_name]
+        if grid_id_calc:
+            corridas = [r for r in all_races_season if r.grid_id == grid_id_calc]
+        else:
+            corridas = [r for r in all_races_season if (get_grid_name(r) or '').upper() == (g_name or '').upper()]
         
         for race in corridas:
             resultado = next((r for r in race.results if r.pilot_id == perfil.id), None)
@@ -395,9 +398,14 @@ def public_profile(pilot_id):
             total_punicoes_tribunal = sum(calcular_perda(p.veredito_final) for p in punicoes_tribunal)
             pontos_finais = pontos_ganhos - total_punicoes_tribunal
             
+            participou = False
+            if resultado:
+                if (resultado.status_presenca and resultado.status_presenca == 'OK') or (resultado.posicao and resultado.posicao > 0) or resultado.dnf or resultado.dsq:
+                    participou = True
+
             desempenho_temporada.append({
                 'gp': race.nome_gp, 'data': race.data_corrida, 'status_corrida': race.status,
-                'participou': True if resultado and resultado.status_presenca == 'OK' else False,
+                'participou': participou,
                 'posicao': resultado.posicao if resultado else 0,
                 'pontos': round(pontos_finais, 1),
                 'dnf': resultado.dnf if resultado else False, 'dsq': resultado.dsq if resultado else False
@@ -612,7 +620,7 @@ def my_profile():
         if grid_id_calc:
             corridas = [r for r in all_races_season if r.grid_id == grid_id_calc]
         else:
-            corridas = [r for r in all_races_season if get_grid_name(r) == g_name]
+            corridas = [r for r in all_races_season if (get_grid_name(r) or '').upper() == (g_name or '').upper()]
         
         for race in corridas:
             resultado = next((r for r in race.results if r.pilot_id == perfil.id), None)
@@ -625,9 +633,14 @@ def my_profile():
             total_punicoes_tribunal = sum(calcular_perda(p.veredito_final) for p in punicoes_tribunal)
             pontos_finais = pontos_ganhos - total_punicoes_tribunal
             
+            participou = False
+            if resultado:
+                if (resultado.status_presenca and resultado.status_presenca == 'OK') or (resultado.posicao and resultado.posicao > 0) or resultado.dnf or resultado.dsq:
+                    participou = True
+
             desempenho_temporada.append({
                 'gp': race.nome_gp, 'data': race.data_corrida, 'status_corrida': race.status,
-                'participou': True if resultado and resultado.status_presenca == 'OK' else False,
+                'participou': participou,
                 'posicao': resultado.posicao if resultado else 0,
                 'pontos': round(pontos_finais, 1),
                 'dnf': resultado.dnf if resultado else False, 'dsq': resultado.dsq if resultado else False

@@ -67,7 +67,7 @@ export default function RacesScreen() {
     >
       <View style={styles.header}>
         <Text style={styles.title}>🏁 Corridas & Calendário</Text>
-        <Text style={styles.subtitle}>Etapas, briefing de lobby e súmula estilo Overtake F1</Text>
+        <Text style={styles.subtitle}>Etapas, briefing de lobby e súmula da corrida</Text>
       </View>
 
       {races.length > 0 ? (
@@ -86,7 +86,7 @@ export default function RacesScreen() {
 
             <TouchableOpacity style={styles.detailButton} onPress={() => handleOpenSummary(race.id)}>
               <Text style={styles.detailButtonText}>
-                {race.status === 'Concluida' ? '📊 Ver Súmula Overtake F1' : 'ℹ️ Ver Briefing da Etapa'}
+                {race.status === 'Concluida' ? '📊 Ver Súmula da Etapa' : 'ℹ️ Ver Briefing da Etapa'}
               </Text>
             </TouchableOpacity>
           </View>

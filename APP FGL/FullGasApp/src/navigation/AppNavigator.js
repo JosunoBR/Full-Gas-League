@@ -44,7 +44,7 @@ export default function AppNavigator() {
         component={Home}
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon emoji="🏠" focused={focused} label="Cockpit" />
+            <TabIcon emoji="🏎️" focused={focused} label="Cockpit" />
           ),
         }}
       />

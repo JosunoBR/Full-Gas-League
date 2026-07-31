@@ -177,6 +177,43 @@ def get_profile():
             cnh_info = DisciplineService.get_pilot_discipline_stats(pilot.id, active_season.id, p_grid_id)
             advertencias = cnh_info.get('advertencias', 0)
 
+    # --- PONTUAÇÃO DO PILOTO NOS CAMPEONATOS DA TEMPORADA ---
+    pontuacao_campeonatos = []
+    if active_season:
+        all_grid_cfgs = GridConfig.query.filter_by(season_id=active_season.id).order_by(GridConfig.ordem).all()
+        team_ctx = build_team_context(active_season.id)
+        
+        for g_cfg in all_grid_cfgs:
+            participants = team_ctx["participants_by_grid"].get(g_cfg.id, [])
+            p_item = next((item for item in participants if item["pilot"].id == pilot.id), None)
+            res_in_grid = [r for r in pilot.race_results if r.race.season_id == active_season.id and r.race.grid_id == g_cfg.id]
+            
+            if p_item or res_in_grid:
+                team_name = p_item["team"].nome if p_item and p_item.get("team") else "Sem Equipe"
+                pts = ScoringService.calculate_pilot_total_points(pilot.id, active_season.id, g_cfg.id)
+                wins = ScoringService.get_pilot_wins(res_in_grid)
+                
+                grid_standings = []
+                for part in participants:
+                    p_id = part["pilot"].id
+                    p_pts = ScoringService.calculate_pilot_total_points(p_id, active_season.id, g_cfg.id)
+                    grid_standings.append((p_id, p_pts))
+                grid_standings.sort(key=lambda x: x[1], reverse=True)
+                
+                pos = 1
+                for idx, (p_id, _) in enumerate(grid_standings, start=1):
+                    if p_id == pilot.id:
+                        pos = idx
+                        break
+                
+                pontuacao_campeonatos.append({
+                    "grid_nome": g_cfg.nome,
+                    "equipe": team_name,
+                    "pontos": round(pts, 1),
+                    "posicao": pos,
+                    "vitorias": wins
+                })
+
     profile_data = {
         "id": pilot.id,
         "nickname": pilot.nickname,
@@ -189,10 +226,56 @@ def get_profile():
         "quali_ban": quali_ban,
         "grid_id": p_grid_id,
         "lastro_veiculo": lastro_veiculo,
-        "desempenho_temporada": desempenho_temporada
+        "desempenho_temporada": desempenho_temporada,
+        "pontuacao_campeonatos": pontuacao_campeonatos
     }
     
     return jsonify(profile_data), 200
+
+@api_bp.route('/profile/update', methods=['POST'])
+@jwt_required()
+def update_profile_api():
+    user_id = get_jwt_identity()
+    user = db.session.get(User, user_id)
+    if not user or not user.pilot_profile:
+        return jsonify({"msg": "Perfil não encontrado"}), 404
+
+    pilot = user.pilot_profile
+    data = request.get_json() or {}
+
+    new_nickname = (data.get('nickname') or '').strip()
+    new_nome_real = (data.get('nome_real') or '').strip()
+    new_telefone = (data.get('telefone') or '').strip()
+
+    if new_nickname:
+        existing = PilotProfile.query.filter(func.lower(PilotProfile.nickname) == func.lower(new_nickname), PilotProfile.id != pilot.id).first()
+        if existing:
+            return jsonify({"msg": f"O nickname '{new_nickname}' já está em uso por outro piloto."}), 400
+        pilot.nickname = new_nickname
+
+    if new_nome_real:
+        pilot.nome_real = new_nome_real
+
+    if new_telefone:
+        pilot.telefone = new_telefone
+
+    new_password = (data.get('password') or '').strip()
+    if new_password:
+        if len(new_password) < 4:
+            return jsonify({"msg": "A nova senha deve ter no mínimo 4 caracteres."}), 400
+        user.set_password(new_password)
+
+    try:
+        db.session.commit()
+        return jsonify({
+            "msg": "Perfil atualizado com sucesso!",
+            "nickname": pilot.nickname,
+            "nome_real": pilot.nome_real,
+            "telefone": pilot.telefone
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"msg": f"Erro ao atualizar perfil: {str(e)}"}), 500
 
 @api_bp.route('/next-race', methods=['GET'])
 @jwt_required()
@@ -291,6 +374,39 @@ def perform_checkin():
 def get_news():
     noticias = News.query.order_by(News.data_publicacao.desc()).limit(10).all()
     return jsonify([n.to_dict() for n in noticias])
+
+@api_bp.route('/grid-configs', methods=['GET'])
+def get_grid_configs():
+    season = Season.query.filter_by(ativa=True).order_by(Season.id.asc()).first()
+    if not season:
+        return jsonify([])
+    configs = GridConfig.query.filter_by(season_id=season.id).order_by(GridConfig.ordem).all()
+    return jsonify([{"id": c.id, "nome": c.nome} for c in configs])
+
+@api_bp.route('/constructors/<grid>', methods=['GET'])
+def get_constructors_standings(grid):
+    season = Season.query.filter_by(ativa=True).order_by(Season.id.asc()).first()
+    if not season:
+        return jsonify([])
+    grid_cfg = GridConfig.query.filter_by(season_id=season.id, nome=grid.upper()).first()
+    if not grid_cfg:
+        return jsonify([])
+    
+    grid_configs = [grid_cfg]
+    team_ctx = build_team_context(season.id)
+    raw_constructors = ScoringService.build_constructors_for_home(
+        season.id, grid_configs, team_ctx["canonical_teams"], team_ctx["alias_ids_by_key"]
+    )
+    teams_list = raw_constructors.get(grid_cfg.id, [])
+    result = []
+    for idx, item in enumerate(teams_list, start=1):
+        result.append({
+            "posicao": idx,
+            "nome": item["equipe"].nome,
+            "pontos": item["pontos"],
+            "vitorias": item["vitorias"]
+        })
+    return jsonify(result)
 
 @api_bp.route('/standings/<grid>', methods=['GET'])
 def get_standings(grid):

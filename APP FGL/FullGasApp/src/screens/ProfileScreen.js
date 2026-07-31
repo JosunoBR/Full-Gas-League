@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, Alert, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, Alert, RefreshControl, Modal, TextInput } from 'react-native';
 import api, { SERVER_BASE_URL } from '../services/api';
 import { AuthContext } from '../context/AuthContext';
 
@@ -37,6 +37,39 @@ export default function ProfileScreen() {
     fetchProfile();
   };
 
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editNickname, setEditNickname] = useState('');
+  const [editNomeReal, setEditNomeReal] = useState('');
+  const [savingProfile, setSavingProfile] = useState(false);
+
+  const handleOpenEditModal = () => {
+    setEditNickname(profile?.nickname || '');
+    setEditNomeReal(profile?.nome_real || '');
+    setEditModalVisible(true);
+  };
+
+  const handleSaveProfile = async () => {
+    if (!editNickname.trim() || !editNomeReal.trim()) {
+      Alert.alert('Atenção', 'Nickname e Nome Real são obrigatórios.');
+      return;
+    }
+    setSavingProfile(true);
+    try {
+      const res = await api.post('/profile/update', {
+        nickname: editNickname,
+        nome_real: editNomeReal
+      });
+      Alert.alert('Sucesso', res.data?.msg || 'Perfil atualizado com sucesso!');
+      setEditModalVisible(false);
+      fetchProfile();
+    } catch (error) {
+      const msg = error?.response?.data?.msg || 'Erro ao atualizar perfil.';
+      Alert.alert('Erro', msg);
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
   if (loading) {
     return (
       <View style={[styles.container, styles.center]}>
@@ -60,6 +93,10 @@ export default function ProfileScreen() {
         <Text style={styles.userName}>{profile?.nickname || user?.username}</Text>
         <Text style={styles.realName}>{profile?.nome_real}</Text>
         <Text style={styles.teamName}>🏎️ {profile?.equipe_atual || 'Sem Equipe'}</Text>
+        
+        <TouchableOpacity style={styles.editBtnHeader} onPress={handleOpenEditModal}>
+          <Text style={styles.editBtnHeaderText}>✏️ Editar Nick & Nome Real</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.card}>
@@ -67,6 +104,10 @@ export default function ProfileScreen() {
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Nickname:</Text>
           <Text style={styles.infoValue}>{profile?.nickname}</Text>
+        </View>
+        <View style={styles.infoRow}>
+          <Text style={styles.infoLabel}>Nome Real:</Text>
+          <Text style={styles.infoValue}>{profile?.nome_real}</Text>
         </View>
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>CNH Pontos:</Text>
@@ -79,9 +120,9 @@ export default function ProfileScreen() {
 
         <TouchableOpacity 
           style={styles.actionBtn}
-          onPress={() => Alert.alert('Fotos por Grid', 'Para enviar fotos customizadas de macacão para cada grid, utilize a aba de Perfil no portal web.')}
+          onPress={handleOpenEditModal}
         >
-          <Text style={styles.actionBtnText}>🖼️ Fotos por Grid (Macacões)</Text>
+          <Text style={styles.actionBtnText}>✏️ Editar Nickname & Nome Real</Text>
         </TouchableOpacity>
       </View>
 
@@ -106,6 +147,55 @@ export default function ProfileScreen() {
       <TouchableOpacity style={styles.logoutButton} onPress={signOut}>
         <Text style={styles.logoutButtonText}>Sair da Conta</Text>
       </TouchableOpacity>
+
+      {/* Modal Editar Perfil */}
+      <Modal visible={editModalVisible} animationType="slide" transparent={true}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>✏️ Editar Nickname e Nome Real</Text>
+            
+            <Text style={styles.inputLabel}>Nickname (Gamertag):</Text>
+            <TextInput 
+              style={styles.input} 
+              value={editNickname} 
+              onChangeText={setEditNickname}
+              placeholder="Digite seu nickname"
+              placeholderTextColor="#888"
+            />
+
+            <Text style={styles.inputLabel}>Nome Real Completo:</Text>
+            <TextInput 
+              style={styles.input} 
+              value={editNomeReal} 
+              onChangeText={setEditNomeReal}
+              placeholder="Digite seu nome completo"
+              placeholderTextColor="#888"
+            />
+
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 20 }}>
+              <TouchableOpacity 
+                style={[styles.modalBtn, styles.cancelBtn]} 
+                onPress={() => setEditModalVisible(false)}
+                disabled={savingProfile}
+              >
+                <Text style={styles.modalBtnText}>Cancelar</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={[styles.modalBtn, styles.saveBtn]} 
+                onPress={handleSaveProfile}
+                disabled={savingProfile}
+              >
+                {savingProfile ? (
+                  <ActivityIndicator size="small" color="#FFF" />
+                ) : (
+                  <Text style={styles.modalBtnText}>Salvar Alterações</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Modal Notícias */}
       <Modal visible={newsModalVisible} animationType="slide" transparent={false}>
@@ -248,5 +338,69 @@ const styles = StyleSheet.create({
     color: '#E60000',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  editBtnHeader: {
+    backgroundColor: '#2a365c',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    marginTop: 8,
+  },
+  editBtnHeaderText: {
+    color: '#00BFFF',
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContainer: {
+    backgroundColor: '#1e2745',
+    width: '100%',
+    borderRadius: 12,
+    padding: 20,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFF',
+    marginBottom: 20,
+  },
+  inputLabel: {
+    color: '#AAA',
+    fontSize: 13,
+    marginBottom: 6,
+    marginTop: 10,
+  },
+  input: {
+    backgroundColor: '#111728',
+    color: '#FFF',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+    borderWidth: 1,
+    borderColor: '#2a365c',
+  },
+  modalBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  cancelBtn: {
+    backgroundColor: '#333',
+  },
+  saveBtn: {
+    backgroundColor: '#E60000',
+  },
+  modalBtnText: {
+    color: '#FFF',
+    fontWeight: 'bold',
+    fontSize: 14,
   },
 });
