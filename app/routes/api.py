@@ -518,37 +518,59 @@ def get_race_results(race_id):
 @api_bp.route('/app/race/<int:race_id>/summary', methods=['GET'])
 def get_app_race_summary(race_id):
     """
-    Endpoint exclusivo e otimizado para a súmula do aplicativo móvel (React Native).
-    Maneja nulos, previne erros de tipagem e garante formato simples e previsível.
+    Endpoint exclusivo para a súmula do aplicativo móvel.
+    Maneja nulos, garante dados de equipe/piloto com fallbacks e previne listas vazias.
     """
     race = db.session.get(Race, race_id)
     if not race:
         return jsonify({'error': 'Corrida não encontrada'}), 404
 
-    # Busca os resultados ordenados por posição
-    results = (
-        RaceResult.query.filter_by(race_id=race.id)
-        .filter(RaceResult.posicao.isnot(None), RaceResult.posicao > 0)
-        .order_by(RaceResult.posicao.asc())
-        .all()
-    )
+    results = RaceResult.query.filter_by(race_id=race.id).all()
+    if not results:
+        return jsonify({
+            "id": race.id,
+            "nome_gp": race.nome_gp,
+            "pista": race.pista or "Circuito Geral",
+            "data_corrida": race.data_corrida.strftime('%d/%m/%Y') if race.data_corrida else "A definir",
+            "resultados": []
+        })
+
+    # 1. Filtra os que efetivamente correram (posicao > 0 e presenca valida)
+    valid_results = [
+        r for r in results 
+        if r.posicao and r.posicao > 0 and (r.status_presenca or '').upper() not in ['AUSENTE', 'JUSTIFICADO', 'NC']
+    ]
+
+    # 2. Fallback: Se o filtro de presenca esvaziar, pega qualquer resultado com posicao > 0
+    if not valid_results:
+        valid_results = [r for r in results if r.posicao and r.posicao > 0]
+
+    # 3. Fallback 2: Se ainda assim estiver vazio, pega todos os resultados cadastrados
+    if not valid_results:
+        valid_results = results
+
+    # Ordena da P1 em diante
+    valid_results.sort(key=lambda x: x.posicao if (x.posicao and x.posicao > 0) else 999)
 
     clean_results = []
-    for r in results:
-        # Filtra presença
-        if r.status_presenca in ['AUSENTE', 'JUSTIFICADO', 'NC']:
-            continue
+    for idx, r in enumerate(valid_results, start=1):
+        pilot_obj = r.pilot or (db.session.get(PilotProfile, r.pilot_id) if r.pilot_id else None)
+        pilot_name = pilot_obj.nickname if (pilot_obj and pilot_obj.nickname) else (pilot_obj.nome_real if pilot_obj else "Piloto")
 
-        pilot_name = r.pilot.nickname if (r.pilot and r.pilot.nickname) else (r.pilot.nome_real if r.pilot else "Piloto")
-        team_name = r.team_snapshot.nome if r.team_snapshot else "Sem Equipe"
-        grid_start = r.grid_largada if r.grid_largada and r.grid_largada > 0 else None
+        team_obj = r.team_snapshot or (db.session.get(Team, r.team_id) if r.team_id else None)
+        team_name = team_obj.nome if team_obj else "Sem Equipe"
+
+        pos_val = r.posicao if (r.posicao and r.posicao > 0) else idx
+        grid_start = r.grid_largada if (r.grid_largada and r.grid_largada > 0) else None
 
         clean_results.append({
-            "posicao": r.posicao,
+            "posicao": pos_val,
             "piloto": pilot_name,
             "equipe": team_name,
             "grid_largada": grid_start,
-            "pontos": round(r.pontos_ganhos or 0.0, 1)
+            "pontos": round(r.pontos_ganhos or 0.0, 1),
+            "dnf": bool(r.dnf),
+            "dsq": bool(r.dsq)
         })
 
     data_str = race.data_corrida.strftime('%d/%m/%Y') if race.data_corrida else "A definir"
