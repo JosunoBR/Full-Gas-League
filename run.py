@@ -1,7 +1,7 @@
 import os
 from datetime import datetime, timedelta, timezone
-from flask import Flask
-from flask_login import LoginManager
+from flask import Flask, request
+from flask_login import LoginManager, current_user
 from flask_migrate import Migrate  # NOVO
 from flask_cors import CORS # Essencial para o App
 from flask_jwt_extended import JWTManager # NOVO: Autenticação do App
