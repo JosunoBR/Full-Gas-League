@@ -59,20 +59,24 @@ def get_profile():
 
     pilot = user.pilot_profile
     
-    active_season = Season.query.filter_by(ativa=True).first()
+    active_seasons = Season.query.filter_by(ativa=True).order_by(Season.id.desc()).all()
+    if not active_seasons:
+        active_seasons = Season.query.order_by(Season.id.desc()).all()
+    active_season_ids = [s.id for s in active_seasons]
+    
     current_team_name = "Sem Equipe"
     p_grid_id = None
 
-    if active_season:
+    if active_seasons:
         # 1. Tenta achar o grid e nome do time do piloto (titular)
-        pilot_teams_in_season = [t for t in pilot.teams if t.season_id == active_season.id]
+        pilot_teams_in_season = [t for t in pilot.teams if t.season_id in active_season_ids]
         if pilot_teams_in_season:
             pilot_teams_in_season.sort(key=lambda t: t.grid_config.ordem if t.grid_config else 99)
             current_team_name = pilot_teams_in_season[0].nome
             p_grid_id = pilot_teams_in_season[0].grid_id
         else:
             # 2. Tenta achar o grid do piloto (reserva)
-            pilot_reserves_in_season = [t for t in pilot.reserve_teams if t.season_id == active_season.id]
+            pilot_reserves_in_season = [t for t in pilot.reserve_teams if t.season_id in active_season_ids]
             if pilot_reserves_in_season:
                 pilot_reserves_in_season.sort(key=lambda t: t.grid_config.ordem if t.grid_config else 99)
                 p_grid_id = pilot_reserves_in_season[0].grid_id
@@ -85,8 +89,9 @@ def get_profile():
 
     # Cálculo dinâmico de CNH e Advertências para a API
     dynamic_cnh = pilot.pontos_cnh
-    if active_season and p_grid_id:
-        cnh_info = DisciplineService.get_pilot_discipline_stats(pilot.id, active_season.id, p_grid_id)
+    first_active_id = active_season_ids[0] if active_season_ids else None
+    if first_active_id and p_grid_id:
+        cnh_info = DisciplineService.get_pilot_discipline_stats(pilot.id, first_active_id, p_grid_id)
         dynamic_cnh = cnh_info['cnh']
 
     cnh_status = "OK"
@@ -96,27 +101,20 @@ def get_profile():
 
     # --- CÁLCULO DO LASTRO (Veículo da próxima corrida) ---
     lastro_veiculo = "Não definido"
-    if active_season and p_grid_id and current_team_name != "Sem Equipe":
-        # Busca a classificação atual do grid
-        team_ctx = build_team_context(active_season.id)
+    if first_active_id and p_grid_id and current_team_name != "Sem Equipe":
+        team_ctx = build_team_context(first_active_id)
         participants = team_ctx["participants_by_grid"].get(p_grid_id, [])
         ranking = []
         
         for item in participants:
             p = item["pilot"]
-            pts_finais = ScoringService.calculate_pilot_total_points(p.id, active_season.id, p_grid_id)
+            pts_finais = ScoringService.calculate_pilot_total_points(p.id, first_active_id, p_grid_id)
             ranking.append({'id': p.id, 'pontos': pts_finais})
         
-        # Ordena por pontos (Líderes no topo)
         ranking.sort(key=lambda x: x['pontos'], reverse=True)
-        
-        # Descobre a posição do piloto na tabela
         pos = next((i for i, r in enumerate(ranking) if r['id'] == pilot.id), -1)
         if pos != -1:
-            pos += 1 # 1 para 1º lugar, 2 para 2º...
-            # Regra do Lastro 2026 (11 Equipes - Construtores 2026 Invertido):
-            # 1-2(Cadillac), 3-4(Aston), 5-6(Williams), 7-8(Audi), 9-10(Haas), 11-12(Alpine),
-            # 13-14(RB), 15-16(Red Bull), 17-18(McLaren), 19-20(Ferrari), 21-22(Mercedes)
+            pos += 1
             carros_lastro = [
                 "Cadillac", "Cadillac", "Aston Martin", "Aston Martin", "Williams", "Williams",
                 "Audi", "Audi", "Haas", "Haas", "Alpine", "Alpine",
@@ -125,21 +123,13 @@ def get_profile():
             ]
             lastro_veiculo = carros_lastro[pos-1] if pos <= len(carros_lastro) else "Mercedes"
     
-    # Busca o histórico de corridas do piloto na temporada atual
+    # Busca o histórico de corridas do piloto em todas as temporadas ativas
     desempenho_temporada = []
-    pilot_grid_ids = [int(g_id) for g_id in (pilot.grid or '').split(',') if g_id.isdigit()]
-    
-    if active_season:
-        # Se o piloto tem grids definidos, filtra por eles
-        if pilot_grid_ids:
-            resultados = RaceResult.query.join(Race).filter(
-                RaceResult.pilot_id == pilot.id,
-                Race.season_id == active_season.id,
-                Race.grid_id.in_(pilot_grid_ids)
-            ).order_by(Race.data_corrida.asc()).all()
-        else:
-            # Se não tem grid definido, retorna vazio
-            resultados = []
+    if active_season_ids:
+        resultados = RaceResult.query.join(Race).filter(
+            RaceResult.pilot_id == pilot.id,
+            Race.season_id.in_(active_season_ids)
+        ).order_by(Race.data_corrida.asc()).all()
         
         for r in resultados:
             grid_nome = r.race.grid_config.nome if r.race.grid_config else r.race.grid
@@ -163,40 +153,34 @@ def get_profile():
                 "status": r.race.status,
                 "participou": r.status_presenca == 'OK'
             })
-        
-        # Se não encontrou resultados mas o piloto tem resultados em outras temporadas
-        if not resultados and pilot.race_results:
-            # Log para debug
-            print(f"[API] Piloto {pilot.id} ({pilot.nickname}) não tem resultados na temporada {active_season.id}, mas tem {len(pilot.race_results)} resultados no total")
 
     quali_ban = False
     advertencias = 0
-    if p_grid_id:
+    if p_grid_id and first_active_id:
         quali_ban = DisciplineService.is_quali_banned(pilot.id, p_grid_id)
-        if active_season:
-            cnh_info = DisciplineService.get_pilot_discipline_stats(pilot.id, active_season.id, p_grid_id)
-            advertencias = cnh_info.get('advertencias', 0)
+        cnh_info = DisciplineService.get_pilot_discipline_stats(pilot.id, first_active_id, p_grid_id)
+        advertencias = cnh_info.get('advertencias', 0)
 
     # --- PONTUAÇÃO DO PILOTO NOS CAMPEONATOS DA TEMPORADA ---
     pontuacao_campeonatos = []
-    if active_season:
-        all_grid_cfgs = GridConfig.query.filter_by(season_id=active_season.id).order_by(GridConfig.ordem).all()
-        team_ctx = build_team_context(active_season.id)
+    for s_id in active_season_ids:
+        all_grid_cfgs = GridConfig.query.filter_by(season_id=s_id).order_by(GridConfig.ordem).all()
+        team_ctx = build_team_context(s_id)
         
         for g_cfg in all_grid_cfgs:
             participants = team_ctx["participants_by_grid"].get(g_cfg.id, [])
             p_item = next((item for item in participants if item["pilot"].id == pilot.id), None)
-            res_in_grid = [r for r in pilot.race_results if r.race.season_id == active_season.id and r.race.grid_id == g_cfg.id]
+            res_in_grid = [r for r in pilot.race_results if r.race.season_id == s_id and r.race.grid_id == g_cfg.id]
             
             if p_item or res_in_grid:
                 team_name = p_item["team"].nome if p_item and p_item.get("team") else "Sem Equipe"
-                pts = ScoringService.calculate_pilot_total_points(pilot.id, active_season.id, g_cfg.id)
+                pts = ScoringService.calculate_pilot_total_points(pilot.id, s_id, g_cfg.id)
                 wins = ScoringService.get_pilot_wins(res_in_grid)
                 
                 grid_standings = []
                 for part in participants:
                     p_id = part["pilot"].id
-                    p_pts = ScoringService.calculate_pilot_total_points(p_id, active_season.id, g_cfg.id)
+                    p_pts = ScoringService.calculate_pilot_total_points(p_id, s_id, g_cfg.id)
                     grid_standings.append((p_id, p_pts))
                 grid_standings.sort(key=lambda x: x[1], reverse=True)
                 
