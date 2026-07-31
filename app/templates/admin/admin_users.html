@@ -41,9 +41,11 @@
                                 {% endif %}
                             {% else %}
                                 <form action="{{ url_for('admin.update_admin_role', user_id=admin.id) }}" method="POST">
-                                    <select name="role" class="form-select form-select-sm bg-dark text-white border-secondary" onchange="this.form.submit()">
+                                    <select name="role" class="form-select form-select-sm bg-dark text-white border-secondary font-monospace" onchange="this.form.submit()">
                                         <option value="ADM" {% if admin.role == 'ADM' %}selected{% endif %}>ADM</option>
                                         <option value="SUPER_ADM" {% if admin.role == 'SUPER_ADM' %}selected{% endif %}>SUPER ADM</option>
+                                        <option value="NARRADOR" {% if admin.role == 'NARRADOR' %}selected{% endif %}>NARRADOR</option>
+                                        <option value="PILOTO" class="text-warning">🔻 PILOTO (Rebaixar)</option>
                                     </select>
                                 </form>
                             {% endif %}

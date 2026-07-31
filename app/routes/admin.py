@@ -789,10 +789,13 @@ def update_admin_role(user_id):
         return redirect(url_for('admin.list_admins'))
         
     new_role = request.form.get('role')
-    if new_role in ['ADM', 'SUPER_ADM', 'NARRADOR']:
+    if new_role in ['PILOTO', 'ADM', 'SUPER_ADM', 'NARRADOR']:
         user.role = new_role
         db.session.commit()
-        flash(f'Nível de acesso de {user.username} atualizado para {new_role}.', 'success')
+        if new_role == 'PILOTO':
+            flash(f'O usuário {user.username} foi rebaixado para PILOTO comum e teve seu acesso ADM removido.', 'info')
+        else:
+            flash(f'Nível de acesso de {user.username} atualizado para {new_role}.', 'success')
     else:
         flash('Nível de acesso inválido.', 'danger')
         
