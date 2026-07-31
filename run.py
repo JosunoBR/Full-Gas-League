@@ -112,6 +112,21 @@ def log_user_access():
 
     try:
         u_id = current_user.id if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated else None
+        
+        # Se nao estiver logado na Web, tenta identificar pelo Token JWT do App Mobile
+        if not u_id:
+            auth_header = request.headers.get('Authorization', '')
+            if auth_header and auth_header.startswith('Bearer '):
+                try:
+                    from flask_jwt_extended import decode_token
+                    token = auth_header.split(' ')[1]
+                    decoded = decode_token(token)
+                    sub = decoded.get('sub')
+                    if sub and str(sub).isdigit():
+                        u_id = int(sub)
+                except Exception:
+                    pass
+
         ip_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
         if ip_addr and ',' in ip_addr:
             ip_addr = ip_addr.split(',')[0].strip()

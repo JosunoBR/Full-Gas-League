@@ -384,11 +384,17 @@ class AccessLog(db.Model):
     user = db.relationship('User', backref=db.backref('access_logs', lazy=True))
 
     def to_dict(self):
+        user_name = 'Visitante'
+        if self.user:
+            if self.user.pilot_profile and self.user.pilot_profile.nickname:
+                user_name = self.user.pilot_profile.nickname
+            else:
+                user_name = self.user.username
         return {
             'id': self.id,
             'platform': self.platform,
             'route': self.route,
-            'username': self.user.username if self.user else 'Visitante',
+            'username': user_name,
             'ip': self.ip_address,
             'data': self.timestamp.strftime('%d/%m/%Y às %H:%M:%S') if self.timestamp else ''
         }

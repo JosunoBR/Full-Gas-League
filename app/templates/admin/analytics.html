@@ -188,7 +188,15 @@
                                 {% endif %}
                             </td>
                             <td class="fw-bold text-white">
-                                {{ log.user.username if log.user else 'Visitante' }}
+                                {% if log.user %}
+                                    {% if log.user.pilot_profile and log.user.pilot_profile.nickname %}
+                                        {{ log.user.pilot_profile.nickname }}
+                                    {% else %}
+                                        {{ log.user.username }}
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-white-50 font-monospace">Visitante</span>
+                                {% endif %}
                             </td>
                             <td class="font-monospace text-white-50 small text-truncate" style="max-width: 150px;">
                                 {{ log.route }}
