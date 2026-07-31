@@ -1,4 +1,4 @@
-﻿﻿import axios from 'axios';
+﻿import axios from 'axios';
 
 // Ajuste o IP conforme sua rede. Ou defina EXPO_PUBLIC_API_URL no ambiente.
 // Exemplo: EXPO_PUBLIC_API_URL=http://192.168.0.10:5000/api
@@ -11,6 +11,8 @@ export const SERVER_BASE_URL = baseURL.replace(/\/api\/?$/, '');
 const api = axios.create({
   baseURL,
 });
+
+api.defaults.headers.common['X-Platform'] = 'MobileApp';
 
 let authToken = null;
 

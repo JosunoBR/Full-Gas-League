@@ -370,3 +370,25 @@ class HomeCache(db.Model):
     last_updated = db.Column(db.DateTime, default=datetime.utcnow)
 
     season = db.relationship('Season', backref=db.backref('home_cache', uselist=False))
+
+
+class AccessLog(db.Model):
+    """Registra acessos de usuários/pilotos discriminando Web e App Mobile."""
+    id = db.Column(db.Integer, primary_key=True)
+    platform = db.Column(db.String(20), nullable=False) # 'APP' ou 'WEB'
+    route = db.Column(db.String(100), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    ip_address = db.Column(db.String(45), nullable=True)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship('User', backref=db.backref('access_logs', lazy=True))
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'platform': self.platform,
+            'route': self.route,
+            'username': self.user.username if self.user else 'Visitante',
+            'ip': self.ip_address,
+            'data': self.timestamp.strftime('%d/%m/%Y às %H:%M:%S') if self.timestamp else ''
+        }

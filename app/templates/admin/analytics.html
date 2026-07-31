@@ -1,0 +1,286 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <h2 class="text-white fw-bold" style="font-family: 'Outfit', sans-serif;">
+                <i class="fa-solid fa-chart-line text-info me-2"></i> ANALYTICS & MÉTRICAS DE ACESSO
+            </h2>
+            <p class="text-white-50 mb-0">Acompanhamento e quantificação em tempo real de tráfego Web vs App Mobile.</p>
+        </div>
+        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="fa-solid fa-arrow-left me-1"></i> Voltar ao Painel
+        </a>
+    </div>
+</div>
+
+<!-- CARDS DE METRICAS E KPIS (HOJE) -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="card bg-dark border-secondary shadow h-100 p-3">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <span class="text-white-50 text-uppercase small d-block font-monospace">Acessos Hoje</span>
+                    <h3 class="text-white fw-extrabold mb-0 mt-1" style="font-family: 'Outfit', sans-serif;">{{ total_hoje }}</h3>
+                </div>
+                <div class="rounded-circle bg-dark-subtle p-3 border border-secondary">
+                    <i class="fa-solid fa-bolt fa-2x text-warning"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-6 col-md-3">
+        <div class="card bg-dark border-info shadow h-100 p-3" style="border-left: 4px solid #0dcaf0 !important;">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <span class="text-info text-uppercase small d-block font-monospace fw-bold">App Mobile</span>
+                    <h3 class="text-white fw-extrabold mb-0 mt-1" style="font-family: 'Outfit', sans-serif;">
+                        {{ app_hoje }} <small class="fs-6 text-info fw-normal">({{ pct_app }}%)</small>
+                    </h3>
+                </div>
+                <div class="rounded-circle bg-dark-subtle p-3 border border-info">
+                    <i class="fa-solid fa-mobile-screen-button fa-2x text-info"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-6 col-md-3">
+        <div class="card bg-dark border-danger shadow h-100 p-3" style="border-left: 4px solid #dc3545 !important;">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <span class="text-danger text-uppercase small d-block font-monospace fw-bold">Portal Web</span>
+                    <h3 class="text-white fw-extrabold mb-0 mt-1" style="font-family: 'Outfit', sans-serif;">
+                        {{ web_hoje }} <small class="fs-6 text-danger fw-normal">({{ pct_web }}%)</small>
+                    </h3>
+                </div>
+                <div class="rounded-circle bg-dark-subtle p-3 border border-danger">
+                    <i class="fa-solid fa-laptop fa-2x text-danger"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-6 col-md-3">
+        <div class="card bg-dark border-success shadow h-100 p-3" style="border-left: 4px solid #198754 !important;">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <span class="text-success text-uppercase small d-block font-monospace fw-bold">Pilotos Únicos</span>
+                    <h3 class="text-white fw-extrabold mb-0 mt-1" style="font-family: 'Outfit', sans-serif;">{{ unicos_hoje }}</h3>
+                </div>
+                <div class="rounded-circle bg-dark-subtle p-3 border border-success">
+                    <i class="fa-solid fa-user-check fa-2x text-success"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SEÇÃO DE GRÁFICOS (CHART.JS) -->
+<div class="row g-4 mb-4">
+    <!-- GRÁFICO 1: DISTRIBUIÇÃO WEB VS APP -->
+    <div class="col-lg-4">
+        <div class="card bg-dark border-secondary shadow h-100">
+            <div class="card-header bg-black border-secondary d-flex align-items-center justify-content-between">
+                <h6 class="text-white mb-0 fw-bold font-monospace">
+                    <i class="fa-solid fa-chart-pie me-2 text-info"></i> Distribuição Hoje
+                </h6>
+            </div>
+            <div class="card-body d-flex align-items-center justify-content-center p-3">
+                <div style="width: 100%; max-width: 260px;">
+                    <canvas id="platformDonutChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- GRÁFICO 2: EVOLUÇÃO DOS ÚLTIMOS 30 DIAS -->
+    <div class="col-lg-8">
+        <div class="card bg-dark border-secondary shadow h-100">
+            <div class="card-header bg-black border-secondary d-flex align-items-center justify-content-between">
+                <h6 class="text-white mb-0 fw-bold font-monospace">
+                    <i class="fa-solid fa-chart-line me-2 text-warning"></i> Evolução Diária (Últimos 30 Dias)
+                </h6>
+            </div>
+            <div class="card-body p-3">
+                <div style="height: 250px; width: 100%;">
+                    <canvas id="timelineChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- TABELAS DE DETALHAMENTO -->
+<div class="row g-4">
+    <!-- POPULARES -->
+    <div class="col-lg-6">
+        <div class="card bg-dark border-secondary shadow h-100">
+            <div class="card-header bg-black border-secondary">
+                <h6 class="text-white mb-0 fw-bold font-monospace">
+                    <i class="fa-solid fa-fire me-2 text-danger"></i> Funcionalidades / Rotas Mais Visitadas
+                </h6>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-dark table-hover mb-0 align-middle small">
+                    <thead>
+                        <tr class="text-white-50 border-bottom border-secondary">
+                            <th>Rota</th>
+                            <th class="text-center">Origem</th>
+                            <th class="text-end">Acessos</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in rotas_populares %}
+                        <tr>
+                            <td class="font-monospace text-white">{{ r.route }}</td>
+                            <td class="text-center">
+                                {% if r.platform == 'APP' %}
+                                    <span class="badge bg-info text-dark font-monospace"><i class="fa-solid fa-mobile-screen-button me-1"></i>App</span>
+                                {% else %}
+                                    <span class="badge bg-danger text-white font-monospace"><i class="fa-solid fa-globe me-1"></i>Web</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end fw-bold text-warning">{{ r.total }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="3" class="text-center text-white-50 py-3">Nenhum registro acumulado ainda.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- LOGS RECENTES -->
+    <div class="col-lg-6">
+        <div class="card bg-dark border-secondary shadow h-100">
+            <div class="card-header bg-black border-secondary">
+                <h6 class="text-white mb-0 fw-bold font-monospace">
+                    <i class="fa-solid fa-clock-rotate-left me-2 text-info"></i> Acessos Recentes (Tempo Real)
+                </h6>
+            </div>
+            <div class="table-responsive" style="max-height: 380px; overflow-y: auto;">
+                <table class="table table-dark table-hover mb-0 align-middle small">
+                    <thead>
+                        <tr class="text-white-50 border-bottom border-secondary">
+                            <th>Horário</th>
+                            <th>Plataforma</th>
+                            <th>Usuário</th>
+                            <th>Rota</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs_recentes %}
+                        <tr>
+                            <td class="text-white-50 font-monospace" style="font-size: 0.75rem;">
+                                {{ log.timestamp.strftime('%H:%M:%S') }}
+                            </td>
+                            <td>
+                                {% if log.platform == 'APP' %}
+                                    <span class="badge bg-info text-dark font-monospace" style="font-size: 0.7rem;"><i class="fa-solid fa-mobile me-1"></i>App</span>
+                                {% else %}
+                                    <span class="badge bg-secondary text-white font-monospace" style="font-size: 0.7rem;"><i class="fa-solid fa-desktop me-1"></i>Web</span>
+                                {% endif %}
+                            </td>
+                            <td class="fw-bold text-white">
+                                {{ log.user.username if log.user else 'Visitante' }}
+                            </td>
+                            <td class="font-monospace text-white-50 small text-truncate" style="max-width: 150px;">
+                                {{ log.route }}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="text-center text-white-50 py-3">Sem acessos recentes gravados.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SCRIPT DOS GRÁFICOS CHART.JS -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // 1. Chart Donut de Plataforma
+        const ctxDonut = document.getElementById('platformDonutChart').getContext('2d');
+        new Chart(ctxDonut, {
+            type: 'doughnut',
+            data: {
+                labels: ['App Mobile', 'Portal Web'],
+                datasets: [{
+                    data: [{{ app_hoje }}, {{ web_hoje }}],
+                    backgroundColor: ['#0dcaf0', '#dc3545'],
+                    borderColor: '#1f2937',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: '#9ca3af', font: { family: 'Outfit', size: 12 } }
+                    }
+                }
+            }
+        });
+
+        // 2. Chart Line de Evolução Diária (30 Dias)
+        const ctxLine = document.getElementById('timelineChart').getContext('2d');
+        new Chart(ctxLine, {
+            type: 'line',
+            data: {
+                labels: {{ chart_labels | tojson }},
+                datasets: [
+                    {
+                        label: 'App Mobile',
+                        data: {{ chart_app_data | tojson }},
+                        borderColor: '#0dcaf0',
+                        backgroundColor: 'rgba(13, 202, 240, 0.15)',
+                        fill: true,
+                        tension: 0.3
+                    },
+                    {
+                        label: 'Portal Web',
+                        data: {{ chart_web_data | tojson }},
+                        borderColor: '#dc3545',
+                        backgroundColor: 'rgba(220, 53, 69, 0.15)',
+                        fill: true,
+                        tension: 0.3
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        ticks: { color: '#9ca3af', font: { size: 10 } },
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' }
+                    },
+                    y: {
+                        ticks: { color: '#9ca3af', font: { size: 10 } },
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { color: '#ffffff', font: { family: 'Outfit', size: 12 } }
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

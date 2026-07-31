@@ -61,6 +61,13 @@ def atualizar_banco():
                     print(f"- Adicionando coluna '{col_nome}' em race_result...")
                     conn.execute(text(f"ALTER TABLE race_result ADD COLUMN {col_nome} {col_tipo}"))
 
+            # --- ACCESS LOG (Métricas de Acesso Web vs App) ---
+            try:
+                conn.execute(text("SELECT id FROM access_log LIMIT 1"))
+            except:
+                print("- Criando tabela 'access_log'...")
+                db.create_all()
+
             conn.commit()
         print("Concluído! O banco antigo agora é compatível com o novo sistema.")
 

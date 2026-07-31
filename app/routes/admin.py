@@ -5,7 +5,7 @@ from datetime import datetime
 from flask import Blueprint, render_template, request, flash, redirect, url_for, current_app, abort, jsonify
 from flask_login import login_required, current_user
 from sqlalchemy import func, case
-from app.models import db, User, PilotProfile, Season, Race, RaceResult, Invite, Protesto, VotoComissario, Team, RaceRegistration, SeletivaEntry, News, GridConfig, SeasonChampion, PilotGridPhoto, HomeCache
+from app.models import db, User, PilotProfile, Season, Race, RaceResult, Invite, Protesto, VotoComissario, Team, RaceRegistration, SeletivaEntry, News, GridConfig, SeasonChampion, PilotGridPhoto, HomeCache, AccessLog
 from app.utils import allowed_file, get_embed_url, PONTUACAO_20, PONTUACAO_22, ORDEM_CARROS, calcular_perda, get_grid_name, find_grid_config, grid_matches
 from app.services.scoring_service import ScoringService
 from app.services.diagnostics import build_data_health_report
@@ -142,6 +142,7 @@ def restrict_access():
             'overview',
             'pilot_stats',
             'pilot_career_stats',
+            'analytics',
         ]
 
         if endpoint_name not in allowed_endpoints:
@@ -204,6 +205,68 @@ def dashboard():
     return render_template(
         'admin/dashboard.html',
         season_ativa=season_ativa, all_active_seasons=all_active_seasons
+    )
+
+
+@admin_bp.route('/analytics')
+def analytics():
+    hoje = datetime.utcnow().date()
+    inicio_dia = datetime.combine(hoje, datetime.min.time())
+    
+    total_hoje = AccessLog.query.filter(AccessLog.timestamp >= inicio_dia).count()
+    app_hoje = AccessLog.query.filter(AccessLog.timestamp >= inicio_dia, AccessLog.platform == 'APP').count()
+    web_hoje = AccessLog.query.filter(AccessLog.timestamp >= inicio_dia, AccessLog.platform == 'WEB').count()
+
+    pct_app = round((app_hoje / total_hoje * 100), 1) if total_hoje > 0 else 0
+    pct_web = round((web_hoje / total_hoje * 100), 1) if total_hoje > 0 else 0
+
+    unicos_hoje = db.session.query(func.count(db.distinct(AccessLog.user_id))).filter(
+        AccessLog.timestamp >= inicio_dia, AccessLog.user_id.isnot(None)
+    ).scalar() or 0
+
+    trinta_dias_atras = inicio_dia - timedelta(days=30)
+    logs_30 = AccessLog.query.filter(AccessLog.timestamp >= trinta_dias_atras).all()
+    
+    dias_map = {}
+    for i in range(30, -1, -1):
+        dt_key = (hoje - timedelta(days=i)).strftime('%d/%m')
+        dias_map[dt_key] = {'APP': 0, 'WEB': 0}
+
+    for log in logs_30:
+        dt_str = log.timestamp.strftime('%d/%m')
+        if dt_str in dias_map:
+            plat = 'APP' if log.platform == 'APP' else 'WEB'
+            dias_map[dt_str][plat] += 1
+
+    chart_labels = list(dias_map.keys())
+    chart_app_data = [dias_map[k]['APP'] for k in chart_labels]
+    chart_web_data = [dias_map[k]['WEB'] for k in chart_labels]
+
+    rotas_populares = db.session.query(
+        AccessLog.route,
+        AccessLog.platform,
+        func.count(AccessLog.id).label('total')
+    ).group_by(AccessLog.route, AccessLog.platform).order_by(func.count(AccessLog.id).desc()).limit(10).all()
+
+    logs_recentes = AccessLog.query.order_by(AccessLog.timestamp.desc()).limit(20).all()
+
+    season_ativa, all_active_seasons = _get_season_context()
+
+    return render_template(
+        'admin/analytics.html',
+        total_hoje=total_hoje,
+        app_hoje=app_hoje,
+        web_hoje=web_hoje,
+        pct_app=pct_app,
+        pct_web=pct_web,
+        unicos_hoje=unicos_hoje,
+        chart_labels=chart_labels,
+        chart_app_data=chart_app_data,
+        chart_web_data=chart_web_data,
+        rotas_populares=rotas_populares,
+        logs_recentes=logs_recentes,
+        season_ativa=season_ativa,
+        all_active_seasons=all_active_seasons
     )
 
 

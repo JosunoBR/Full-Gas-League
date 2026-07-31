@@ -5,7 +5,7 @@ from flask_login import LoginManager
 from flask_migrate import Migrate  # NOVO
 from flask_cors import CORS # Essencial para o App
 from flask_jwt_extended import JWTManager # NOVO: Autenticação do App
-from app.models import db, User, PilotProfile
+from app.models import db, User, PilotProfile, AccessLog
 from app.routes.public import public_bp
 from app.routes.admin import admin_bp
 from app.routes.api import api_bp # Importa a nova API
@@ -91,6 +91,41 @@ def format_datetime(value, format="%d/%m/%Y às %H:%M"):
     # Converte de UTC para horário de Brasília (UTC-3)
     local_val = value - timedelta(hours=3)
     return local_val.strftime(format)
+
+
+@app.before_request
+def log_user_access():
+    path = request.path
+    if path.startswith('/static/') or path.endswith('.ico') or path.endswith('.png') or path.endswith('.jpg'):
+        return
+
+    x_platform = request.headers.get('X-Platform', '')
+    user_agent = request.headers.get('User-Agent', '')
+
+    if x_platform == 'MobileApp' or 'FullGasApp' in user_agent or path.startswith('/api/'):
+        platform = 'APP'
+    else:
+        platform = 'WEB'
+
+    if path.startswith('/admin/analytics') or '/static/' in path:
+        return
+
+    try:
+        u_id = current_user.id if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated else None
+        ip_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
+        if ip_addr and ',' in ip_addr:
+            ip_addr = ip_addr.split(',')[0].strip()
+
+        log_entry = AccessLog(
+            platform=platform,
+            route=path[:100],
+            user_id=u_id,
+            ip_address=ip_addr[:45] if ip_addr else None
+        )
+        db.session.add(log_entry)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
 
 
 # Registro das Rotas (Blueprints)
