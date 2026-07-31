@@ -39,6 +39,10 @@ db.init_app(app)
 def init_schema():
     with app.app_context():
         try:
+            db.create_all()
+        except Exception:
+            pass
+        try:
             # Verifica se coluna exibir_home existe na tabela season
             try:
                 db.session.execute(text("SELECT exibir_home FROM season LIMIT 1"))
@@ -144,10 +148,12 @@ def format_datetime(value, format="%d/%m/%Y às %H:%M"):
 # Registro das Rotas (Blueprints)
 app.register_blueprint(public_bp)
 app.register_blueprint(admin_bp, url_prefix='/admin')
-app.register_blueprint(api_bp, url_prefix='/api') # Registra com prefixo /api
+app.register_blueprint(api_bp, url_prefix='/api')
+
+# Executa inicialização de schema e tabelas no carregamento do WSGI
+init_schema()
 
 if __name__ == '__main__':
-    init_schema()
     # Criação das Tabelas e Admin Inicial (Executado apenas ao rodar o servidor)
     with app.app_context():
         # db.create_all() garante que tabelas novas (como pilot_teams) sejam criadas

@@ -8,9 +8,14 @@ class Config:
     # JWT do App (mantem consistente independente do entrypoint)
     JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY') or 'fullgas-league-jwt-secret-key-2026-production'
     
-    # No SQLite, o prefixo 'sqlite:///' seguido de um caminho absoluto (que começa com / no Linux) 
-    # resulta nas 4 barras necessárias para o PythonAnywhere.
-    db_path = os.path.join(basedir, 'f1_league.db')
+    # Busca dinâmica do banco f1_league.db (compatível com local e PythonAnywhere)
+    db_filename = 'f1_league.db'
+    possible_paths = [
+        os.path.join(basedir, db_filename),
+        os.path.join('/home/fullgasleague/Full-Gas-League', db_filename),
+        os.path.join('/home/fullgasleague', db_filename),
+    ]
+    db_path = next((p for p in possible_paths if os.path.exists(p)), os.path.join(basedir, db_filename))
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or f'sqlite:///{db_path}'
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
