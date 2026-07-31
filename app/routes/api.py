@@ -529,6 +529,13 @@ def get_race_results(race_id):
         r['piloto'] = p_obj.get('nickname') or p_obj.get('nome_real') or r.get('piloto') or 'Piloto'
         r['equipe'] = t_obj.get('nome') or r.get('equipe') or 'Sem Equipe'
 
+        grid_start = r.get('grid_largada')
+        pos_finish = r.get('posicao')
+        if grid_start and isinstance(grid_start, int) and grid_start > 0 and pos_finish and isinstance(pos_finish, int) and pos_finish > 0:
+            r['delta_grid'] = grid_start - pos_finish
+        else:
+            r['delta_grid'] = None
+
     summary['results'] = valid_res
     summary['resultados'] = valid_res
 

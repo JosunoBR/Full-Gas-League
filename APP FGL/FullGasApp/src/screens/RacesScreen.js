@@ -164,7 +164,11 @@ export default function RacesScreen() {
                     raceResults.map((res, i) => {
                       const pilotName = res.piloto || (res.pilot ? (res.pilot.nickname || res.pilot.nome_real) : 'Piloto');
                       const teamName = res.equipe || (res.team ? res.team.nome : 'Sem Equipe');
-                      const gridStartStr = res.grid_largada ? (String(res.grid_largada).startsWith('P') ? res.grid_largada : `P${res.grid_largada}`) : null;
+                      
+                      const rawDelta = res.delta_grid !== undefined && res.delta_grid !== null 
+                        ? res.delta_grid 
+                        : (res.grid_largada && res.posicao ? res.grid_largada - res.posicao : null);
+                      const delta = (rawDelta !== null && !isNaN(rawDelta)) ? Number(rawDelta) : null;
 
                       return (
                         <View key={i} style={styles.summaryRow}>
@@ -172,10 +176,16 @@ export default function RacesScreen() {
                           
                           <View style={{ flex: 1 }}>
                             <Text style={styles.pilotText}>{pilotName}</Text>
-                            <Text style={styles.teamText}>
-                              {teamName}{gridStartStr ? ` • Grid: ${gridStartStr}` : ''}
-                            </Text>
+                            <Text style={styles.teamText}>{teamName}</Text>
                           </View>
+
+                          {delta !== null && (
+                            <View style={delta > 0 ? styles.deltaBadgeGain : (delta < 0 ? styles.deltaBadgeLoss : styles.deltaBadgeNeutral)}>
+                              <Text style={delta > 0 ? styles.deltaTextGain : (delta < 0 ? styles.deltaTextLoss : styles.deltaTextNeutral)}>
+                                {delta > 0 ? `▲ ${delta}` : (delta < 0 ? `▼ ${Math.abs(delta)}` : '=')}
+                              </Text>
+                            </View>
+                          )}
 
                           <Text style={styles.ptsText}>+{res.pontos} pts</Text>
                         </View>
@@ -398,5 +408,47 @@ const styles = StyleSheet.create({
   },
   gridTabTextActive: {
     color: '#FFF',
+  },
+  deltaBadgeGain: {
+    backgroundColor: '#10B98122',
+    borderColor: '#10B981',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    marginRight: 10,
+  },
+  deltaTextGain: {
+    color: '#10B981',
+    fontWeight: 'bold',
+    fontSize: 11,
+  },
+  deltaBadgeLoss: {
+    backgroundColor: '#EF444422',
+    borderColor: '#EF4444',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    marginRight: 10,
+  },
+  deltaTextLoss: {
+    color: '#EF4444',
+    fontWeight: 'bold',
+    fontSize: 11,
+  },
+  deltaBadgeNeutral: {
+    backgroundColor: '#6B728022',
+    borderColor: '#6B7280',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    marginRight: 10,
+  },
+  deltaTextNeutral: {
+    color: '#9CA3AF',
+    fontWeight: 'bold',
+    fontSize: 11,
   },
 });
