@@ -411,9 +411,21 @@ def get_grid_configs():
 
     for s, d in seasons_data:
         for c in d.get('grid_configs', []):
-            if c['nome'] not in seen_names:
+            g_id = c['id']
+            has_standings = bool(d.get('standings', {}).get(g_id))
+            has_constructors = bool(d.get('constructors', {}).get(g_id))
+            has_calendar = bool(d.get('calendar', {}).get(g_id))
+
+            if (has_standings or has_constructors or has_calendar) and c['nome'] not in seen_names:
                 seen_names.add(c['nome'])
                 all_configs.append({"id": c['id'], "nome": c['nome']})
+
+    if not all_configs and seasons_data:
+        for s, d in seasons_data:
+            for c in d.get('grid_configs', []):
+                if c['nome'] not in seen_names:
+                    seen_names.add(c['nome'])
+                    all_configs.append({"id": c['id'], "nome": c['nome']})
 
     return jsonify(all_configs)
 
