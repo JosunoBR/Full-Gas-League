@@ -1,6 +1,22 @@
 {% extends "base.html" %}
 
 {% block content %}
+<style>
+.card-body::-webkit-scrollbar {
+    width: 6px;
+}
+.card-body::-webkit-scrollbar-track {
+    background: #0d0e12;
+    border-radius: 3px;
+}
+.card-body::-webkit-scrollbar-thumb {
+    background: #374151;
+    border-radius: 3px;
+}
+.card-body::-webkit-scrollbar-thumb:hover {
+    background: #e50914;
+}
+</style>
 
 {% if checkin_race %}
 <div class="card shadow-lg border-silver mb-4 animate-alert">
@@ -165,7 +181,7 @@
                     <button class="btn btn-sm btn-outline-danger dropdown-toggle fw-bold" type="button" data-bs-toggle="dropdown">
                         <i class="fa-solid fa-filter me-1"></i> 
                         {% if current_context %}
-                            {% if current_context.season_nome == current_context.grid %}{{ current_context.grid }}{% else %}{{ current_context.season_nome }} - {{ current_context.grid }}{% endif %}
+                            {% if current_context.season_nome.strip().upper() == current_context.grid.strip().upper() %}{{ current_context.grid }}{% else %}{{ current_context.season_nome }} - {{ current_context.grid }}{% endif %}
                         {% else %}
                             Selecionar Contexto
                         {% endif %}
@@ -173,9 +189,9 @@
                     <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end border-secondary shadow">
                         {% for ctx in available_contexts %}
                         <li>
-                            <a class="dropdown-item {% if current_context.season_id == ctx.season_id and current_context.grid == ctx.grid %}active bg-danger{% endif %}" 
+                            <a class="dropdown-item {% if current_context.season_id == ctx.season_id and current_context.grid.strip().upper() == ctx.grid.strip().upper() %}active bg-danger{% endif %}" 
                                href="?s={{ ctx.season_id }}&g={{ ctx.grid }}">
-                                {% if ctx.season_nome == ctx.grid %}{{ ctx.grid }}{% else %}{{ ctx.season_nome }} - {{ ctx.grid }}{% endif %}
+                                {% if ctx.season_nome.strip().upper() == ctx.grid.strip().upper() %}{{ ctx.grid }}{% else %}{{ ctx.season_nome }} - {{ ctx.grid }}{% endif %}
                             </a>
                         </li>
                         {% endfor %}
@@ -183,7 +199,7 @@
                  </div>
                  {% else %}
                     {% if current_context %}
-                        <span class="badge bg-danger text-white fw-bold">{% if current_context.season_nome == current_context.grid %}{{ current_context.grid }}{% else %}{{ current_context.season_nome }} - {{ current_context.grid }}{% endif %}</span>
+                        <span class="badge bg-danger text-white fw-bold">{% if current_context.season_nome.strip().upper() == current_context.grid.strip().upper() %}{{ current_context.grid }}{% else %}{{ current_context.season_nome }} - {{ current_context.grid }}{% endif %}</span>
                     {% endif %}
                  {% endif %}
              </div>
@@ -282,7 +298,7 @@
             <div class="card-header bg-dark border-secondary text-white fw-bold title-orbitron">
                 <i class="fa-solid fa-gavel me-2"></i> Meus Protestos Enviados
             </div>
-            <div class="card-body bg-dark p-0">
+            <div class="card-body bg-dark p-0" style="max-height: 420px; overflow-y: auto;">
                 <ul class="list-group list-group-flush">
                     {% for p in meus_protestos %}
                     <li class="list-group-item bg-dark text-white border-secondary">
@@ -290,7 +306,7 @@
                             <div>
                                 <strong>{{ p.etapa.nome_gp }}</strong>
                                 {% if p.minuto %}
-                                    <span class="badge bg-secondary text-white ms-1" style="font-size: 0.7rem;">Volta: {{ p.minuto }}</span>
+                                    <span class="badge bg-secondary text-white ms-1" style="font-size: 0.7rem;">Volta/Minuto: {{ p.minuto }}</span>
                                 {% endif %}
                                 <span class="d-block small text-white-50">Contra: {{ p.acusado.nickname }}</span>
                             </div>
@@ -305,7 +321,7 @@
                                     <span class="badge bg-danger text-white">{{ p.veredito_final }}</span>
                                 {% endif %}
                             {% elif p.status == 'AGUARDANDO_DEFESA' %}
-                                <span class="badge bg-danger text-white fw-bold">Aguardando Defesa</span>
+                                <span class="badge bg-warning text-dark fw-bold">Aguardando Defesa</span>
                             {% else %}
                                 <span class="badge bg-info text-dark fw-bold">Em Julgamento</span>
                             {% endif %}
@@ -313,17 +329,20 @@
                         
                         {% if p.status == 'CONCLUIDO' and p.justificativa_texto %}
                         <p class="small text-white-50 mb-0 mt-2 border-top border-secondary pt-2">
-                            <strong>Veredito:</strong> <em>"{{ p.justificativa_texto }}"</em>
+                            <strong>Decisão da Comissão:</strong> <em>"{{ p.justificativa_texto }}"</em>
                         </p>
                         {% endif %}
 
-                        {% if p.status != 'CONCLUIDO' %}
-                        <div class="mt-2 text-end">
-                            <form action="{{ url_for('public.delete_protest', protest_id=p.id) }}" method="POST" onsubmit="return confirm('Cancelar este protesto?');">
-                                <button class="btn btn-outline-danger btn-sm text-white" style="font-size: 0.7rem;">Cancelar Protesto</button>
+                        <div class="mt-2 d-flex justify-content-end gap-2">
+                            <a href="{{ url_for('public.view_protest_public', protest_id=p.id) }}" class="btn btn-outline-info btn-sm text-white" style="font-size: 0.75rem;">
+                                <i class="fa-solid fa-eye me-1"></i> Ver Dossiê
+                            </a>
+                            {% if p.status != 'CONCLUIDO' %}
+                            <form action="{{ url_for('public.delete_protest', protest_id=p.id) }}" method="POST" onsubmit="return confirm('Cancelar este protesto?');" class="d-inline">
+                                <button class="btn btn-outline-danger btn-sm text-white" style="font-size: 0.75rem;">Cancelar</button>
                             </form>
+                            {% endif %}
                         </div>
-                        {% endif %}
                     </li>
                     {% else %}
                     <li class="list-group-item bg-dark text-white-50 text-center py-3">Nenhum protesto enviado.</li>
@@ -338,7 +357,7 @@
             <div class="card-header bg-dark border-secondary text-white fw-bold d-flex justify-content-between align-items-center title-orbitron">
                 <span><i class="fa-solid fa-shield-halved me-2"></i> Protestos Recebidos</span>
             </div>
-            <div class="card-body bg-dark p-0">
+            <div class="card-body bg-dark p-0" style="max-height: 420px; overflow-y: auto;">
                 <ul class="list-group list-group-flush">
                     {% for p in protestos_recebidos %}
                     <li class="list-group-item bg-dark text-white border-secondary">
@@ -346,7 +365,7 @@
                             <div>
                                 <strong>{{ p.etapa.nome_gp }}</strong>
                                 {% if p.minuto %}
-                                    <span class="badge bg-secondary text-white ms-1" style="font-size: 0.7rem;">Volta: {{ p.minuto }}</span>
+                                    <span class="badge bg-secondary text-white ms-1" style="font-size: 0.7rem;">Volta/Minuto: {{ p.minuto }}</span>
                                 {% endif %}
                                 <span class="d-block small text-white-50">Por: {{ p.acusador.nickname }}</span>
                             </div>
@@ -360,22 +379,35 @@
                                 {% else %}
                                     <span class="badge bg-danger text-white">{{ p.veredito_final }}</span>
                                 {% endif %}
+                            {% elif p.status == 'AGUARDANDO_DEFESA' %}
+                                <span class="badge bg-warning text-dark fw-bold">Defesa Pendente</span>
                             {% else %}
-                                <span class="badge bg-warning text-dark fw-bold">Em Análise</span>
+                                <span class="badge bg-info text-dark fw-bold">Em Julgamento</span>
                             {% endif %}
                         </div>
                         
-                        {% if p.defesa_texto %}
-                        <div class="mt-2 p-2 bg-secondary rounded small">
-                            <strong>Sua Defesa:</strong> <em>"{{ p.defesa_texto }}"</em>
+                        {% if p.argumento_defesa %}
+                        <div class="mt-2 p-2 bg-secondary bg-opacity-25 rounded small text-white-50">
+                            <strong class="text-warning">Sua Defesa:</strong> <em>"{{ p.argumento_defesa }}"</em>
                         </div>
                         {% endif %}
 
                         {% if p.status == 'CONCLUIDO' and p.justificativa_texto %}
                         <p class="small text-white-50 mb-0 mt-2 border-top border-secondary pt-2">
-                            <strong>Decisão da Comissao:</strong> <em>"{{ p.justificativa_texto }}"</em>
+                            <strong>Decisão da Comissão:</strong> <em>"{{ p.justificativa_texto }}"</em>
                         </p>
                         {% endif %}
+
+                        <div class="mt-2 d-flex justify-content-end gap-2">
+                            {% if p.status != 'CONCLUIDO' and not p.argumento_defesa %}
+                            <a href="{{ url_for('public.submit_defense', protest_id=p.id) }}" class="btn btn-warning btn-sm text-dark fw-bold" style="font-size: 0.75rem;">
+                                <i class="fa-solid fa-shield-halved me-1"></i> Enviar Defesa
+                            </a>
+                            {% endif %}
+                            <a href="{{ url_for('public.view_protest_public', protest_id=p.id) }}" class="btn btn-outline-info btn-sm text-white" style="font-size: 0.75rem;">
+                                <i class="fa-solid fa-eye me-1"></i> Ver Dossiê / Resultado
+                            </a>
+                        </div>
                     </li>
                     {% else %}
                     <li class="list-group-item bg-dark text-white-50 text-center py-3">Nenhum protesto recebido. Limpo!</li>

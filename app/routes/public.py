@@ -1,9 +1,9 @@
 import os
 from datetime import datetime, timedelta
-from flask import Blueprint, render_template, request, flash, redirect, url_for, current_app
+from flask import Blueprint, render_template, request, flash, redirect, url_for, current_app, abort
 from flask_login import login_required, current_user, login_user, logout_user
 from werkzeug.security import check_password_hash
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 from app.models import db, Season, Race, PilotProfile, Protesto, RaceResult, VotoComissario, Team, RaceRegistration, User, Invite, News, GridConfig, SeasonChampion, PilotGridPhoto
@@ -428,6 +428,7 @@ def public_profile(pilot_id):
                            meus_pontos_camp=meus_pontos_camp, 
                            desempenho_temporada=desempenho_temporada, 
                            meus_protestos=[], 
+                           protestos_recebidos=[],
                            defesas_pendentes=[], 
                            historico=[],
                            total_punicoes=0,
@@ -469,9 +470,15 @@ def my_profile():
             g_name = get_grid_name(t)
             if g_id in cfg_by_id:
                 g_name = cfg_by_id[g_id].nome
+            elif g_name:
+                match_cfg = next((c for c in configs if (c.nome or '').strip().upper() == g_name.strip().upper()), None)
+                if match_cfg:
+                    g_name = match_cfg.nome
+                    g_id = match_cfg.id
+
             if not g_name:
                 continue
-            key = (s.id, g_name)
+            key = (s.id, g_name.strip().upper())
             if key in contexts_seen:
                 continue
             contexts_seen.add(key)
@@ -488,16 +495,27 @@ def my_profile():
             Race.season_id == s.id
         ).distinct().all()
         for r in races_res:
+            g_id = r.grid_id
             g_name = get_grid_name(r)
-            key = (s.id, g_name)
-            if not g_name or key in contexts_seen:
+            if g_id in cfg_by_id:
+                g_name = cfg_by_id[g_id].nome
+            elif g_name:
+                match_cfg = next((c for c in configs if (c.nome or '').strip().upper() == g_name.strip().upper()), None)
+                if match_cfg:
+                    g_name = match_cfg.nome
+                    g_id = match_cfg.id
+
+            if not g_name:
+                continue
+            key = (s.id, g_name.strip().upper())
+            if key in contexts_seen:
                 continue
             contexts_seen.add(key)
             available_contexts.append({
                 'season_id': s.id,
                 'season_nome': s.nome,
                 'grid': g_name,
-                'grid_id': r.grid_id
+                'grid_id': g_id
             })
 
         # 3) Grids do perfil (aceita ID ou nome).
@@ -512,14 +530,16 @@ def my_profile():
                 if cfg:
                     g_name = cfg.nome
             else:
-                if pg in valid_names:
+                match_cfg = next((c for c in configs if (c.nome or '').strip().upper() == pg.strip().upper()), None)
+                if match_cfg:
+                    g_name = match_cfg.nome
+                    g_id = match_cfg.id
+                else:
                     g_name = pg
-                    cfg = next((c for c in configs if c.nome == pg), None)
-                    g_id = cfg.id if cfg else None
 
             if not g_name:
                 continue
-            key = (s.id, g_name)
+            key = (s.id, g_name.strip().upper())
             if key in contexts_seen:
                 continue
             contexts_seen.add(key)
@@ -647,6 +667,7 @@ def my_profile():
             })
 
     meus_protestos = Protesto.query.filter_by(acusador_id=perfil.id).order_by(Protesto.data_criacao.desc()).all()
+    protestos_recebidos = Protesto.query.filter_by(acusado_id=perfil.id).order_by(Protesto.data_criacao.desc()).all()
     
     defesas_pendentes = Protesto.query.filter(
         Protesto.acusado_id == perfil.id,
@@ -679,6 +700,7 @@ def my_profile():
                            meus_pontos_camp=meus_pontos_camp, 
                            desempenho_temporada=desempenho_temporada, 
                            meus_protestos=meus_protestos, 
+                           protestos_recebidos=protestos_recebidos,
                            defesas_pendentes=defesas_pendentes, 
                            historico=historico_punicoes,
                            total_punicoes=total_punicoes,
@@ -839,7 +861,25 @@ def team_profile(team_id):
             
     return render_template('public/team_profile.html', team=team, total_pontos=total_pontos, total_vitorias=total_vitorias, stats_pilotos=stats_pilotos, stats_reserva=stats_reserva, season_ativa=season_ativa, all_active_seasons=all_seasons)
 
-# --- AÇÕES DO PILOTO (DEFESA, ATUALIZAR PERFIL, PROTESTAR) ---
+# --- AÇÕES DO PILOTO (DEFESA, ATUALIZAR PERFIL, PROTESTAR, VER DOSSIÊ) ---
+
+@public_bp.route('/tribunal/protesto/<int:protest_id>')
+@login_required
+def view_protest_public(protest_id):
+    protesto = db.session.get(Protesto, protest_id) or abort(404)
+    is_involved = current_user.pilot_profile and (current_user.pilot_profile.id in [protesto.acusado_id, protesto.acusador_id])
+    is_admin = current_user.role in ['SUPER_ADM', 'ADM', 'NARRADOR']
+    if not (is_involved or is_admin):
+        flash('Você não tem permissão para visualizar este dossiê do tribunal.', 'danger')
+        return redirect(url_for('public.my_profile'))
+    
+    meu_voto = VotoComissario.query.filter_by(protesto_id=protesto.id, admin_id=current_user.id).first()
+    embed_acusacao = get_embed_url(protesto.video_link)
+    embed_defesa = get_embed_url(protesto.video_defesa)
+    votos_resumo = db.session.query(VotoComissario.escolha, func.count(VotoComissario.escolha))\
+        .filter_by(protesto_id=protesto.id).group_by(VotoComissario.escolha).all()
+
+    return render_template('admin/view_protest.html', protesto=protesto, meu_voto=meu_voto, votos_resumo=votos_resumo, embed_acusacao=embed_acusacao, embed_defesa=embed_defesa)
 
 @public_bp.route('/defender/<int:protest_id>', methods=['GET', 'POST'])
 @login_required

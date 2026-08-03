@@ -128,6 +128,14 @@ PISTAS_F1 = [
 @admin_bp.before_request
 @login_required
 def restrict_access():
+    # Permite que acusados e acusadores vejam seu próprio protesto via admin.view_protest
+    if request.endpoint == 'admin.view_protest':
+        protest_id = request.view_args.get('protest_id') if request.view_args else None
+        if protest_id:
+            p = db.session.get(Protesto, protest_id)
+            if p and current_user.pilot_profile and (current_user.pilot_profile.id in [p.acusado_id, p.acusador_id]):
+                return # Acesso concedido para ver o próprio protesto!
+
     # 1. Permite acesso geral para ADMs e Narradores
     if current_user.role not in ['SUPER_ADM', 'ADM', 'NARRADOR']:
         flash('Acesso negado. Área restrita à Direção de Prova.', 'danger')
