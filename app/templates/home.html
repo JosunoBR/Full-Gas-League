@@ -2065,12 +2065,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         </h2>
                         <small class="text-white-50 font-monospace" style="font-size: 0.8rem;">
                             <i class="fa-solid fa-flag-checkered me-1 text-danger"></i> ${escapeHtml(gpName)} &bull; FULLGAS LEAGUE
-                        </small>
-                    </div>
-                    <div>
-                        <span class="badge bg-dark border border-secondary text-white px-3 py-2 font-monospace shadow-sm" style="font-size: 0.75rem;">
-                            <i class="fa-solid fa-cloud-sun me-1 text-warning"></i> ${escapeHtml(meta.clima_temp || 'Pista: 24°C | Ar: 20°C')}
-                        </span>
                     </div>
                 </div>
             </div>
@@ -2108,7 +2102,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <small class="text-white-50 fw-bold text-uppercase d-block mb-1 font-monospace" style="font-size: 0.65rem;">
                             <i class="fa-solid fa-rotate-right me-1 text-danger"></i> VOLTAS
                         </small>
-                        <strong class="text-white small font-monospace d-block">${escapeHtml((meta.total_voltas || 29).toString())} voltas</strong>
+                        <strong class="text-white small font-monospace d-block">${meta.total_voltas ? escapeHtml(meta.total_voltas.toString()) + ' voltas' : '-'}</strong>
                     </div>
                 </div>
             </div>

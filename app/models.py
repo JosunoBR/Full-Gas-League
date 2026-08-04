@@ -239,8 +239,8 @@ class RaceResult(db.Model):
         return {
             'posicao': self.posicao,
             'pontos': self.pontos_ganhos,
-            'piloto': self.pilot.nickname if self.pilot else 'N/A',
-            'equipe': self.team_snapshot.nome if self.team_snapshot else 'N/A',
+            'piloto': self.pilot.nickname if self.pilot else '-',
+            'equipe': self.team_snapshot.nome if self.team_snapshot else '-',
             'status_presenca': self.status_presenca,
             'dnf': self.dnf,
             'dsq': self.dsq,

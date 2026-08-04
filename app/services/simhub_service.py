@@ -273,17 +273,27 @@ class SimHubService:
                 sc_vsc_info = line.split(':', 1)[1].strip() if ':' in line else line
             elif 'CLIMA:' in l_up or 'TEMPERATURA:' in l_up or 'PISTA:' in l_up:
                 clima_temp = line.split(':', 1)[1].strip() if ':' in line else line
-            elif 'VOLTAS:' in l_up or 'TOTAL VOLTAS:' in l_up:
+            elif 'VOLTAS:' in l_up or 'TOTAL VOLTAS:' in l_up or 'LAPS:' in l_up or 'TOTAL LAPS:' in l_up:
                 v_str = line.split(':', 1)[1].strip() if ':' in line else ''
-                if v_str.isdigit():
-                    total_voltas = int(v_str)
+                # Extrai os dígitos do valor da linha de voltas
+                match_digits = re.search(r'\d+', v_str)
+                if match_digits:
+                    total_voltas = int(match_digits.group())
+
+        # Se não encontrou o metadado explícito nas linhas de cabeçalho, busca por padrões de voltas ou maior contagem de voltas nas linhas do arquivo
+        if not total_voltas:
+            lap_matches = []
+            for line in lines:
+                # Procura padrões como "36 voltas", "36 laps", "voltas: 36", "laps = 36", etc.
+                matches = re.findall(r'(?:total\s*voltas|total\s*laps|voltas|laps)\s*[:=]?\s*(\d+)', line, re.IGNORECASE)
+                for m in matches:
+                    if m.isdigit():
+                        lap_matches.append(int(m))
+            if lap_matches:
+                total_voltas = max(lap_matches)
 
         if not sc_vsc_info:
             sc_vsc_info = 'Sem SC / VSC'
-        if not clima_temp:
-            clima_temp = 'Pista: 24°C | Ar: 20°C'
-        if not total_voltas:
-            total_voltas = 29
 
         return {
             'pole': pole_info,

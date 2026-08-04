@@ -7,10 +7,36 @@ class RaceResultService:
     """
 
     @classmethod
+    def _get_pilot_team_for_race(cls, pilot, race):
+        """
+        Busca a equipe do piloto para a corrida.
+        1. Verifica equipe titular (pilot.teams)
+        2. Se não encontrar, verifica equipe reserva (pilot.reserve_teams)
+        3. Caso contrário, retorna None.
+        """
+        if not pilot:
+            return None
+        team = next(
+            (t for t in pilot.teams if t.season_id == race.season_id and t.grid_id == race.grid_id),
+            None
+        )
+        if team:
+            return team
+        if hasattr(pilot, 'reserve_teams') and pilot.reserve_teams:
+            team = next(
+                (t for t in pilot.reserve_teams if t.season_id == race.season_id and t.grid_id == race.grid_id),
+                None
+            )
+            if team:
+                return team
+        return None
+
+    @classmethod
     def save_race_results_by_position(cls, race_id, form_data):
         """
         Salva os resultados da corrida a partir de um formulário organizado por posição.
-        Esta função é o "tradutor" entre o novo formulário e o banco de dados.
+        Aplica a Regra Desportiva: ajusta sequencialmente as posições dos pilotos válidos,
+        promovendo quem ficou atrás de desclassificados (DSQ), e reposiciona os DSQ ao final.
         """
         race = Race.query.get_or_404(race_id)
         
@@ -29,12 +55,12 @@ class RaceResultService:
         race.lobby_settings_json = form_data.get('lobby_settings_json') or None
 
         # 1. Limpa todos os resultados antigos desta corrida para evitar duplicatas.
-        #    Isso torna a operação de salvar idempotente (o resultado final é o mesmo, não importa quantas vezes você salve).
         RaceResult.query.filter_by(race_id=race_id).delete()
 
         processed_pilots = set()
+        raw_entries = []
 
-        # 2. Processa a classificação da corrida (pilotos que pontuaram/correram)
+        # 2. Coleta a classificação da corrida enviada pelo formulário
         for i in range(1, grid_size + 1):
             pilot_id_str = form_data.get(f'pos_{i}_pilot')
             if not pilot_id_str:
@@ -47,12 +73,8 @@ class RaceResultService:
                 raise ValueError(f"Piloto com ID {pilot_id} selecionado em mais de uma posição.")
             processed_pilots.add(pilot_id)
 
-            # Busca a equipe do piloto para esta temporada/grid
             pilot = PilotProfile.query.get(pilot_id)
-            team_for_this_race = next(
-                (t for t in pilot.teams if t.season_id == race.season_id and t.grid_id == race.grid_id),
-                None
-            )
+            team_for_this_race = cls._get_pilot_team_for_race(pilot, race)
 
             grid_start = form_data.get(f'pos_{i}_grid_largada')
             grid_start_int = int(grid_start) if (grid_start and grid_start.isdigit()) else None
@@ -64,30 +86,65 @@ class RaceResultService:
             stints = (form_data.get(f'pos_{i}_pneus_stints') or '').strip() or None
             pens = (form_data.get(f'pos_{i}_penalidades_texto') or '').strip() or None
 
-            # Cria o novo registro de resultado
+            is_dsq = form_data.get(f'pos_{i}_dsq') == 'on'
+            is_dnf = form_data.get(f'pos_{i}_dnf') == 'on'
+
+            raw_entries.append({
+                'pilot_id': pilot_id,
+                'team_id': team_for_this_race.id if team_for_this_race else None,
+                'grid_largada': grid_start_int,
+                'tempo_total': tempo_tot,
+                'melhor_volta': best_lap,
+                'tempo_qualy': qualy_t,
+                'pit_stops': pits_cnt_int,
+                'pneus_stints': stints,
+                'penalidades_texto': pens,
+                'dnf': is_dnf,
+                'dsq': is_dsq,
+                'volta_rapida': form_data.get(f'pos_{i}_vr') == 'on',
+                'piloto_do_dia': form_data.get(f'pos_{i}_dotd') == 'on',
+                'piloto_torcida': form_data.get(f'pos_{i}_fan') == 'on',
+            })
+
+        # Separate into valid finishers and DSQ entries to re-rank according to sporting rules
+        valid_entries = [e for e in raw_entries if not e['dsq']]
+        dsq_entries = [e for e in raw_entries if e['dsq']]
+
+        # Assign continuous, adjusted positions to valid finishers (1º, 2º, 3º...)
+        final_ordered_entries = []
+        for index, entry in enumerate(valid_entries, start=1):
+            entry['posicao'] = index
+            final_ordered_entries.append(entry)
+
+        # Place DSQ entries after valid finishers
+        start_dsq_pos = len(valid_entries) + 1
+        for index, entry in enumerate(dsq_entries, start=start_dsq_pos):
+            entry['posicao'] = index
+            final_ordered_entries.append(entry)
+
+        # Create and save RaceResult entries
+        for entry in final_ordered_entries:
             new_result = RaceResult(
                 race_id=race.id,
-                pilot_id=pilot_id,
-                team_id=team_for_this_race.id if team_for_this_race else None,
-                posicao=i,
+                pilot_id=entry['pilot_id'],
+                team_id=entry['team_id'],
+                posicao=entry['posicao'],
                 status_presenca='OK',
-                dnf=form_data.get(f'pos_{i}_dnf') == 'on',
-                dsq=form_data.get(f'pos_{i}_dsq') == 'on',
-                volta_rapida=form_data.get(f'pos_{i}_vr') == 'on',
-                piloto_do_dia=form_data.get(f'pos_{i}_dotd') == 'on',
-                piloto_torcida=form_data.get(f'pos_{i}_fan') == 'on',
-                grid_largada=grid_start_int,
-                tempo_total=tempo_tot,
-                melhor_volta=best_lap,
-                tempo_qualy=qualy_t,
-                pit_stops=pits_cnt_int,
-                pneus_stints=stints,
-                penalidades_texto=pens
+                dnf=entry['dnf'],
+                dsq=entry['dsq'],
+                volta_rapida=entry['volta_rapida'],
+                piloto_do_dia=entry['piloto_do_dia'],
+                piloto_torcida=entry['piloto_torcida'],
+                grid_largada=entry['grid_largada'],
+                tempo_total=entry['tempo_total'],
+                melhor_volta=entry['melhor_volta'],
+                tempo_qualy=entry['tempo_qualy'],
+                pit_stops=entry['pit_stops'],
+                pneus_stints=entry['pneus_stints'],
+                penalidades_texto=entry['penalidades_texto']
             )
 
-            # Usa o ScoringService para calcular os pontos, mantendo a lógica centralizada
             new_result.pontos_ganhos = ScoringService.calculate_race_points(new_result, grid_size)
-            
             db.session.add(new_result)
 
         # 3. Processa os pilotos ausentes (FJ/FNJ)
@@ -102,14 +159,9 @@ class RaceResultService:
                 if pilot_id in processed_pilots:
                     continue
 
-                # Busca a equipe do piloto (mesma lógica de antes)
                 pilot = PilotProfile.query.get(pilot_id)
-                team_for_this_race = next(
-                    (t for t in pilot.teams if t.season_id == race.season_id and t.grid_id == race.grid_id),
-                    None
-                )
+                team_for_this_race = cls._get_pilot_team_for_race(pilot, race)
 
-                # Cria um registro para a ausência
                 absent_result = RaceResult(
                     race_id=race.id,
                     pilot_id=pilot_id,
