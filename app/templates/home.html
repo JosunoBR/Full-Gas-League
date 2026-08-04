@@ -2054,8 +2054,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const gpName = meta.nome_gp || meta.pista || 'Grande Prêmio';
 
         const heroBannerHtml = `
-            <div class="hero-track-banner mb-3 p-3 rounded-3 position-relative overflow-hidden shadow-sm" style="background: linear-gradient(135deg, #161822 0%, #0c0d12 100%); border: 1px solid rgba(255, 255, 255, 0.08); border-left: 5px solid #e10600;">
-                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div class="hero-track-banner mb-3 p-3 rounded-3 position-relative overflow-hidden shadow-sm text-center" style="background: linear-gradient(135deg, #161822 0%, #0c0d12 100%); border: 1px solid rgba(255, 255, 255, 0.08); border-left: 5px solid #e10600;">
+                <div class="d-flex align-items-center justify-content-center text-center flex-wrap gap-2">
                     <div>
                         <span class="text-danger fw-bold text-uppercase font-monospace d-block mb-1" style="letter-spacing: 1px; font-size: 0.7rem;">
                             <i class="fa-solid fa-location-dot me-1"></i> CIRCUIT OVERVIEW
@@ -2063,8 +2063,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         <h2 class="text-white fw-extrabold mb-0 text-uppercase" style="font-family: 'Outfit', sans-serif; letter-spacing: 0.5px; font-size: 1.6rem; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">
                             ${escapeHtml(trackName)}
                         </h2>
-                        <small class="text-white-50 font-monospace" style="font-size: 0.8rem;">
+                        <small class="text-white-50 font-monospace d-block mt-1" style="font-size: 0.8rem;">
                             <i class="fa-solid fa-flag-checkered me-1 text-danger"></i> ${escapeHtml(gpName)} &bull; FULLGAS LEAGUE
+                        </small>
                     </div>
                 </div>
             </div>

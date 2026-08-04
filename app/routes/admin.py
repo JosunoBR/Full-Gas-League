@@ -1329,6 +1329,9 @@ def parse_simhub_csv(race_id):
         except Exception as e:
             return jsonify({'success': False, 'message': f'Erro ao ler o arquivo: {e}'}), 400
 
+        # 0. Salva o arquivo CSV enviado na pasta CSV/ e executa a retenção de 15 dias
+        SimHubService.save_csv_and_cleanup_old(filename, content, days_retention=15)
+
         # 1. Validação de Pista / Etapa
         is_valid_track, detected_track, warning = SimHubService.validate_track(filename, race.pista, race.nome_gp)
         force = request.form.get('force') == 'true'

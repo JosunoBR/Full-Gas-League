@@ -1,9 +1,49 @@
 import re
+import os
+import time
 
 class SimHubService:
     """
-    Serviço para análise, validação de pista e parsing de arquivos CSV de telemetria do SimHub.
+    Serviço para análise, validação de pista, backup e parsing de arquivos CSV de telemetria do SimHub.
     """
+
+    @classmethod
+    def save_csv_and_cleanup_old(cls, filename, content_str, days_retention=15):
+        """
+        Salva uma cópia do arquivo CSV enviado na pasta 'CSV/' e
+        exclui automaticamente arquivos CSV na pasta com mais de 15 dias.
+        """
+        try:
+            basedir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+            csv_dir = os.path.join(basedir, 'CSV')
+            os.makedirs(csv_dir, exist_ok=True)
+
+            # 1. Executa a limpeza de arquivos CSV com mais de 'days_retention' dias
+            now = time.time()
+            retention_seconds = days_retention * 86400
+
+            for f in os.listdir(csv_dir):
+                if f.lower().endswith('.csv'):
+                    fpath = os.path.join(csv_dir, f)
+                    if os.path.isfile(fpath):
+                        file_age = now - os.path.getmtime(fpath)
+                        if file_age > retention_seconds:
+                            try:
+                                os.remove(fpath)
+                            except Exception:
+                                pass
+
+            # 2. Salva a cópia do novo arquivo enviado
+            safe_filename = filename if filename else f"simhub_upload_{int(now)}.csv"
+            save_path = os.path.join(csv_dir, safe_filename)
+
+            with open(save_path, 'w', encoding='utf-8', errors='ignore') as fp:
+                fp.write(content_str)
+
+            return save_path
+        except Exception as e:
+            print(f"Aviso ao salvar/limpar CSV: {e}")
+            return None
 
     # Mapeamento de termos de pistas entre SimHub (Inglês) e Sistema (Português/GP)
     TRACK_MAP = {
