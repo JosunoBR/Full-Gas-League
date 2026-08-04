@@ -1618,12 +1618,21 @@ document.addEventListener('DOMContentLoaded', function() {
         const hasVR = !!h.volta_rapida;
         const hasEscalador = !!h.maior_escalador;
         const hasDotd = !!h.dotd;
+        const activeHighlightCount = [hasVencedor, hasVR, hasEscalador, hasDotd].filter(Boolean).length;
+        let highlightColClass = 'col-6 col-md-3';
+        if (activeHighlightCount === 3) {
+            highlightColClass = 'col-12 col-md-4';
+        } else if (activeHighlightCount === 2) {
+            highlightColClass = 'col-6 col-md-6';
+        } else if (activeHighlightCount === 1) {
+            highlightColClass = 'col-12';
+        }
 
         if (hasVencedor || hasVR || hasEscalador || hasDotd) {
             highlightsHtml = `
-                <div class="row g-3 mb-4">
+                <div class="row g-2 mb-4">
                     ${hasVencedor ? `
-                        <div class="col-6 col-md-3">
+                        <div class="${highlightColClass}">
                             <div class="race-highlight-card h-100 border-start border-4 border-warning">
                                 <small class="text-warning fw-bold text-uppercase d-block mb-1" style="font-size: 0.7rem;">
                                     <i class="fa-solid fa-trophy me-1"></i> Vencedor
@@ -1632,14 +1641,14 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <img src="${h.vencedor.foto_url ? '/static/uploads/' + h.vencedor.foto_url : '/static/img/NP.jpg'}" class="rounded-circle border border-warning" width="36" height="36" style="object-fit: cover;">
                                     <div class="text-truncate">
                                         <strong class="text-white d-block text-truncate small">${escapeHtml(h.vencedor.nickname)}</strong>
-                                        <small class="text-white-50" style="font-size: 0.7rem;">${escapeHtml(h.vencedor.equipe)}</small>
+                                        <small class="text-white-50 d-block text-truncate" style="font-size: 0.7rem;">${escapeHtml(h.vencedor.equipe)}</small>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     ` : ''}
                     ${hasVR ? `
-                        <div class="col-6 col-md-3">
+                        <div class="${highlightColClass}">
                             <div class="race-highlight-card h-100 border-start border-4 border-info">
                                 <small class="text-info fw-bold text-uppercase d-block mb-1" style="font-size: 0.7rem;">
                                     <i class="fa-solid fa-stopwatch me-1"></i> Volta mais rápida
@@ -1648,14 +1657,14 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <img src="${h.volta_rapida.foto_url ? '/static/uploads/' + h.volta_rapida.foto_url : '/static/img/NP.jpg'}" class="rounded-circle border border-info" width="36" height="36" style="object-fit: cover;">
                                     <div class="text-truncate">
                                         <strong class="text-white d-block text-truncate small">${escapeHtml(h.volta_rapida.nickname)}</strong>
-                                        <small class="text-info fw-bold" style="font-size: 0.75rem;">${escapeHtml(h.volta_rapida.tempo)}</small>
+                                        <small class="text-info fw-bold d-block text-truncate" style="font-size: 0.75rem;">${escapeHtml(h.volta_rapida.tempo)}</small>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     ` : ''}
                     ${hasEscalador ? `
-                        <div class="col-6 col-md-3">
+                        <div class="${highlightColClass}">
                             <div class="race-highlight-card h-100 border-start border-4 border-success">
                                 <small class="text-success fw-bold text-uppercase d-block mb-1" style="font-size: 0.7rem;">
                                     <i class="fa-solid fa-rocket me-1"></i> Maior Escalador
@@ -1664,14 +1673,14 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <img src="${h.maior_escalador.foto_url ? '/static/uploads/' + h.maior_escalador.foto_url : '/static/img/NP.jpg'}" class="rounded-circle border border-success" width="36" height="36" style="object-fit: cover;">
                                     <div class="text-truncate">
                                         <strong class="text-white d-block text-truncate small">${escapeHtml(h.maior_escalador.nickname)}</strong>
-                                        <small class="text-success fw-bold" style="font-size: 0.7rem;">P${h.maior_escalador.largada} &#10140; P${h.maior_escalador.chegada} (+${h.maior_escalador.ganho})</small>
+                                        <small class="text-success fw-bold d-block text-truncate" style="font-size: 0.7rem;">P${h.maior_escalador.largada} &#10140; P${h.maior_escalador.chegada} (+${h.maior_escalador.ganho})</small>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     ` : ''}
                     ${hasDotd ? `
-                        <div class="col-6 col-md-3">
+                        <div class="${highlightColClass}">
                             <div class="race-highlight-card h-100 border-start border-4 border-primary">
                                 <small class="text-primary fw-bold text-uppercase d-block mb-1" style="font-size: 0.7rem;">
                                     <i class="fa-solid fa-star me-1"></i> Piloto do Dia
@@ -1680,7 +1689,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <img src="${h.dotd.foto_url ? '/static/uploads/' + h.dotd.foto_url : '/static/img/NP.jpg'}" class="rounded-circle border border-primary" width="36" height="36" style="object-fit: cover;">
                                     <div class="text-truncate">
                                         <strong class="text-white d-block text-truncate small">${escapeHtml(h.dotd.nickname)}</strong>
-                                        <small class="text-white-50" style="font-size: 0.7rem;">Destaque Votado</small>
+                                        <small class="text-white-50 d-block text-truncate" style="font-size: 0.7rem;">Destaque Votado</small>
                                     </div>
                                 </div>
                             </div>
