@@ -1425,6 +1425,16 @@ def race_results(race_id):
     if race.grid_config and race.grid_config.vagas:
         grid_size = race.grid_config.vagas
 
+    # 8. Busca registros de Check-in (RaceRegistration) da etapa
+    registrations = RaceRegistration.query.filter_by(race_id=race.id).all()
+    checkin_map = {reg.pilot_id: reg for reg in registrations}
+    confirmados_list = [reg for reg in registrations if reg.status == 'CONFIRMADO']
+    ausentes_list = [reg for reg in registrations if reg.status in ['AUSENTE', 'JUSTIFICADO']]
+    
+    # Pilotos elegíveis/titulares do grid que ainda não responderam ao check-in (Pendentes)
+    target_pilots = titulares_do_grid if titulares_do_grid else all_eligible_pilots
+    pendentes_list = [p for p in target_pilots if p.id not in checkin_map]
+
     return render_template('admin/race_results.html', 
                            race=race, 
                            all_pilots=all_pilots,
@@ -1434,7 +1444,12 @@ def race_results(race_id):
                            pilotos_sem_resultado=pilotos_sem_resultado,
                            ausentes_existentes=ausentes_existentes,
                            ausentes_map=ausentes_map,
-                           grid_size=grid_size)
+                           grid_size=grid_size,
+                           registrations=registrations,
+                           checkin_map=checkin_map,
+                           confirmados_list=confirmados_list,
+                           ausentes_list=ausentes_list,
+                           pendentes_list=pendentes_list)
 # --- GESTÃO DE PILOTOS E CONVITES ---
 
 # A função _get_pilot_grid_names_from_ids (que causava o erro) foi removida

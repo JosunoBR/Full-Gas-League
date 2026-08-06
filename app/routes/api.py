@@ -284,19 +284,19 @@ def get_next_race_for_checkin():
         Race.status == 'Agendada'
     ).order_by(Race.data_corrida.asc()).all()
 
-    # Encontra a primeira corrida que o piloto ainda não confirmou ou justificou
-    # (igual à lógica do site em public.py)
+    # Encontra a primeira corrida que esteja dentro da janela de 48h (no máximo 2 dias de antecedência)
     for race in future_races:
-        registration = RaceRegistration.query.filter_by(race_id=race.id, pilot_id=pilot.id).first()
-        if not registration or registration.status not in ['CONFIRMADO', 'JUSTIFICADO']:
-            return jsonify({
-                "race_id": race.id,
-                "nome_gp": race.nome_gp,
-                "pista": race.pista,
-                "data_corrida": race.data_corrida.isoformat(),
-                "grid_nome": race.grid_config.nome if race.grid_config else race.grid,
-                "checkin_status": registration.status if registration else "PENDENTE"
-            }), 200
+        if race.data_corrida and (race.data_corrida - now).days <= 2:
+            registration = RaceRegistration.query.filter_by(race_id=race.id, pilot_id=pilot.id).first()
+            if not registration or registration.status not in ['CONFIRMADO', 'JUSTIFICADO']:
+                return jsonify({
+                    "race_id": race.id,
+                    "nome_gp": race.nome_gp,
+                    "pista": race.pista,
+                    "data_corrida": race.data_corrida.isoformat(),
+                    "grid_nome": race.grid_config.nome if race.grid_config else race.grid,
+                    "checkin_status": registration.status if registration else "PENDENTE"
+                }), 200
 
     # Se chegou aqui, todas as corridas futuras já foram confirmadas/justificadas
     return jsonify(None), 200
@@ -327,6 +327,10 @@ def perform_checkin():
     race = db.session.get(Race, race_id)
     if not race:
         return jsonify({"msg": "Corrida não encontrada"}), 404
+
+    now = datetime.utcnow().date()
+    if race.data_corrida and (race.data_corrida - now).days > 2:
+        return jsonify({"msg": "O check-in só fica disponível 48h antes da corrida."}), 400
 
     pilot_grid_ids = [int(g_id) for g_id in (pilot.grid or '').split(',') if g_id.isdigit()]
     if race.grid_id not in pilot_grid_ids:

@@ -202,6 +202,8 @@ class RaceRegistration(db.Model):
     justificativa = db.Column(db.Text, nullable=True)
     data_resposta = db.Column(db.DateTime, default=datetime.utcnow)
 
+    pilot = db.relationship('PilotProfile', backref=db.backref('registrations', lazy=True))
+
 class RaceResult(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     race_id = db.Column(db.Integer, db.ForeignKey('race.id'), nullable=False)
