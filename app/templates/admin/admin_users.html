@@ -44,6 +44,7 @@
                                     <select name="role" class="form-select form-select-sm bg-dark text-white border-secondary font-monospace" onchange="this.form.submit()">
                                         <option value="ADM" {% if admin.role == 'ADM' %}selected{% endif %}>ADM</option>
                                         <option value="SUPER_ADM" {% if admin.role == 'SUPER_ADM' %}selected{% endif %}>SUPER ADM</option>
+                                        <option value="COMISSARIO" {% if admin.role == 'COMISSARIO' %}selected{% endif %}>COMISSÁRIO</option>
                                         <option value="NARRADOR" {% if admin.role == 'NARRADOR' %}selected{% endif %}>NARRADOR</option>
                                         <option value="PILOTO" class="text-warning">🔻 PILOTO (Rebaixar)</option>
                                     </select>

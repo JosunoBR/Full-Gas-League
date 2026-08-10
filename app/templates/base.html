@@ -183,7 +183,7 @@
                         <a class="nav-link" href="{{ url_for('public.register') }}">Registro</a>
                     </li>
 
-                    {% if current_user.is_authenticated and current_user.role in ['PILOTO', 'ADM', 'SUPER_ADM', 'NARRADOR'] %}
+                    {% if current_user.is_authenticated and current_user.role in ['PILOTO', 'ADM', 'SUPER_ADM', 'NARRADOR', 'COMISSARIO'] %}
                         <li class="nav-item ms-lg-3">
                             <a class="nav-link text-danger" href="{{ url_for('public.my_profile') }}">
                                 <i class="fa-solid fa-helmet-safety me-1"></i> Meu Perfil
@@ -191,32 +191,35 @@
                         </li>
                     {% endif %}
 
-                    {% if current_user.is_authenticated and current_user.role in ['SUPER_ADM', 'ADM'] %}
+                    {% if current_user.is_authenticated and current_user.role in ['SUPER_ADM', 'ADM', 'NARRADOR', 'COMISSARIO'] %}
                         <li class="nav-item dropdown ms-lg-3">
                             <a class="nav-link dropdown-toggle text-danger" href="#" role="button" data-bs-toggle="dropdown">
                                 <i class="fa-solid fa-user-tie me-1"></i> Gestão
                             </a>
                             <ul class="dropdown-menu dropdown-menu-dark border-secondary">
                                 <li><a class="dropdown-item" href="{{ url_for('admin.dashboard') }}">Dashboard</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('admin.overview') }}"><i class="fa-solid fa-chart-pie text-danger me-2"></i>Visão Geral</a></li>
                                 <li><a class="dropdown-item" href="{{ url_for('admin.analytics') }}"><i class="fa-solid fa-chart-line text-info me-2"></i>Analytics & Acessos</a></li>
                                 <li><hr class="dropdown-divider border-secondary"></li>
-                                <li><a class="dropdown-item" href="{{ url_for('admin.list_teams') }}">Equipes</a></li> <li><a class="dropdown-item" href="{{ url_for('admin.seasons') }}">Temporadas</a></li>
-                                <li><a class="dropdown-item" href="{{ url_for('admin.historic') }}">Histórico de Corridas</a></li>
-                                <li><a class="dropdown-item" href="{{ url_for('admin.list_pilots') }}">Pilotos</a></li>
-                                <li><a class="dropdown-item" href="{{ url_for('admin.protests') }}">Tribunal</a></li>
-                                <li><a class="dropdown-item" href="{{ url_for('admin.manual') }}">Manual da Direção</a></li>
+                                {% if current_user.role in ['SUPER_ADM', 'ADM'] %}
+                                    <li><a class="dropdown-item" href="{{ url_for('admin.list_teams') }}">Equipes</a></li> <li><a class="dropdown-item" href="{{ url_for('admin.seasons') }}">Temporadas</a></li>
+                                {% endif %}
+                                {% if current_user.role in ['SUPER_ADM', 'ADM', 'COMISSARIO'] %}
+                                    <li><a class="dropdown-item" href="{{ url_for('admin.historic') }}">Histórico de Corridas</a></li>
+                                {% endif %}
+                                {% if current_user.role in ['SUPER_ADM', 'ADM'] %}
+                                    <li><a class="dropdown-item" href="{{ url_for('admin.list_pilots') }}">Pilotos</a></li>
+                                {% endif %}
+                                {% if current_user.role in ['SUPER_ADM', 'ADM', 'COMISSARIO'] %}
+                                    <li><a class="dropdown-item" href="{{ url_for('admin.protests') }}">Tribunal</a></li>
+                                {% endif %}
+                                {% if current_user.role in ['SUPER_ADM', 'ADM'] %}
+                                    <li><a class="dropdown-item" href="{{ url_for('admin.manual') }}">Manual da Direção</a></li>
+                                {% endif %}
                                 {% if current_user.role == 'SUPER_ADM' %}
                                     <li><a class="dropdown-item" href="{{ url_for('admin.invites') }}">Convites</a></li>
                                 {% endif %}
                             </ul>
-                        </li>
-                    {% endif %}
-
-                    {% if current_user.is_authenticated and current_user.role == 'NARRADOR' %}
-                        <li class="nav-item ms-lg-3">
-                            <a class="nav-link text-danger" href="{{ url_for('admin.overview') }}">
-                                <i class="fa-solid fa-chart-pie me-1"></i> Overview
-                            </a>
                         </li>
                     {% endif %}
 
