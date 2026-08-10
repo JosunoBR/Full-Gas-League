@@ -223,3 +223,82 @@ def get_active_protests_for_pilot(pilot_id, grid_id=None):
     if grid_id is not None:
         query = query.filter_by(grid_id=grid_id)
     return query.all()
+
+
+# --- UTILITÁRIOS DE TELEFONE E DDI INTERNACIONAL ---
+
+DDI_OPTIONS = [
+    # América do Sul e do Norte
+    {'code': '+55', 'flag': '🇧🇷', 'name': 'Brasil (+55)'},
+    {'code': '+52', 'flag': '🇲🇽', 'name': 'México (+52)'},
+    {'code': '+1', 'flag': '🇺🇸', 'name': 'EUA / Canadá (+1)'},
+    {'code': '+54', 'flag': '🇦🇷', 'name': 'Argentina (+54)'},
+    {'code': '+56', 'flag': '🇨🇱', 'name': 'Chile (+56)'},
+    {'code': '+57', 'flag': '🇨🇴', 'name': 'Colômbia (+57)'},
+    {'code': '+598', 'flag': '🇺🇾', 'name': 'Uruguai (+598)'},
+    {'code': '+595', 'flag': '🇵🇾', 'name': 'Paraguai (+595)'},
+    {'code': '+51', 'flag': '🇵🇪', 'name': 'Peru (+51)'},
+    {'code': '+58', 'flag': '🇻🇪', 'name': 'Venezuela (+58)'},
+
+    # Europa
+    {'code': '+351', 'flag': '🇵🇹', 'name': 'Portugal (+351)'},
+    {'code': '+34', 'flag': '🇪🇸', 'name': 'Espanha (+34)'},
+    {'code': '+44', 'flag': '🇬🇧', 'name': 'Reino Unido (+44)'},
+    {'code': '+39', 'flag': '🇮🇹', 'name': 'Itália (+39)'},
+    {'code': '+33', 'flag': '🇫🇷', 'name': 'França (+33)'},
+    {'code': '+49', 'flag': '🇩🇪', 'name': 'Alemanha (+49)'},
+    {'code': '+31', 'flag': '🇳🇱', 'name': 'Holanda (+31)'},
+    {'code': '+32', 'flag': '🇧🇪', 'name': 'Bélgica (+32)'},
+    {'code': '+41', 'flag': '🇨🇭', 'name': 'Suíça (+41)'},
+    {'code': '+43', 'flag': '🇦🇹', 'name': 'Áustria (+43)'},
+    {'code': '+353', 'flag': '🇮🇪', 'name': 'Irlanda (+353)'},
+    {'code': '+46', 'flag': '🇸🇪', 'name': 'Suécia (+46)'},
+    {'code': '+47', 'flag': '🇳🇴', 'name': 'Noruega (+47)'},
+    {'code': '+45', 'flag': '🇩🇰', 'name': 'Dinamarca (+45)'},
+    {'code': '+358', 'flag': '🇫🇮', 'name': 'Finlândia (+358)'},
+    {'code': '+48', 'flag': '🇵🇱', 'name': 'Polônia (+48)'},
+    {'code': '+420', 'flag': '🇨🇿', 'name': 'República Tcheca (+420)'},
+    {'code': '+36', 'flag': '🇭🇺', 'name': 'Hungria (+36)'},
+    {'code': '+30', 'flag': '🇬🇷', 'name': 'Grécia (+30)'},
+    {'code': '+40', 'flag': '🇷🇴', 'name': 'Romênia (+40)'},
+    {'code': '+385', 'flag': '🇭🇷', 'name': 'Croácia (+385)'},
+]
+
+def format_international_phone(ddi, number):
+    """
+    Combina e formata o DDI e o número de telefone local.
+    Ex: ddi="+55", number="(11) 95164-2119" -> "+55 (11) 95164-2119"
+    """
+    if not number or not str(number).strip():
+        return None
+
+    num_clean = str(number).strip()
+    if num_clean.startswith('+'):
+        return num_clean[:30]
+
+    ddi_clean = (ddi or '+55').strip()
+    if not ddi_clean.startswith('+'):
+        ddi_clean = '+' + ddi_clean
+
+    return f"{ddi_clean} {num_clean}"[:30]
+
+def parse_phone_components(telefone_str):
+    """
+    Extrai o DDI (ex: '+55') e o número local a partir da string armazenada.
+    """
+    if not telefone_str:
+        return '+55', ''
+
+    s = str(telefone_str).strip()
+    if s.startswith('+'):
+        parts = s.split(' ', 1)
+        if len(parts) == 2:
+            return parts[0], parts[1]
+        
+        for item in DDI_OPTIONS:
+            c = item['code']
+            if s.startswith(c) and len(s) > len(c):
+                return c, s[len(c):]
+        return s[:4], s[4:]
+
+    return '+55', s

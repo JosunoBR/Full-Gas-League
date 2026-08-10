@@ -7,7 +7,7 @@ from sqlalchemy import or_, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 from app.models import db, Season, Race, PilotProfile, Protesto, RaceResult, VotoComissario, Team, RaceRegistration, User, Invite, News, GridConfig, SeasonChampion, PilotGridPhoto
-from app.utils import allowed_file, get_embed_url, ORDEM_CARROS, get_grid_name, find_grid_config, grid_matches, calcular_perda
+from app.utils import allowed_file, get_embed_url, ORDEM_CARROS, get_grid_name, find_grid_config, grid_matches, calcular_perda, DDI_OPTIONS, format_international_phone, parse_phone_components
 from app.services.team_context import build_team_context
 from app.services.standings_service import StandingsService
 from app.services.scoring_service import ScoringService
@@ -160,7 +160,9 @@ def register():
         email = (request.form.get('email') or '').strip().lower()
         nickname = (request.form.get('nickname') or '')
         nome_real = (request.form.get('nome_real') or '')
-        telefone = request.form.get('telefone')
+        ddi = request.form.get('ddi')
+        telefone_num = request.form.get('telefone_numero') or request.form.get('telefone')
+        telefone = format_international_phone(ddi, telefone_num)
         password = request.form.get('password')
         confirm_password = request.form.get('confirm_password')
 
@@ -198,7 +200,7 @@ def register():
             nickname=nickname[:50], 
             nome_real=nome_real[:100], 
             grid='SEM_GRID',
-            telefone=telefone[:20] if telefone else None
+            telefone=telefone
         )
         db.session.add(new_profile)
         if invite:
@@ -208,7 +210,7 @@ def register():
         flash('Conta criada com sucesso! Faça login para continuar.', 'success')
         return redirect(url_for('public.login'))
 
-    return render_template('register.html')
+    return render_template('register.html', ddi_options=DDI_OPTIONS)
 
 @public_bp.route('/logout')
 def logout():
@@ -694,6 +696,8 @@ def my_profile():
             grid_predominante = max(set(grids_corridos), key=grids_corridos.count) if grids_corridos else "N/A"
             historico_carreira.append({'season_nome': s.nome, 'grid': grid_predominante, 'pontos': pts, 'vitorias': vitorias})
 
+    stored_ddi, stored_number = parse_phone_components(perfil.telefone)
+
     return render_template('pilot/profile.html', 
                            perfil=perfil,
                            is_owner=True,
@@ -710,7 +714,10 @@ def my_profile():
                            quali_ban=quali_ban,
                            available_contexts=available_contexts,
                            current_context=current_context,
-                           current_team=current_team)
+                           current_team=current_team,
+                           ddi_options=DDI_OPTIONS,
+                           stored_ddi=stored_ddi,
+                           stored_number=stored_number)
 
 # --- AÇÕES DE CHECK-IN ---
 
@@ -924,8 +931,10 @@ def update_profile():
     current_user.pilot_profile.nome_real = nome_real[:100]
     current_user.pilot_profile.nickname = new_nickname
     current_user.username = new_nickname # Mantem o login em sincronia
-    telefone_raw = (request.form.get('telefone') or '').strip()
-    current_user.pilot_profile.telefone = telefone_raw[:20] if telefone_raw else None
+    
+    ddi = request.form.get('ddi')
+    telefone_num = request.form.get('telefone_numero') or request.form.get('telefone')
+    current_user.pilot_profile.telefone = format_international_phone(ddi, telefone_num)
     
     nova_senha = request.form.get('password')
     confirma = request.form.get('confirm_password')

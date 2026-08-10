@@ -102,7 +102,16 @@
                     <div class="mb-3">
                         <label class="form-label text-white">Telefone / WhatsApp</label>
                         <div class="input-group">
-                            <input type="text" id="phoneInput" name="telefone" class="form-control bg-secondary text-white border-0" value="{{ pilot.telefone or '' }}" oninput="maskPhone(this)" placeholder="(00) 00000-0000">
+                            <select name="ddi" id="adminDdiSelect" class="form-select bg-secondary text-white border-0" style="max-width: 140px;">
+                                {% for item in ddi_options or [] %}
+                                    <option value="{{ item.code }}" {% if item.code == (stored_ddi or '+55') %}selected{% endif %}>{{ item.flag }} {{ item.code }}</option>
+                                {% else %}
+                                    <option value="+55">🇧🇷 +55</option>
+                                    <option value="+351">🇵🇹 +351</option>
+                                    <option value="+1">🇺🇸 +1</option>
+                                {% endfor %}
+                            </select>
+                            <input type="text" id="phoneInput" name="telefone_numero" class="form-control bg-secondary text-white border-0" value="{{ stored_number or '' }}" oninput="maskPhone(this)" placeholder="(00) 00000-0000">
                             <button type="button" class="btn btn-success" onclick="openWhatsApp()">
                                 <i class="fa-brands fa-whatsapp me-1"></i> Abrir WhatsApp
                             </button>
@@ -217,27 +226,34 @@
 
 <script>
     function openWhatsApp() {
+        let ddiElem = document.getElementById('adminDdiSelect');
+        let ddiCode = ddiElem ? ddiElem.value.replace(/\D/g, '') : '55';
         let phone = document.getElementById('phoneInput').value.replace(/\D/g, '');
-        if (phone.length >= 10) {
-            // Assume código do país 55 (Brasil)
-            window.open(`https://wa.me/55${phone}`, '_blank');
+        if (phone.length >= 7) {
+            window.open(`https://wa.me/${ddiCode}${phone}`, '_blank');
         } else {
-            alert('Por favor, insira um número de telefone válido com DDD para abrir o WhatsApp.');
+            alert('Por favor, insira um número de telefone válido para abrir o WhatsApp.');
         }
     }
 
     function maskPhone(input) {
+        let ddiElem = document.getElementById('adminDdiSelect');
+        let ddi = ddiElem ? ddiElem.value : '+55';
         let value = input.value.replace(/\D/g, '');
-        if (value.length > 11) value = value.slice(0, 11);
-        
-        if (value.length > 10) {
-            input.value = `(${value.slice(0, 2)}) ${value.slice(2, 7)}-${value.slice(7)}`;
-        } else if (value.length > 6) {
-            input.value = `(${value.slice(0, 2)}) ${value.slice(2, 6)}-${value.slice(6)}`;
-        } else if (value.length > 2) {
-            input.value = `(${value.slice(0, 2)}) ${value.slice(2)}`;
-        } else if (value.length > 0) {
-            input.value = `(${value}`;
+        if (ddi === '+55') {
+            if (value.length > 11) value = value.slice(0, 11);
+            if (value.length > 10) {
+                input.value = `(${value.slice(0, 2)}) ${value.slice(2, 7)}-${value.slice(7)}`;
+            } else if (value.length > 6) {
+                input.value = `(${value.slice(0, 2)}) ${value.slice(2, 6)}-${value.slice(6)}`;
+            } else if (value.length > 2) {
+                input.value = `(${value.slice(0, 2)}) ${value.slice(2)}`;
+            } else if (value.length > 0) {
+                input.value = `(${value}`;
+            }
+        } else {
+            if (value.length > 15) value = value.slice(0, 15);
+            input.value = value;
         }
     }
 </script>

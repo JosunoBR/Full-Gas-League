@@ -69,7 +69,7 @@ class PilotProfile(db.Model):
     foto_url = db.Column(db.String(200), nullable=True, default='../img/NP.jpg')
     grid = db.Column(db.String(200), nullable=False, default='SEM_GRID') 
     
-    telefone = db.Column(db.String(20), nullable=True)
+    telefone = db.Column(db.String(30), nullable=True)
     pontos_cnh = db.Column(db.Integer, default=25)
     advertencias_acumuladas = db.Column(db.Integer, default=0)
     

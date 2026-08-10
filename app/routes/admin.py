@@ -6,7 +6,7 @@ from flask import Blueprint, render_template, request, flash, redirect, url_for,
 from flask_login import login_required, current_user
 from sqlalchemy import func, case
 from app.models import db, User, PilotProfile, Season, Race, RaceResult, Invite, Protesto, VotoComissario, Team, RaceRegistration, SeletivaEntry, News, GridConfig, SeasonChampion, PilotGridPhoto, HomeCache, AccessLog
-from app.utils import allowed_file, get_embed_url, PONTUACAO_20, PONTUACAO_22, ORDEM_CARROS, calcular_perda, get_grid_name, find_grid_config, grid_matches
+from app.utils import allowed_file, get_embed_url, PONTUACAO_20, PONTUACAO_22, ORDEM_CARROS, calcular_perda, get_grid_name, find_grid_config, grid_matches, DDI_OPTIONS, format_international_phone, parse_phone_components
 from app.services.scoring_service import ScoringService
 from app.services.diagnostics import build_data_health_report
 from app.services.seletiva_service import SeletivaService
@@ -1610,8 +1610,9 @@ def edit_pilot(pilot_id):
                         ids_limpos.append(str(int(val_clean)))
                     else:
                         ids_limpos.append(val_clean)
-        pilot.grid = ",".join(sorted(set(ids_limpos))) if ids_limpos else 'SEM_GRID'
-        pilot.telefone = request.form.get('telefone')[:20] if request.form.get('telefone') else None
+        ddi = request.form.get('ddi')
+        telefone_num = request.form.get('telefone_numero') or request.form.get('telefone')
+        pilot.telefone = format_international_phone(ddi, telefone_num)
         
         pontos = request.form.get('pontos_cnh')
         try:
@@ -1718,7 +1719,8 @@ def edit_pilot(pilot_id):
         Protesto.status == 'CONCLUIDO'
     ).order_by(Protesto.data_fechamento.desc()).all()
 
-    return render_template('admin/edit_pilot.html', pilot=pilot, grid_configs_options=grid_configs_options, special_options=special_options, historico=historico_punicoes)
+    stored_ddi, stored_number = parse_phone_components(pilot.telefone)
+    return render_template('admin/edit_pilot.html', pilot=pilot, grid_configs_options=grid_configs_options, special_options=special_options, historico=historico_punicoes, ddi_options=DDI_OPTIONS, stored_ddi=stored_ddi, stored_number=stored_number)
 
 @admin_bp.route('/pilots/reset/<int:pilot_id>', methods=['POST'])
 def reset_pilot_status(pilot_id):

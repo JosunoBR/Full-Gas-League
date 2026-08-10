@@ -438,10 +438,48 @@
                         <input type="text" name="nome_real" class="form-control bg-secondary text-white border-0" value="{{ perfil.nome_real or '' }}" required>
                     </div>
                     <div class="mb-3">
+                        <label class="form-label text-white-50 small">Telefone / WhatsApp</label>
+                        <div class="input-group">
+                            <select name="ddi" id="profileDdiSelect" class="form-select bg-secondary text-white border-0" style="max-width: 140px;">
+                                {% for item in ddi_options or [] %}
+                                    <option value="{{ item.code }}" {% if item.code == (stored_ddi or '+55') %}selected{% endif %}>{{ item.flag }} {{ item.code }}</option>
+                                {% else %}
+                                    <option value="+55">🇧🇷 +55</option>
+                                    <option value="+351">🇵🇹 +351</option>
+                                    <option value="+1">🇺🇸 +1</option>
+                                {% endfor %}
+                            </select>
+                            <input type="text" name="telefone_numero" class="form-control bg-secondary text-white border-0" value="{{ stored_number or '' }}" placeholder="(00) 00000-0000" oninput="maskProfilePhone(this)">
+                        </div>
+                    </div>
+                    <div class="mb-3">
                         <label class="form-label text-white-50 small">Foto de Perfil (JPG, PNG)</label>
                         <input type="file" name="foto" class="form-control bg-secondary text-white border-0">
                     </div>
                 </div>
+
+                <script>
+                function maskProfilePhone(input) {
+                    let ddiElem = document.getElementById('profileDdiSelect');
+                    let ddi = ddiElem ? ddiElem.value : '+55';
+                    let val = input.value.replace(/\D/g, '');
+                    if (ddi === '+55') {
+                        if (val.length > 11) val = val.slice(0, 11);
+                        if (val.length > 10) {
+                            input.value = `(${val.slice(0, 2)}) ${val.slice(2, 7)}-${val.slice(7)}`;
+                        } else if (val.length > 6) {
+                            input.value = `(${val.slice(0, 2)}) ${val.slice(2, 6)}-${val.slice(6)}`;
+                        } else if (val.length > 2) {
+                            input.value = `(${val.slice(0, 2)}) ${val.slice(2)}`;
+                        } else if (val.length > 0) {
+                            input.value = `(${val}`;
+                        }
+                    } else {
+                        if (val.length > 15) val = val.slice(0, 15);
+                        input.value = val;
+                    }
+                }
+                </script>
                 <div class="modal-footer border-secondary">
                     <button type="button" class="btn btn-secondary text-white" data-bs-dismiss="modal">Cancelar</button>
                     <button type="submit" class="btn btn-danger fw-bold text-white">SALVAR ALTERAÇÕES</button>
