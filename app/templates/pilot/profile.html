@@ -198,7 +198,7 @@
                     </ul>
                  </div>
                  {% else %}
-                    {% if current_context %}
+                    {% if current_context and current_context.grid and current_context.grid.strip().upper() != 'SEM_GRID' %}
                         <span class="badge bg-danger text-white fw-bold">{% if current_context.season_nome.strip().upper() == current_context.grid.strip().upper() %}{{ current_context.grid }}{% else %}{{ current_context.season_nome }} - {{ current_context.grid }}{% endif %}</span>
                     {% endif %}
                  {% endif %}

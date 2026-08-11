@@ -306,6 +306,8 @@ def public_profile(pilot_id):
 
         # 3) Grids do perfil (aceita ID ou nome).
         for pg in p_grids:
+            if not pg or pg.strip().upper() == 'SEM_GRID':
+                continue
             cfg = None
             g_name = None
             g_id = None
@@ -344,6 +346,16 @@ def public_profile(pilot_id):
     if not current_context and available_contexts:
         default_grid = p_grids[0] if p_grids else 'SEM_GRID'
         current_context = next((c for c in available_contexts if c['grid'] == default_grid), available_contexts[0])
+    
+    if not available_contexts and active_seasons:
+        default_season = active_seasons[0]
+        current_context = {
+            'season_id': default_season.id,
+            'season_nome': default_season.nome,
+            'grid': 'SEM_GRID',
+            'grid_id': None
+        }
+        available_contexts = [current_context]
     
     quali_ban = False
     # Lógica de Foto por Grid (baseada em ID)
@@ -522,6 +534,8 @@ def my_profile():
 
         # 3) Grids do perfil (aceita ID ou nome).
         for pg in p_grids:
+            if not pg or pg.strip().upper() == 'SEM_GRID':
+                continue
             cfg = None
             g_name = None
             g_id = None
@@ -562,6 +576,16 @@ def my_profile():
     if not current_context and available_contexts:
         default_grid = p_grids[0] if p_grids else 'SEM_GRID'
         current_context = next((c for c in available_contexts if c['grid'] == default_grid), available_contexts[0])
+    
+    if not available_contexts and active_seasons:
+        default_season = active_seasons[0]
+        current_context = {
+            'season_id': default_season.id,
+            'season_nome': default_season.nome,
+            'grid': 'SEM_GRID',
+            'grid_id': None
+        }
+        available_contexts = [current_context]
     
     quali_ban = False
     # Lógica de Foto por Grid (baseada em ID)

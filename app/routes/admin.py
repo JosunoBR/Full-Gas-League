@@ -1610,6 +1610,7 @@ def edit_pilot(pilot_id):
                         ids_limpos.append(str(int(val_clean)))
                     else:
                         ids_limpos.append(val_clean)
+        pilot.grid = ",".join(ids_limpos) if ids_limpos else 'SEM_GRID'
         ddi = request.form.get('ddi')
         telefone_num = request.form.get('telefone_numero') or request.form.get('telefone')
         pilot.telefone = format_international_phone(ddi, telefone_num)
