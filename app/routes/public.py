@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 from flask import Blueprint, render_template, request, flash, redirect, url_for, current_app, abort
 from flask_login import login_required, current_user, login_user, logout_user
 from werkzeug.security import check_password_hash
@@ -23,6 +23,28 @@ def _parse_profile_grids(profile_grid_value):
     ids = {int(g) for g in tokens if g.isdigit()}
     names = {g.upper() for g in tokens if not g.isdigit()}
     return ids, names
+
+
+def _is_race_open_for_protest(race):
+    if not race or not race.data_corrida:
+        return False
+    now_local = datetime.utcnow() - timedelta(hours=3)
+    today_local = now_local.date()
+    # A corrida já deve ter ocorrido
+    if today_local < race.data_corrida:
+        return False
+    # O protesto pode ser aberto até 23:59:59 do dia seguinte à corrida (data_corrida + 1 dia)
+    deadline_date = race.data_corrida + timedelta(days=1)
+    deadline_dt = datetime.combine(deadline_date, time(23, 59, 59))
+    return now_local <= deadline_dt
+
+
+def _is_protest_defense_open(protesto):
+    if not protesto or not protesto.data_criacao:
+        return False
+    # O acusado tem exatamente 48h a partir da data de criação do protesto
+    deadline = protesto.data_criacao + timedelta(hours=48)
+    return datetime.utcnow() <= deadline
 
 
 def _pilot_has_membership_for_race(pilot, race):
@@ -918,13 +940,21 @@ def submit_defense(protest_id):
     protesto = Protesto.query.get_or_404(protest_id)
     if protesto.acusado_id != current_user.pilot_profile.id: return redirect(url_for('public.my_profile'))
     if protesto.status == 'CONCLUIDO': return redirect(url_for('public.my_profile'))
+    
+    defense_open = _is_protest_defense_open(protesto)
+
     if request.method == 'POST':
+        if not defense_open:
+            flash('O prazo de 48 horas para envio da sua defesa expirou.', 'danger')
+            return redirect(url_for('public.my_profile'))
+
         protesto.video_defesa = request.form.get('video_defesa')
         protesto.argumento_defesa = request.form.get('argumento_defesa')
         if protesto.status == 'AGUARDANDO_DEFESA': protesto.status = 'EM_VOTACAO'
         db.session.commit()
         return redirect(url_for('public.my_profile'))
-    return render_template('pilot/defense.html', protesto=protesto)
+    
+    return render_template('pilot/defense.html', protesto=protesto, defense_open=defense_open)
 
 @public_bp.route('/protesto/<int:protest_id>/delete', methods=['POST'])
 @login_required
@@ -1070,6 +1100,13 @@ def open_protest():
         if not race.grid_id:
             flash('Corrida sem grid vinculado. Contate a administracao.', 'danger')
             return redirect(url_for('public.open_protest'))
+        if not _is_race_open_for_protest(race):
+            now_local = datetime.utcnow() - timedelta(hours=3)
+            if race.data_corrida and now_local.date() < race.data_corrida:
+                flash('Esta corrida ainda não foi realizada.', 'warning')
+            else:
+                flash('O prazo para abertura de protesto referente a esta etapa expirou (limite até às 23:59 do dia seguinte à corrida).', 'danger')
+            return redirect(url_for('public.open_protest'))
         if not has_active_team and not is_valid_pilot:
             flash('Voce precisa estar vinculado a um grid aberto para abrir protestos.', 'warning')
             return redirect(url_for('public.my_profile'))
@@ -1123,14 +1160,12 @@ def open_protest():
 
     if has_active_team:
         # CENÁRIO 1: Vinculado a equipe -> Restringe aos grids da equipe
-        # Mostra corridas apenas dos grids onde ele corre pela equipe
-        races = Race.query.filter(
+        races_raw = Race.query.filter(
             Race.season_id.in_(active_seasons_ids),
             Race.grid_id.in_(my_team_grid_ids)
         ).order_by(Race.data_corrida.desc()).all()
+        races = [r for r in races_raw if _is_race_open_for_protest(r)]
         
-        # Filtra pilotos que também estão nesses grids (para acusar)
-        # Nota: Trazemos todos e filtramos no Python para garantir cruzamento correto de grids
         all_pilots = PilotProfile.query.filter(PilotProfile.id != user_profile.id).order_by(PilotProfile.nickname).all()
         for p in all_pilots:
             p_grids = set()
@@ -1144,10 +1179,9 @@ def open_protest():
             if p_grids & my_team_grid_ids:
                 pilots.append(p)
     else:
-        # CENÁRIO 2: Sem equipe (Reserva Global) -> Acesso Total
-        # Pode ver todas as corridas e acusar qualquer piloto
+        # CENÁRIO 2: Sem equipe (Reserva Global)
         all_races = Race.query.filter(Race.season_id.in_(active_seasons_ids)).order_by(Race.data_corrida.desc()).all()
-        races = all_races
+        races = [r for r in all_races if _is_race_open_for_protest(r)]
         pilots = PilotProfile.query.filter(PilotProfile.id != user_profile.id).order_by(PilotProfile.nickname).all()
         
     return render_template('pilot/protest.html', races=races, pilots=pilots)

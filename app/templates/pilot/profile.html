@@ -309,6 +309,9 @@
                                     <span class="badge bg-secondary text-white ms-1" style="font-size: 0.7rem;">Volta/Minuto: {{ p.minuto }}</span>
                                 {% endif %}
                                 <span class="d-block small text-white-50">Contra: {{ p.acusado.nickname }}</span>
+                                {% if p.data_criacao %}
+                                    <span class="d-block text-white-50" style="font-size: 0.72rem;"><i class="fa-regular fa-clock me-1"></i> Aberto em {{ p.data_criacao | format_datetime }}</span>
+                                {% endif %}
                             </div>
                             {% if p.status == 'CONCLUIDO' %}
                                 {% if p.veredito_final == 'INOCENTE' %}
@@ -368,6 +371,9 @@
                                     <span class="badge bg-secondary text-white ms-1" style="font-size: 0.7rem;">Volta/Minuto: {{ p.minuto }}</span>
                                 {% endif %}
                                 <span class="d-block small text-white-50">Por: {{ p.acusador.nickname }}</span>
+                                {% if p.data_criacao %}
+                                    <span class="d-block text-white-50" style="font-size: 0.72rem;"><i class="fa-regular fa-clock me-1"></i> Aberto em {{ p.data_criacao | format_datetime }}</span>
+                                {% endif %}
                             </div>
                             {% if p.status == 'CONCLUIDO' %}
                                 {% if p.veredito_final == 'INOCENTE' %}

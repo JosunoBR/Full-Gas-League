@@ -81,7 +81,8 @@ def inject_now():
         'now_year': datetime.now(timezone.utc).year,
         'instagram_url': app.config.get('INSTAGRAM_URL'),
         'youtube_url': app.config.get('YOUTUBE_URL'),
-        'contact_email': app.config.get('CONTACT_EMAIL')
+        'contact_email': app.config.get('CONTACT_EMAIL'),
+        'timedelta': timedelta
     }
 
 @app.template_filter('format_datetime')

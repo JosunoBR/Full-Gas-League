@@ -7,6 +7,11 @@
         <div>
             <h3 class="text-white fw-bold mb-0" style="font-family: 'Cinzel', serif;">DOSSIÊ DO CASO #{{ protesto.id }}</h3>
             <span class="text-white-50">{{ protesto.etapa.nome_gp }} - {{ protesto.etapa.grid }}</span>
+            {% if protesto.data_criacao %}
+                <span class="badge bg-dark text-warning border border-warning ms-2 align-middle">
+                    <i class="fa-regular fa-clock me-1"></i> Aberto em {{ protesto.data_criacao | format_datetime }}
+                </span>
+            {% endif %}
         </div>
         
         <div class="d-flex align-items-center gap-3">

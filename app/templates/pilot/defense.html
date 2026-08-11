@@ -14,33 +14,42 @@
                     <p class="mb-1"><strong>Acusador:</strong> {{ protesto.acusador.nickname }}</p>
                     <p class="mb-1"><strong>Etapa:</strong> {{ protesto.etapa.nome_gp }}</p>
                     <p class="mb-1"><strong>Momento:</strong> {{ protesto.minuto }}</p>
+                    <p class="mb-1"><strong>Aberto em:</strong> <span class="text-warning fw-bold">{{ protesto.data_criacao | format_datetime }}</span></p>
+                    <p class="mb-1"><strong>Prazo para Defesa:</strong> <span class="text-info fw-bold">{{ (protesto.data_criacao + timedelta(hours=48)) | format_datetime }}</span></p>
                     <hr>
                     <p class="mb-0 fst-italic">"{{ protesto.descricao }}"</p>
                 </div>
 
-                <p class="text-danger small">
-                    * Você não tem acesso ao vídeo da acusação para garantir a integridade do seu relato.
-                    Envie a sua visão dos fatos.
-                </p>
+                {% if defense_open is defined and not defense_open %}
+                    <div class="alert alert-danger fw-bold border-danger py-3">
+                        <i class="fa-solid fa-clock-rotate-left fa-lg me-2"></i> 
+                        O prazo limite de 48 horas para envio de defesa deste ticket já expirou.
+                    </div>
+                {% else %}
+                    <p class="text-danger small">
+                        * Você não tem acesso ao vídeo da acusação para garantir a integridade do seu relato.
+                        Envie a sua visão dos fatos.
+                    </p>
 
-                <form method="POST">
-                    <div class="mb-3">
-                        <label class="form-label text-warning">Link do Seu Vídeo (Opcional)</label>
-                        <div class="input-group">
-                            <input type="url" id="video_defesa" name="video_defesa" class="form-control bg-secondary text-white border-warning" placeholder="YouTube / Twitch / Drive">
-                            <button type="button" class="btn btn-outline-warning" onclick="document.getElementById('video_defesa').value=''">Sem Vídeo</button>
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label class="form-label text-warning">Link do Seu Vídeo (Opcional)</label>
+                            <div class="input-group">
+                                <input type="url" id="video_defesa" name="video_defesa" class="form-control bg-secondary text-white border-warning" placeholder="YouTube / Twitch / Drive">
+                                <button type="button" class="btn btn-outline-warning" onclick="document.getElementById('video_defesa').value=''">Sem Vídeo</button>
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="mb-4">
-                        <label class="form-label text-warning">Seus Argumentos</label>
-                        <textarea name="argumento_defesa" class="form-control bg-secondary text-white border-warning" rows="5" placeholder="Explique o que aconteceu do seu ponto de vista..." required></textarea>
-                    </div>
+                        <div class="mb-4">
+                            <label class="form-label text-warning">Seus Argumentos</label>
+                            <textarea name="argumento_defesa" class="form-control bg-secondary text-white border-warning" rows="5" placeholder="Explique o que aconteceu do seu ponto de vista..." required></textarea>
+                        </div>
 
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-warning btn-lg fw-bold">ENVIAR DEFESA E IR A JULGAMENTO</button>
-                    </div>
-                </form>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-warning btn-lg fw-bold">ENVIAR DEFESA E IR A JULGAMENTO</button>
+                        </div>
+                    </form>
+                {% endif %}
 
             </div>
         </div>
