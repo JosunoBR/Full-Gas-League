@@ -26,7 +26,12 @@
                 <tbody>
                     {% for p in aguardando %}
                     <tr>
-                        <td class="ps-3 fw-bold text-white">{{ p.etapa.nome_gp }}</td>
+                        <td class="ps-3 fw-bold text-white">
+                            {{ p.etapa.nome_gp }}
+                            {% if p.data_criacao %}
+                                <br><small class="text-white-50 fw-normal" style="font-size:0.75rem;"><i class="fa-regular fa-clock me-1"></i> {{ p.data_criacao | format_datetime }}</small>
+                            {% endif %}
+                        </td>
                         <td class="text-white">
                             <span class="text-info">{{ p.acusador.nickname }}</span> 
                             <span class="text-white-50 mx-1">vs</span> 
@@ -79,7 +84,12 @@
                 <tbody>
                     {% for p in pendentes %}
                     <tr>
-                        <td class="ps-3 fw-bold text-white">{{ p.etapa.nome_gp }}</td>
+                        <td class="ps-3 fw-bold text-white">
+                            {{ p.etapa.nome_gp }}
+                            {% if p.data_criacao %}
+                                <br><small class="text-white-50 fw-normal" style="font-size:0.75rem;"><i class="fa-regular fa-clock me-1"></i> {{ p.data_criacao | format_datetime }}</small>
+                            {% endif %}
+                        </td>
                         <td class="text-white">
                             {{ p.acusador.nickname }} <span class="text-white-50">vs</span> {{ p.acusado.nickname }}
                         </td>
@@ -132,7 +142,12 @@
                 <tbody>
                     {% for p in concluidos %}
                     <tr>
-                        <td class="ps-3 text-white">{{ p.etapa.nome_gp }}</td>
+                        <td class="ps-3 text-white fw-bold">
+                            {{ p.etapa.nome_gp }}
+                            {% if p.data_criacao %}
+                                <br><small class="text-white-50 fw-normal" style="font-size:0.75rem;"><i class="fa-regular fa-clock me-1"></i> {{ p.data_criacao | format_datetime }}</small>
+                            {% endif %}
+                        </td>
                         <td class="text-white">
                             {{ p.acusador.nickname }} <span class="text-white-50">vs</span> {{ p.acusado.nickname }}
                         </td>
