@@ -1,6 +1,11 @@
-# -*- coding: utf-8 -*-
 import os
+from datetime import datetime, timedelta
 from urllib.parse import urlparse, parse_qs
+
+def get_brasilia_now():
+    """Retorna a data/hora atual no fuso horário de Brasília (UTC-3)."""
+    return datetime.utcnow() - timedelta(hours=3)
+
 
 # ImportaÃ§Ãµes de models (lazy import para evitar circular imports)
 # SÃ£o importadas dentro das funÃ§Ãµes que as usam

@@ -89,9 +89,8 @@ def inject_now():
 def format_datetime(value, format="%d/%m/%Y às %H:%M"):
     if value is None:
         return ""
-    # Converte de UTC para horário de Brasília (UTC-3)
-    local_val = value - timedelta(hours=3)
-    return local_val.strftime(format)
+    return value.strftime(format)
+
 
 
 @app.before_request

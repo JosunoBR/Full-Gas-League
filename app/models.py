@@ -3,6 +3,8 @@ from datetime import datetime
 from flask_login import UserMixin
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
+from app.utils import get_brasilia_now
+
 
 db = SQLAlchemy()
 
@@ -200,7 +202,7 @@ class RaceRegistration(db.Model):
     pilot_id = db.Column(db.Integer, db.ForeignKey('pilot_profile.id'), nullable=False)
     status = db.Column(db.String(20), nullable=False)
     justificativa = db.Column(db.Text, nullable=True)
-    data_resposta = db.Column(db.DateTime, default=datetime.utcnow)
+    data_resposta = db.Column(db.DateTime, default=get_brasilia_now)
 
     pilot = db.relationship('PilotProfile', backref=db.backref('registrations', lazy=True))
 
@@ -282,7 +284,7 @@ class Protesto(db.Model):
     veredito_final = db.Column(db.String(50), nullable=True)
     justificativa_texto = db.Column(db.Text, nullable=True)
     
-    data_criacao = db.Column(db.DateTime, default=datetime.utcnow)
+    data_criacao = db.Column(db.DateTime, default=get_brasilia_now)
     data_fechamento = db.Column(db.DateTime, nullable=True)
 
     votos = db.relationship('VotoComissario', backref='protesto_rel', lazy=True, cascade="all, delete-orphan")
@@ -292,6 +294,8 @@ class VotoComissario(db.Model):
     protesto_id = db.Column(db.Integer, db.ForeignKey('protesto.id'), nullable=False)
     admin_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     escolha = db.Column(db.String(50), nullable=False)
+
+    admin = db.relationship('User', backref='votos_comissario')
 
 
 class Invite(db.Model):
@@ -305,7 +309,7 @@ class SeletivaEntry(db.Model):
     pilot_id = db.Column(db.Integer, db.ForeignKey('pilot_profile.id'), nullable=False)
     tempo_ms = db.Column(db.Integer, nullable=False) # Tempo em milissegundos para ordenação
     tempo_str = db.Column(db.String(20), nullable=False) # Texto original (ex: 1:35.800)
-    data_registro = db.Column(db.DateTime, default=datetime.utcnow)
+    data_registro = db.Column(db.DateTime, default=get_brasilia_now)
     
     piloto = db.relationship('PilotProfile', backref='seletivas')
 
@@ -315,7 +319,7 @@ class News(db.Model):
     subtitulo = db.Column(db.String(300))
     texto = db.Column(db.Text, nullable=False)
     imagem_url = db.Column(db.String(200)) 
-    data_publicacao = db.Column(db.DateTime, default=datetime.utcnow)
+    data_publicacao = db.Column(db.DateTime, default=get_brasilia_now)
     autor_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     
     autor = db.relationship('User')
@@ -369,7 +373,7 @@ class HomeCache(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     season_id = db.Column(db.Integer, db.ForeignKey('season.id'), unique=True)
     data_json = db.Column(db.Text, nullable=False)
-    last_updated = db.Column(db.DateTime, default=datetime.utcnow)
+    last_updated = db.Column(db.DateTime, default=get_brasilia_now)
 
     season = db.relationship('Season', backref=db.backref('home_cache', uselist=False))
 
@@ -381,7 +385,7 @@ class AccessLog(db.Model):
     route = db.Column(db.String(100), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     ip_address = db.Column(db.String(45), nullable=True)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    timestamp = db.Column(db.DateTime, default=get_brasilia_now)
 
     user = db.relationship('User', backref=db.backref('access_logs', lazy=True))
 

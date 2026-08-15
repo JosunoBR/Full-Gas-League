@@ -150,15 +150,32 @@
                 </div>
                 <div class="card-body">
                     
-                    <h6 class="text-white border-bottom border-secondary pb-2 mb-3">APURAÇÃO DOS VOTOS:</h6>
-                    <div class="mb-4">
-                        {% for voto in votos_resumo %}
-                        <div class="d-flex justify-content-between align-items-center mb-1">
-                            <span class="text-white-50 small">{{ voto[0] }}</span>
-                            <span class="badge bg-secondary">{{ voto[1] }} votos</span>
+                    <div class="d-flex justify-content-between align-items-center border-bottom border-secondary pb-2 mb-3">
+                        <h6 class="text-white mb-0">APURAÇÃO DOS VOTOS:</h6>
+                        <span class="badge bg-secondary">{{ protesto.votos|length }} voto(s)</span>
+                    </div>
+                    <div class="mb-4 d-flex flex-column gap-2">
+                        {% for voto in protesto.votos %}
+                        <div class="d-flex justify-content-between align-items-center p-2 rounded bg-black bg-opacity-25 border border-secondary border-opacity-25">
+                            <div class="d-flex align-items-center text-truncate me-2">
+                                <i class="fa-solid fa-user-shield text-danger me-2"></i>
+                                <span class="text-white small fw-bold text-truncate">
+                                    {{ voto.admin.pilot_profile.nickname if voto.admin.pilot_profile else voto.admin.username }}
+                                </span>
+                            </div>
+                            <span class="badge flex-shrink-0 {% if voto.escolha in ['INOCENTE', 'INCIDENTE_CORRIDA'] %}bg-success{% elif voto.escolha == 'ADVERTENCIA' %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                                {% if voto.escolha == 'INOCENTE' %}Inocente
+                                {% elif voto.escolha == 'INCIDENTE_CORRIDA' %}Incidente
+                                {% elif voto.escolha == 'ADVERTENCIA' %}Advertência
+                                {% elif voto.escolha == 'LEVE' %}Leve (-3)
+                                {% elif voto.escolha == 'MEDIA' %}Média (-5)
+                                {% elif voto.escolha == 'GRAVE' %}Grave (-10)
+                                {% else %}{{ voto.escolha }}
+                                {% endif %}
+                            </span>
                         </div>
                         {% else %}
-                            <p class="text-muted small fst-italic">Nenhum voto computado ainda.</p>
+                            <p class="text-muted small fst-italic mb-0">Nenhum voto computado ainda.</p>
                         {% endfor %}
                     </div>
 

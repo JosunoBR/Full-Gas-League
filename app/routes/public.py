@@ -7,7 +7,7 @@ from sqlalchemy import or_, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 from app.models import db, Season, Race, PilotProfile, Protesto, RaceResult, VotoComissario, Team, RaceRegistration, User, Invite, News, GridConfig, SeasonChampion, PilotGridPhoto
-from app.utils import allowed_file, get_embed_url, ORDEM_CARROS, get_grid_name, find_grid_config, grid_matches, calcular_perda, DDI_OPTIONS, format_international_phone, parse_phone_components
+from app.utils import allowed_file, get_embed_url, ORDEM_CARROS, get_grid_name, find_grid_config, grid_matches, calcular_perda, DDI_OPTIONS, format_international_phone, parse_phone_components, get_brasilia_now
 from app.services.team_context import build_team_context
 from app.services.standings_service import StandingsService
 from app.services.scoring_service import ScoringService
@@ -28,7 +28,7 @@ def _parse_profile_grids(profile_grid_value):
 def _is_race_open_for_protest(race):
     if not race or not race.data_corrida:
         return False
-    now_local = datetime.utcnow() - timedelta(hours=3)
+    now_local = get_brasilia_now()
     today_local = now_local.date()
     # A corrida já deve ter ocorrido
     if today_local < race.data_corrida:
@@ -44,7 +44,8 @@ def _is_protest_defense_open(protesto):
         return False
     # O acusado tem exatamente 48h a partir da data de criação do protesto
     deadline = protesto.data_criacao + timedelta(hours=48)
-    return datetime.utcnow() <= deadline
+    return get_brasilia_now() <= deadline
+
 
 
 def _pilot_has_membership_for_race(pilot, race):
