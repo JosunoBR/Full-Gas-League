@@ -15,6 +15,7 @@ from app.services.stats_service import StatsService
 from app.services.domain_rules import validate_unique_membership_per_grid
 from app.services.team_context import build_team_context
 from app.services.simhub_service import SimHubService
+from app.services.protest_service import ProtestService
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -2158,6 +2159,7 @@ def close_seletiva():
 
 @admin_bp.route('/protests')
 def protests():
+    ProtestService.atualizar_protestos_expirados()
     # Conta o total de administradores aptos a votar
     total_admins = User.query.filter(User.role.in_(['ADM', 'SUPER_ADM', 'COMISSARIO'])).count()
 
@@ -2190,6 +2192,7 @@ def _resolve_reopened_protest_status(protesto):
 
 @admin_bp.route('/protests/<int:protest_id>', methods=['GET', 'POST'])
 def view_protest(protest_id):
+    ProtestService.atualizar_protestos_expirados()
     protesto = db.session.get(Protesto, protest_id) or abort(404)
     meu_voto = VotoComissario.query.filter_by(protesto_id=protesto.id, admin_id=current_user.id).first()
     

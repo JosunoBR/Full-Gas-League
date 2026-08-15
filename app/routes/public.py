@@ -13,6 +13,7 @@ from app.services.standings_service import StandingsService
 from app.services.scoring_service import ScoringService
 from app.services.discipline_service import DisciplineService
 from app.services.notification_service import NotificationService
+from app.services.protest_service import ProtestService
 
 public_bp = Blueprint('public', __name__)
 
@@ -40,11 +41,7 @@ def _is_race_open_for_protest(race):
 
 
 def _is_protest_defense_open(protesto):
-    if not protesto or not protesto.data_criacao:
-        return False
-    # O acusado tem exatamente 48h a partir da data de criação do protesto
-    deadline = protesto.data_criacao + timedelta(hours=48)
-    return get_brasilia_now() <= deadline
+    return ProtestService.is_defense_open(protesto)
 
 
 
@@ -715,6 +712,7 @@ def my_profile():
                 'dnf': resultado.dnf if resultado else False, 'dsq': resultado.dsq if resultado else False
             })
 
+    ProtestService.atualizar_protestos_expirados()
     meus_protestos = Protesto.query.filter_by(acusador_id=perfil.id).order_by(Protesto.data_criacao.desc()).all()
     protestos_recebidos = Protesto.query.filter_by(acusado_id=perfil.id).order_by(Protesto.data_criacao.desc()).all()
     
@@ -920,6 +918,7 @@ def team_profile(team_id):
 @public_bp.route('/tribunal/protesto/<int:protest_id>')
 @login_required
 def view_protest_public(protest_id):
+    ProtestService.atualizar_protestos_expirados()
     protesto = db.session.get(Protesto, protest_id) or abort(404)
     is_involved = current_user.pilot_profile and (current_user.pilot_profile.id in [protesto.acusado_id, protesto.acusador_id])
     is_admin = current_user.role in ['SUPER_ADM', 'ADM', 'NARRADOR']
@@ -1133,7 +1132,7 @@ def open_protest():
             minuto=request.form.get('minuto'),
             descricao=request.form.get('descricao'),
             status='AGUARDANDO_DEFESA',
-            data_criacao=datetime.utcnow()
+            data_criacao=get_brasilia_now()
         )
         db.session.add(novo)
         db.session.commit()

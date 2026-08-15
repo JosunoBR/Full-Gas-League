@@ -3,7 +3,7 @@ import shutil
 import sys
 import tempfile
 import unittest
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from flask import Flask
 from flask_login import LoginManager
@@ -157,7 +157,7 @@ class ProtestFlowTests(unittest.TestCase):
             season_id=season.id,
             nome_gp='GP de Teste',
             pista='Interlagos',
-            data_corrida=date(2026, 3, 10),
+            data_corrida=date.today() - timedelta(days=1),
             grid='ELITE',
             grid_id=grid.id,
             status='Concluida',

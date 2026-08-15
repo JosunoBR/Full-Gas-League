@@ -289,6 +289,11 @@ class Protesto(db.Model):
 
     votos = db.relationship('VotoComissario', backref='protesto_rel', lazy=True, cascade="all, delete-orphan")
 
+    def __init__(self, **kwargs):
+        if 'data_criacao' not in kwargs or kwargs['data_criacao'] is None:
+            kwargs['data_criacao'] = get_brasilia_now()
+        super().__init__(**kwargs)
+
 class VotoComissario(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     protesto_id = db.Column(db.Integer, db.ForeignKey('protesto.id'), nullable=False)

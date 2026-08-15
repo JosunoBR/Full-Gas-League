@@ -7,7 +7,8 @@ from app.services.calendar_service import CalendarService
 from app.services.standings_service import StandingsService
 from app.services.discipline_service import DisciplineService
 from app.services.notification_service import NotificationService
-from app.utils import calcular_perda
+from app.services.protest_service import ProtestService
+from app.utils import calcular_perda, get_brasilia_now
 from datetime import datetime, timedelta
 
 api_bp = Blueprint('api', __name__)
@@ -607,6 +608,7 @@ def get_protests():
     if not user or not user.pilot_profile:
         return jsonify({"msg": "Perfil não encontrado"}), 404
 
+    ProtestService.atualizar_protestos_expirados()
     pilot = user.pilot_profile
     protestos_feitos = Protesto.query.filter_by(acusador_id=pilot.id).order_by(Protesto.data_criacao.desc()).all()
     protestos_recebidos = Protesto.query.filter_by(acusado_id=pilot.id).order_by(Protesto.data_criacao.desc()).all()
@@ -669,7 +671,7 @@ def create_protest():
         minuto=minuto,
         descricao=descricao,
         status='AGUARDANDO_DEFESA',
-        data_criacao=datetime.utcnow()
+        data_criacao=get_brasilia_now()
     )
     db.session.add(protesto)
     db.session.commit()
