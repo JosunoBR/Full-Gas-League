@@ -8,7 +8,7 @@ from app.services.standings_service import StandingsService
 from app.services.discipline_service import DisciplineService
 from app.services.notification_service import NotificationService
 from app.services.protest_service import ProtestService
-from app.utils import calcular_perda, get_brasilia_now
+from app.utils import calcular_perda, get_brasilia_now, ORDEM_CARROS
 from datetime import datetime, timedelta
 
 api_bp = Blueprint('api', __name__)
@@ -116,13 +116,7 @@ def get_profile():
         pos = next((i for i, r in enumerate(ranking) if r['id'] == pilot.id), -1)
         if pos != -1:
             pos += 1
-            carros_lastro = [
-                "Cadillac", "Cadillac", "Aston Martin", "Aston Martin", "Williams", "Williams",
-                "Audi", "Audi", "Haas", "Haas", "Alpine", "Alpine",
-                "RB", "RB", "Red Bull", "Red Bull", "McLaren", "McLaren",
-                "Ferrari", "Ferrari", "Mercedes", "Mercedes"
-            ]
-            lastro_veiculo = carros_lastro[pos-1] if pos <= len(carros_lastro) else "Mercedes"
+            lastro_veiculo = ORDEM_CARROS[pos-1] if pos <= len(ORDEM_CARROS) else "Mercedes"
     
     # Busca o histórico de corridas do piloto em todas as temporadas ativas
     desempenho_temporada = []

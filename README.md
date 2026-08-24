@@ -49,7 +49,7 @@ Sistema global de conduta com base de **25 pontos**:
 O sistema utiliza `GridConfig` vinculados a cada temporada. Isso permite que grids com o mesmo nome (ex: ELITE) tenham configurações de vagas e de tipo de campeonato (Campeonato de Equipes ou Campeonato de Pilotos) independentes entre temporadas.
 
 ### Lastro Invertido
-Aplicado apenas em **Campeonatos de Pilotos** para equilibrar a disparidade de desempenho dos veículos. A ordem de atribuição de carros para 2026 (baseada na classificação invertida de construtores) é: Cadillac (Líderes) -> Aston Martin -> Williams -> Audi -> Haas -> Alpine -> RB -> Red Bull -> McLaren -> Ferrari -> Mercedes (Últimos). Em **Campeonatos de Equipes**, todos correm com desempenho de carro igual, e a coluna de lastro é omitida da visualização.
+Aplicado apenas em **Campeonatos de Pilotos** para equilibrar a disparidade de desempenho dos veículos. A ordem de atribuição de carros para 2026 (baseada na classificação invertida de construtores) é: Cadillac (Líderes) -> Aston Martin -> Audi -> Haas -> Alpine -> Racing Bulls -> Williams -> Red Bull -> Ferrari -> McLaren -> Mercedes (Últimos). Em **Campeonatos de Equipes**, todos correm com desempenho de carro igual, e a coluna de lastro é omitida da visualização.
 
 ## Deploy (Hospedagem)
 Este projeto está configurado para o **PythonAnywhere**.

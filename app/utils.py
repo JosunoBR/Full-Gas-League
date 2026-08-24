@@ -25,18 +25,18 @@ PONTUACAO_22 = {
 
 # Ordem de Carros para Lastro Invertido 2026 (P1 e P2 pegam o pior carro, etc.)
 # Ordem baseada no Campeonato de Construtores 2026 (Do pior/11º ao melhor/1º):
-# Cadillac (11º) -> Aston Martin (10º) -> Williams (9º) -> Audi (8º) -> Haas (7º) -> Alpine (6º) -> Racing Bulls (5º) -> Red Bull (4º) -> McLaren (3º) -> Ferrari (2º) -> Mercedes (1º)
+# Cadillac (11º) -> Aston Martin (10º) -> Audi (9º) -> Haas (8º) -> Alpine (7º) -> Racing Bulls (6º) -> Williams (5º) -> Red Bull (4º) -> Ferrari (3º) -> McLaren (2º) -> Mercedes (1º)
 ORDEM_CARROS = [
     'Cadillac', 'Cadillac',          # P1 e P2 (Pior Carro)
     'Aston Martin', 'Aston Martin',  # P3 e P4
-    'Williams', 'Williams',          # P5 e P6
-    'Audi', 'Audi',                  # P7 e P8
-    'Haas', 'Haas',                  # P9 e P10
-    'Alpine', 'Alpine',              # P11 e P12
-    'Racing Bulls', 'Racing Bulls',  # P13 e P14
+    'Audi', 'Audi',                  # P5 e P6
+    'Haas', 'Haas',                  # P7 e P8
+    'Alpine', 'Alpine',              # P9 e P10
+    'Racing Bulls', 'Racing Bulls',  # P11 e P12
+    'Williams', 'Williams',          # P13 e P14
     'Red Bull', 'Red Bull',          # P15 e P16
-    'McLaren', 'McLaren',            # P17 e P18
-    'Ferrari', 'Ferrari',            # P19 e P20
+    'Ferrari', 'Ferrari',            # P17 e P18
+    'McLaren', 'McLaren',            # P19 e P20
     'Mercedes', 'Mercedes'           # P21 e P22 (Melhor Carro)
 ]
 
