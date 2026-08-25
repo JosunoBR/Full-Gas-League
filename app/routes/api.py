@@ -108,6 +108,8 @@ def get_profile():
         ranking = []
         
         for item in participants:
+            if item.get("is_reserve"):
+                continue
             p = item["pilot"]
             pts_finais = ScoringService.calculate_pilot_total_points(p.id, first_active_id, p_grid_id)
             ranking.append({'id': p.id, 'pontos': pts_finais})
@@ -117,6 +119,8 @@ def get_profile():
         if pos != -1:
             pos += 1
             lastro_veiculo = ORDEM_CARROS[pos-1] if pos <= len(ORDEM_CARROS) else "Mercedes"
+        else:
+            lastro_veiculo = "-"
     
     # Busca o histórico de corridas do piloto em todas as temporadas ativas
     desempenho_temporada = []

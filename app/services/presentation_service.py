@@ -12,11 +12,17 @@ class PresentationService:
                 item["carro"] = "-"
             return
 
-        for i, item in enumerate(standings_list):
-            if i < len(ORDEM_CARROS):
-                item["carro"] = ORDEM_CARROS[i]
+        titular_idx = 0
+        for item in standings_list:
+            if item.get("is_reserve"):
+                item["carro"] = "-"
+                continue
+
+            if titular_idx < len(ORDEM_CARROS):
+                item["carro"] = ORDEM_CARROS[titular_idx]
             else:
                 item["carro"] = "Mercedes (Extra)"
+            titular_idx += 1
 
     @staticmethod
     def get_pilot_photo_for_grid(pilot_obj, grid_id):
