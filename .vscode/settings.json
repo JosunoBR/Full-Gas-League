@@ -1,3 +1,12 @@
 {
-    "codium.codeCompletion.enable": true
+    "codium.codeCompletion.enable": true,
+    "chat.tools.terminal.autoApprove": {
+        "npx eslint": true,
+        "/^python3 -c \"\nimport sys\nsys\\.path\\.insert\\(0, '\\.'\\)\nfrom app\\.routes\\.api import get_profile\nprint\\('Importação OK'\\)\nprint\\('Função lastro_veiculo corrigida\\.'\\)\n\"$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "git add": true,
+        "git commit": true
+    }
 }
