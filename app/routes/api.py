@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+from sqlalchemy import func
 from app.models import db, User, News, Season, Race, PilotProfile, Team, RaceResult, GridConfig, RaceRegistration, Protesto, SeasonChampion
 from app.services.team_context import build_team_context
 from app.services.scoring_service import ScoringService
@@ -101,26 +102,54 @@ def get_profile():
     if dynamic_cnh <= 0: cnh_status = "BANIDO"
 
     # --- CÁLCULO DO LASTRO (Veículo da próxima corrida) ---
+    # Corrigido: 1) verificar exibir_lastro  2) usar temporada correta do grid  3) desempate por vitórias
     lastro_veiculo = "Não definido"
-    if first_active_id and p_grid_id and current_team_name != "Sem Equipe":
-        team_ctx = build_team_context(first_active_id)
-        participants = team_ctx["participants_by_grid"].get(p_grid_id, [])
-        ranking = []
-        
-        for item in participants:
-            if item.get("is_reserve"):
-                continue
-            p = item["pilot"]
-            pts_finais = ScoringService.calculate_pilot_total_points(p.id, first_active_id, p_grid_id)
-            ranking.append({'id': p.id, 'pontos': pts_finais})
-        
-        ranking.sort(key=lambda x: x['pontos'], reverse=True)
-        pos = next((i for i, r in enumerate(ranking) if r['id'] == pilot.id), -1)
-        if pos != -1:
-            pos += 1
-            lastro_veiculo = ORDEM_CARROS[pos-1] if pos <= len(ORDEM_CARROS) else "Mercedes"
-        else:
+    if p_grid_id and current_team_name != "Sem Equipe":
+        # Encontra a temporada correta onde o piloto está nesse grid (prioriza temporada ativa)
+        lastro_season_id = None
+        grid_config_for_lastro = None
+        for s_id in active_season_ids:
+            gc = GridConfig.query.filter_by(id=p_grid_id, season_id=s_id).first()
+            if gc:
+                lastro_season_id = s_id
+                grid_config_for_lastro = gc
+                break
+
+        if not lastro_season_id:
+            # Fallback: usar a primeira temporada ativa
+            lastro_season_id = first_active_id
+            grid_config_for_lastro = GridConfig.query.filter_by(id=p_grid_id, season_id=lastro_season_id).first()
+
+        # Se o grid desabilitou lastro, não exibe
+        if grid_config_for_lastro and not grid_config_for_lastro.exibir_lastro:
             lastro_veiculo = "-"
+        elif lastro_season_id:
+            team_ctx = build_team_context(lastro_season_id)
+            participants = team_ctx["participants_by_grid"].get(p_grid_id, [])
+            ranking = []
+
+            for item in participants:
+                if item.get("is_reserve"):
+                    continue
+                p = item["pilot"]
+                pts_finais = ScoringService.calculate_pilot_total_points(p.id, lastro_season_id, p_grid_id)
+                vitorias = db.session.query(func.count(RaceResult.id)).join(Race).filter(
+                    RaceResult.pilot_id == p.id,
+                    Race.season_id == lastro_season_id,
+                    Race.grid_id == p_grid_id,
+                    RaceResult.posicao == 1,
+                    RaceResult.dsq == False
+                ).scalar() or 0
+                ranking.append({'id': p.id, 'pontos': pts_finais, 'vitorias': vitorias})
+
+            # Ordena por pontos (desempate por vitórias), igual à home web
+            ranking.sort(key=lambda x: (x['pontos'], x['vitorias']), reverse=True)
+            pos = next((i for i, r in enumerate(ranking) if r['id'] == pilot.id), -1)
+            if pos != -1:
+                pos += 1
+                lastro_veiculo = ORDEM_CARROS[pos - 1] if pos <= len(ORDEM_CARROS) else "Mercedes"
+            else:
+                lastro_veiculo = "-"
     
     # Busca o histórico de corridas do piloto em todas as temporadas ativas
     desempenho_temporada = []
