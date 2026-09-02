@@ -20,18 +20,39 @@ function Routes() {
   const { signed, loading } = useContext(AuthContext);
 
   useEffect(() => {
-    if (!signed) return;
+    // 1. Checa se o app foi aberto pelo clique em uma notificação com ele fechado (Cold Start)
+    Notifications.getLastNotificationResponseAsync()
+      .then((response) => {
+        if (response && response.notification && response.notification.request) {
+          const data = response.notification.request.content.data;
+          if (data) {
+            console.log('[App] Notificação capturada via Cold Start:', data);
+            handleNotificationNavigation(data);
+          }
+        }
+      })
+      .catch((err) => console.warn('[App] Erro ao checar notificação inicial:', err));
 
-    // Listener: notificação recebida com app em primeiro plano
+    // 2. Listener: notificação recebida com app em primeiro plano
     const cleanupReceived = addNotificationReceivedListener((notification) => {
       const { title, body } = notification.request.content;
       Alert.alert(title || 'FullGas', body || '');
     });
 
-    // Listener: usuário tocou na notificação
+    // 3. Listener: usuário tocou na notificação com o app aberto ou em background
     const cleanupTap = addNotificationTapListener((data) => {
+      console.log('[App] Notificação tocada pelo usuário:', data);
       handleNotificationNavigation(data);
     });
+
+    return () => {
+      cleanupReceived();
+      cleanupTap();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!signed) return;
 
     // Listener: token FCM renovado pelo sistema operacional
     const tokenSubscription = Notifications.addPushTokenListener(async (newTokenData) => {
@@ -45,59 +66,59 @@ function Routes() {
     });
 
     return () => {
-      cleanupReceived();
-      cleanupTap();
       tokenSubscription.remove();
     };
   }, [signed]);
 
   /**
    * Navega para a tela correta ao tocar em uma notificação.
-   * Utiliza os dados (data) enviados pelo backend para determinar o destino.
+   * Se for notificação com link externo (YouTube / live), abre diretamente sem depender da navegação interna.
    */
   function handleNotificationNavigation(data) {
-    if (!data || !navigationRef.isReady()) return;
+    if (!data) return;
 
-    const { type } = data;
-    console.log('[App] Navegando por notificação do tipo:', type);
+    const { type, url } = data;
+    console.log('[App] Navegando por notificação. Tipo:', type, 'URL:', url);
 
-    switch (type) {
-      case 'race_result':
-        navigationRef.navigate('MainApp', { screen: 'RacesTab' });
-        break;
-      case 'protest_opened':
-      case 'protest_verdict':
-      case 'defense_deadline':
-        navigationRef.navigate('MainApp', { screen: 'TribunalTab' });
-        break;
-      case 'news':
-        navigationRef.navigate('MainApp', { screen: 'HomeTab' });
-        break;
-      case 'race_reminder':
-      case 'ban_alert':
-        navigationRef.navigate('MainApp', { screen: 'ProfileTab' });
-        break;
-      case 'race_day':
-      case 'broadcast':
-      case 'youtube_broadcast':
-        if (data.url) {
-          Linking.openURL(data.url).catch((err) => {
-            console.warn('[App] Erro ao abrir link do YouTube:', err);
-            navigationRef.navigate('MainApp', { screen: 'HomeTab' });
-          });
-        } else {
-          navigationRef.navigate('MainApp', { screen: 'HomeTab' });
-        }
-        break;
-      default:
-        if (data && data.url) {
-          Linking.openURL(data.url).catch(() => {
-            navigationRef.navigate('MainApp', { screen: 'HomeTab' });
-          });
-        } else {
-          navigationRef.navigate('MainApp', { screen: 'HomeTab' });
-        }
+    // 1. Redirecionamento direto para links externos (YouTube da corrida / canal)
+    if (url || type === 'race_day' || type === 'broadcast' || type === 'youtube_broadcast') {
+      const targetUrl = url || 'https://www.youtube.com/@FullGasLeagueF1Oficial';
+      console.log('[App] Abrindo link de transmissão externo:', targetUrl);
+      Linking.openURL(targetUrl).catch((err) => {
+        console.warn('[App] Erro ao abrir URL no navegador/YouTube:', err);
+      });
+      return;
     }
+
+    // 2. Navegação interna do app (espera navigationRef estar pronto caso necessário)
+    const executeInternalNavigation = () => {
+      if (!navigationRef.isReady()) {
+        setTimeout(executeInternalNavigation, 150);
+        return;
+      }
+
+      switch (type) {
+        case 'race_result':
+          navigationRef.navigate('MainApp', { screen: 'RacesTab' });
+          break;
+        case 'protest_opened':
+        case 'protest_verdict':
+        case 'defense_deadline':
+          navigationRef.navigate('MainApp', { screen: 'TribunalTab' });
+          break;
+        case 'news':
+          navigationRef.navigate('MainApp', { screen: 'HomeTab' });
+          break;
+        case 'race_reminder':
+        case 'ban_alert':
+          navigationRef.navigate('MainApp', { screen: 'ProfileTab' });
+          break;
+        default:
+          navigationRef.navigate('MainApp', { screen: 'HomeTab' });
+      }
+    };
+
+    executeInternalNavigation();
   }
 
   if (loading) {
