@@ -54,3 +54,6 @@ planAdmin.prompt.md
 
 # Backups
 backups_seguranca/
+
+# Credenciais Firebase (NUNCA commitar — chave privada de serviço)
+firebase-credentials.json

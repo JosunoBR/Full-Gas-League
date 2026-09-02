@@ -16,6 +16,7 @@ from app.services.domain_rules import validate_unique_membership_per_grid
 from app.services.team_context import build_team_context
 from app.services.simhub_service import SimHubService
 from app.services.protest_service import ProtestService
+from app.services.notification_service import NotificationService
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -727,6 +728,27 @@ def create_news():
         HomeCache.query.delete()
         db.session.commit()
         flash('Notícia publicada com sucesso!', 'success')
+
+        # --- NOTIFICAÇÃO: News publicada ---
+        try:
+            todos_tokens = [
+                p.fcm_token for p in PilotProfile.query.filter(
+                    PilotProfile.fcm_token.isnot(None),
+                    PilotProfile.fcm_token != ''
+                ).all()
+            ]
+            if todos_tokens:
+                success_count, invalid_tokens = NotificationService.send_multicast_notification(
+                    tokens=todos_tokens,
+                    title=f"📰 {nova_noticia.titulo}",
+                    body="Nova notícia publicada! Leia a matéria completa no app.",
+                    data={"type": "news", "news_id": str(nova_noticia.id)}
+                )
+                if invalid_tokens:
+                    NotificationService.cleanup_invalid_tokens(invalid_tokens)
+        except Exception as notif_err:
+            current_app.logger.warning(f"[NOTIF] Falha ao notificar news {nova_noticia.id}: {notif_err}")
+
         return redirect(url_for('admin.list_news'))
         
     return render_template('admin/create_news.html')
@@ -1399,6 +1421,30 @@ def race_results(race_id):
             # PASSO 1: Chamamos a NOVA função de salvamento que criaremos a seguir.
             RaceResultService.save_race_results_by_position(race.id, request.form)
             flash('Resultados salvos com sucesso!', 'success')
+
+            # --- NOTIFICAÇÃO: Resultado de corrida publicado ---
+            try:
+                resultados = RaceResult.query.filter_by(race_id=race.id).all()
+                posicao_map = {r.pilot_id: r.posicao for r in resultados}
+                tokens_pilotos = [
+                    (r.pilot.fcm_token, r.pilot_id)
+                    for r in resultados
+                    if r.pilot and r.pilot.fcm_token
+                ]
+                for token, pilot_id in tokens_pilotos:
+                    pos = posicao_map.get(pilot_id, 0)
+                    pos_texto = f"P{pos}" if pos and pos > 0 else "fora da zona de pontuação"
+                    result = NotificationService.send_single_notification(
+                        token=token,
+                        title=f"🏁 {race.nome_gp} encerrado!",
+                        body=f"Você terminou em {pos_texto}. Confira o resultado completo no app.",
+                        data={"type": "race_result", "race_id": str(race.id)}
+                    )
+                    if result == 'INVALID_TOKEN':
+                        NotificationService.cleanup_invalid_tokens([token])
+            except Exception as notif_err:
+                current_app.logger.warning(f"[NOTIF] Falha ao notificar resultado corrida {race.id}: {notif_err}")
+
             return redirect(url_for('admin.manage_season', season_id=race.season_id))
         except ValueError as e:
             db.session.rollback()
@@ -2244,6 +2290,26 @@ def view_protest(protest_id):
             HomeCache.query.filter_by(season_id=protesto.etapa.season_id).delete()
             db.session.commit()
             flash('Protesto encerrado com sucesso.', 'success')
+
+            # --- NOTIFICAÇÃO: Veredito do protesto ---
+            try:
+                acusador = db.session.get(PilotProfile, protesto.acusador_id)
+                acusado = db.session.get(PilotProfile, protesto.acusado_id)
+                body_veredito = f"Protesto #{protesto.id} encerrado. Consulte a íntegra da decisão no site ou no app."
+                notif_data = {"type": "protest_verdict", "protest_id": str(protesto.id)}
+                for parte in [acusador, acusado]:
+                    if parte and parte.fcm_token:
+                        result = NotificationService.send_single_notification(
+                            token=parte.fcm_token,
+                            title="⚖️ Protesto encerrado",
+                            body=body_veredito,
+                            data=notif_data
+                        )
+                        if result == 'INVALID_TOKEN':
+                            NotificationService.cleanup_invalid_tokens([parte.fcm_token])
+            except Exception as notif_err:
+                current_app.logger.warning(f"[NOTIF] Falha ao notificar veredito protesto {protesto.id}: {notif_err}")
+
             return redirect(url_for('admin.protests'))
 
         if 'reabrir' in request.form and current_user.role == 'SUPER_ADM':

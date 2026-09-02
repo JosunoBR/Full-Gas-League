@@ -708,9 +708,9 @@ def create_protest():
         try:
             NotificationService.send_single_notification(
                 token=acusado.fcm_token,
-                title="🚨 Novo Protesto Registrado",
-                body=f"Você recebeu um protesto no {race.nome_gp} de {user.pilot_profile.nickname}. Acesse o app para se defender.",
-                data={"protest_id": str(protesto.id)}
+                title="🚨 Você recebeu um ticket!",
+                body=f"Um protesto foi aberto contra você no {race.nome_gp}. Acesse o site para apresentar sua defesa.",
+                data={"type": "protest_opened", "protest_id": str(protesto.id)}
             )
         except Exception as err:
             print(f"[API] Erro notificação protesto: {err}")
@@ -800,3 +800,29 @@ def get_hall_of_fame():
         })
     return jsonify(result), 200
 
+
+# --- NOTIFICAÇÕES: Atualização de Token FCM ---
+
+@api_bp.route('/update-fcm-token', methods=['POST'])
+@jwt_required()
+def update_fcm_token():
+    """
+    Atualiza o FCM token do piloto logado.
+    Deve ser chamado pelo app quando o token FCM é renovado pelo sistema operacional.
+    """
+    user_id = get_jwt_identity()
+    user = db.session.get(User, user_id)
+    if not user or not user.pilot_profile:
+        return jsonify({"msg": "Perfil não encontrado"}), 404
+
+    if not request.is_json:
+        return jsonify({"msg": "Requisicao deve ser JSON"}), 400
+
+    new_token = request.json.get('fcm_token')
+    if not new_token:
+        return jsonify({"msg": "fcm_token não fornecido"}), 400
+
+    user.pilot_profile.fcm_token = new_token
+    db.session.commit()
+    print(f"[API] FCM token atualizado para piloto {user.pilot_profile.nickname}")
+    return jsonify({"msg": "Token atualizado com sucesso"}), 200

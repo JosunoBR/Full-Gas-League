@@ -21,11 +21,22 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "package": "com.josunogueira.FullGasApp"
+      "package": "com.josunogueira.FullGasApp",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#E10600",
+          "sounds": []
+        }
+      ]
+    ],
     "extra": {
       "eas": {
         "projectId": "cf92831f-a597-4b08-b69d-3fe1eb963fa7"
@@ -33,3 +44,4 @@
     }
   }
 }
+

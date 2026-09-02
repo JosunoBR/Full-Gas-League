@@ -1143,8 +1143,9 @@ def open_protest():
             if acusado and acusado.fcm_token:
                 NotificationService.send_single_notification(
                     token=acusado.fcm_token,
-                    title="🚨 Novo Protesto Registrado",
-                    body=f"Você foi citado no protesto #{novo.id} por {novo.acusador.nickname}. Acesse o site para apresentar sua defesa."
+                    title="🚨 Você recebeu um ticket!",
+                    body=f"Um protesto foi aberto contra você no {novo.etapa.nome_gp}. Acesse o site para apresentar sua defesa.",
+                    data={"type": "protest_opened", "protest_id": str(novo.id)}
                 )
         except Exception as e:
             print(f"Falha ao enviar notificação de protesto: {e}")

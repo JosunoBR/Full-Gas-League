@@ -12,6 +12,8 @@ from app.routes.api import api_bp # Importa a nova API
 from config import Config
 from sqlalchemy import text, event
 from sqlalchemy.engine import Engine
+from app.services.scheduler_service import init_scheduler
+import atexit
 
 # Inicialização da aplicação Flask
 basedir = os.path.abspath(os.path.dirname(__file__))
@@ -150,6 +152,12 @@ app.register_blueprint(api_bp, url_prefix='/api')
 
 # Executa inicialização de schema e tabelas no carregamento do WSGI
 init_schema()
+
+# Inicializa o APScheduler com os jobs de notificações automáticas
+# O check USE_RELOADER evita dupla inicialização em modo debug do Flask
+if not os.environ.get('WERKZEUG_RUN_MAIN'):
+    init_scheduler(app)
+    atexit.register(lambda: __import__('app.services.scheduler_service', fromlist=['scheduler']).scheduler.shutdown(wait=False))
 
 if __name__ == '__main__':
     # Criação das Tabelas e Admin Inicial (Executado apenas ao rodar o servidor)
