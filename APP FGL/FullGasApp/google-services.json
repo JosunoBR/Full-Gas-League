@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "572026038503",
+    "project_id": "fullgasleague",
+    "storage_bucket": "fullgasleague.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:572026038503:android:adca619cf1ca1b2fdfda42",
+        "android_client_info": {
+          "package_name": "com.josunogueira.fullgasapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCeoSrcze0Vo2DM-ABDZFfMqgCL1jNf2ys"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
