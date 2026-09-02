@@ -3,7 +3,7 @@ import React, { useContext, useEffect } from 'react';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, View, Alert } from 'react-native';
+import { ActivityIndicator, View, Alert, Linking } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
 
@@ -77,8 +77,26 @@ function Routes() {
       case 'ban_alert':
         navigationRef.navigate('MainApp', { screen: 'ProfileTab' });
         break;
+      case 'race_day':
+      case 'broadcast':
+      case 'youtube_broadcast':
+        if (data.url) {
+          Linking.openURL(data.url).catch((err) => {
+            console.warn('[App] Erro ao abrir link do YouTube:', err);
+            navigationRef.navigate('MainApp', { screen: 'HomeTab' });
+          });
+        } else {
+          navigationRef.navigate('MainApp', { screen: 'HomeTab' });
+        }
+        break;
       default:
-        navigationRef.navigate('MainApp', { screen: 'HomeTab' });
+        if (data && data.url) {
+          Linking.openURL(data.url).catch(() => {
+            navigationRef.navigate('MainApp', { screen: 'HomeTab' });
+          });
+        } else {
+          navigationRef.navigate('MainApp', { screen: 'HomeTab' });
+        }
     }
   }
 

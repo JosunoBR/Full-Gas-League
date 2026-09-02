@@ -1295,6 +1295,28 @@ def delete_race(race_id):
     flash('Corrida removida.', 'success')
     return redirect(url_for('admin.manage_season', season_id=season_id))
 
+@admin_bp.route('/race/<int:race_id>/notify-broadcast', methods=['POST'])
+def notify_race_broadcast(race_id):
+    """Envia anúncio no app sobre a transmissão ao vivo desta corrida no YouTube para todos os pilotos."""
+    from app.services.scheduler_service import notificar_transmissao_corrida_dia
+    race = Race.query.get_or_404(race_id)
+    
+    youtube_url = request.form.get('youtube_url', '').strip()
+    custom_title = request.form.get('custom_title', '').strip()
+    custom_body = request.form.get('custom_body', '').strip()
+
+    sucesso, msg, count = notificar_transmissao_corrida_dia(
+        corrida_especifica_id=race.id,
+        youtube_url_custom=youtube_url or None,
+        titulo_custom=custom_title or None,
+        mensagem_custom=custom_body or None
+    )
+    if sucesso:
+        flash(msg, 'success')
+    else:
+        flash(msg, 'warning')
+    return redirect(request.referrer or url_for('admin.manage_season', season_id=race.season_id))
+
 @admin_bp.route('/race/<int:race_id>/generate_grid')
 def generate_grid_text(race_id):
     race = Race.query.get_or_404(race_id)

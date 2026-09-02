@@ -130,7 +130,10 @@ class NotificationService:
         )
 
         try:
-            response = messaging.send_multicast(message)
+            if hasattr(messaging, 'send_each_for_multicast'):
+                response = messaging.send_each_for_multicast(message)
+            else:
+                response = messaging.send_multicast(message)
             print(f'{response.success_count} de {len(tokens)} notificações enviadas com sucesso.')
 
             # Coleta tokens inválidos para limpeza

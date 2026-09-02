@@ -166,6 +166,104 @@ def _alerta_prazo_defesa():
             logger.info(f"[SCHEDULER] Alertas de prazo de defesa enviados: {len(protestos_expirando)} protesto(s).")
 
 
+def notificar_transmissao_corrida_dia(corrida_especifica_id=None, youtube_url_custom=None, titulo_custom=None, mensagem_custom=None):
+    """
+    Envia notificação push para TODOS os pilotos anunciando as corridas de hoje
+    e convidando para assistir a transmissão ao vivo no canal oficial do YouTube.
+    Pode ser acionado automaticamente pelo APScheduler ou manualmente pelo painel admin.
+
+    :param corrida_especifica_id: (Opcional) ID de uma corrida específica para focar o anúncio.
+    :param youtube_url_custom: (Opcional) Link direto da live no YouTube.
+    :param titulo_custom: (Opcional) Título personalizado da notificação.
+    :param mensagem_custom: (Opcional) Mensagem personalizada da notificação.
+    :return: (sucesso: bool, mensagem: str, total_enviados: int)
+    """
+    from flask import current_app
+    from app.models import Race, PilotProfile
+    from app.services.notification_service import NotificationService
+    from app.utils import get_brasilia_now
+
+    hoje = get_brasilia_now().date()
+
+    if corrida_especifica_id:
+        corridas = Race.query.filter(Race.id == corrida_especifica_id).all()
+    else:
+        corridas = Race.query.filter(
+            Race.data_corrida == hoje,
+            Race.status == 'Agendada'
+        ).all()
+
+    if not corridas:
+        return False, "Nenhuma corrida agendada encontrada para o dia de hoje.", 0
+
+    # Coleta os nomes dos GPs e Grids envolvidos
+    nomes_gps = []
+    grids_nomes = []
+    for c in corridas:
+        if c.nome_gp and c.nome_gp not in nomes_gps:
+            nomes_gps.append(c.nome_gp)
+        nome_grid = c.grid_config.nome if getattr(c, 'grid_config', None) else c.grid
+        if nome_grid and nome_grid not in grids_nomes:
+            grids_nomes.append(nome_grid)
+
+    gp_txt = " / ".join(nomes_gps) if nomes_gps else "Grande Prêmio"
+    grids_txt = ", ".join(grids_nomes) if grids_nomes else "todos os grids"
+
+    default_youtube = current_app.config.get('YOUTUBE_URL', 'https://www.youtube.com/@FullGasLeagueF1Oficial')
+    youtube_url = (youtube_url_custom.strip() if youtube_url_custom and youtube_url_custom.strip() else default_youtube)
+
+    # Monta o título e mensagem convidativa para o anúncio
+    title = (
+        titulo_custom.strip() if titulo_custom and titulo_custom.strip() else
+        f"🔴 HOJE É DIA DE CORRIDA! | {gp_txt} 🏁"
+    )
+    body = (
+        mensagem_custom.strip() if mensagem_custom and mensagem_custom.strip() else
+        f"Hoje tem pista quente! Disputas confirmadas: {grids_txt}. "
+        f"Acompanhe a transmissão oficial ao vivo no YouTube da Full Gas League!"
+    )
+
+    # Busca todos os pilotos que possuem FCM token cadastrado no app
+    pilotos = PilotProfile.query.filter(
+        PilotProfile.fcm_token.isnot(None),
+        PilotProfile.fcm_token != ''
+    ).all()
+
+    tokens = list(set([p.fcm_token for p in pilotos if p.fcm_token]))
+
+    if not tokens:
+        return False, "Nenhum piloto com token de notificação ativo no aplicativo.", 0
+
+    logger.info(f"[NOTIFICAÇÃO YOUTUBE] Enviando anúncio de corrida para {len(tokens)} pilotos.")
+
+    success_count, invalid_tokens = NotificationService.send_multicast_notification(
+        tokens=tokens,
+        title=title,
+        body=body,
+        data={
+            "type": "race_day",
+            "url": youtube_url,
+            "race_ids": ",".join(str(c.id) for c in corridas)
+        }
+    )
+
+    if invalid_tokens:
+        NotificationService.cleanup_invalid_tokens(invalid_tokens)
+
+    return True, f"Anúncio de transmissão enviado com sucesso para {success_count} piloto(s)!", success_count
+
+
+def _notificacao_corrida_hoje_youtube():
+    """
+    Disparado pelo scheduler nos horários programados para alertar todos os membros
+    sobre a transmissão do dia no YouTube.
+    """
+    from flask import current_app
+    with current_app.app_context():
+        sucesso, msg, count = notificar_transmissao_corrida_dia()
+        logger.info(f"[SCHEDULER YOUTUBE] {msg}")
+
+
 def init_scheduler(app):
     """
     Inicializa e inicia o APScheduler com a referência ao app Flask.
@@ -202,5 +300,22 @@ def init_scheduler(app):
         replace_existing=True
     )
 
+    # Job 4: Anúncio do dia de corrida (Almoço) — todo dia às 12:00 (Brasília)
+    scheduler.add_job(
+        func=lambda: app.app_context().push() or _notificacao_corrida_hoje_youtube(),
+        trigger=CronTrigger(hour=12, minute=0),
+        id='notificacao_corrida_dia_12h',
+        replace_existing=True
+    )
+
+    # Job 5: Chamada para a transmissão ao vivo (Noite) — todo dia às 19:30 (Brasília)
+    scheduler.add_job(
+        func=lambda: app.app_context().push() or _notificacao_corrida_hoje_youtube(),
+        trigger=CronTrigger(hour=19, minute=30),
+        id='notificacao_corrida_dia_19h30',
+        replace_existing=True
+    )
+
     scheduler.start()
-    logger.info("[SCHEDULER] APScheduler iniciado com 3 jobs de notificação.")
+    logger.info("[SCHEDULER] APScheduler iniciado com 5 jobs de notificação.")
+
