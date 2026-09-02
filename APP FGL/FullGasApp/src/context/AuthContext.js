@@ -1,4 +1,4 @@
-﻿import React, { createContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api, { setAuthToken, SERVER_BASE_URL } from '../services/api';
 import { registerForPushNotificationsAsync } from '../services/notifications';
@@ -35,6 +35,18 @@ function AuthProvider({ children }) {
           setAuthToken(storagedToken);
           setUser(JSON.parse(storagedUser));
           setTokenReady(true);
+
+          // Sincroniza FCM token em background para pilotos com sessão já ativa
+          registerForPushNotificationsAsync().then((pushToken) => {
+            if (pushToken && pushToken.data) {
+              setExpoPushToken(pushToken.data);
+              api.post('/update-fcm-token', { fcm_token: pushToken.data }).then(() => {
+                console.log('[Auth] FCM token sincronizado com sucesso na restauração da sessão.');
+              }).catch((err) => {
+                console.warn('[Auth] Não foi possível sincronizar FCM token na inicialização:', err.message);
+              });
+            }
+          }).catch(() => {});
         } catch (err) {
           console.error('[Auth] Erro ao restaurar sessão. Limpando storage.', err);
           await AsyncStorage.multiRemove([AUTH_USER_KEY, AUTH_TOKEN_KEY]);

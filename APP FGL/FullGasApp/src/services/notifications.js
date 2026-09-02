@@ -1,112 +1,97 @@
-﻿// Wrapper para notifications - funciona mesmo se o modulo nao estiver disponivel
-let Notifications = null;
-let Constants = null;
+import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
+import { Platform } from 'react-native';
 
-// Tenta importar os modulos
-try {
-  Notifications = require('expo-notifications');
-  Constants = require('expo-constants');
-} catch (e) {
-  console.warn('[Notifications] Modulo expo-notifications nao disponivel:', e.message);
-}
+// Configura o comportamento das notificações quando o app está em primeiro plano
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
 
-// Verifica se os modulos estao disponiveis
-const isAvailable = Notifications !== null && Constants !== null;
-
-if (isAvailable) {
-  const isExpoGo = Constants.appOwnership === 'expo'
-    || Constants.executionEnvironment === 'storeClient';
-
-  // Configure o comportamento das notificacoes
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: true,
-    }),
-  });
-}
-
+/**
+ * Solicita permissão ao usuário e obtém o FCM token nativo do dispositivo.
+ * Retorna o token (string) ou null se não for possível obtê-lo.
+ */
 export async function registerForPushNotificationsAsync() {
-  if (!isAvailable) {
-    console.warn('[Notifications] Modulo nao disponivel');
+  // Notificações push só funcionam em dispositivos físicos
+  if (!Device.isDevice) {
+    console.warn('[Notifications] Push não suportado em emulador/simulador.');
     return null;
   }
 
-  let token = null;
+  // Verifica e solicita permissão
+  const { status: existingStatus } = await Notifications.getPermissionsAsync();
+  let finalStatus = existingStatus;
 
-  if (Constants.appOwnership === 'expo') {
-    console.warn('[Notifications] Expo Go nao suporta push remoto. Use um Development Build.');
+  if (existingStatus !== 'granted') {
+    const { status } = await Notifications.requestPermissionsAsync();
+    finalStatus = status;
+  }
+
+  if (finalStatus !== 'granted') {
+    console.warn('[Notifications] Permissão negada pelo usuário.');
     return null;
   }
 
-  // Verifica se esta rodando em um dispositivo fisico
-  const isDevice = Constants.platform?.ios || Constants.platform?.android;
-  if (isDevice) {
-    // Solicita permissao ao usuario
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-
-    if (finalStatus !== 'granted') {
-      console.log('[Notifications] Permissao de notificacoes nao concedida');
-      return null;
-    }
-
-    // Obtem o token do dispositivo
-    try {
-      const projectId = Constants.expoConfig?.extra?.eas?.projectId
-        ?? Constants.manifest?.extra?.eas?.projectId;
-
-      if (projectId) {
-        token = await Notifications.getExpoPushTokenAsync({ projectId });
-      } else {
-        // Fallback: token sem projectId
-        token = await Notifications.getPushTokenAsync();
-      }
-
-      console.log('[Notifications] Token obtido:', token.data);
-    } catch (error) {
-      console.error('[Notifications] Erro ao obter token:', error);
-    }
+  // Canal de notificação (obrigatório no Android)
+  if (Platform.OS === 'android') {
+    await Notifications.setNotificationChannelAsync('fullgas-default', {
+      name: 'FullGas Notificações',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#E10600',
+      sound: 'default',
+    });
   }
 
-  return token;
+  // Obtém o FCM token nativo (não Expo Push Token — compatível com firebase-admin)
+  try {
+    const tokenData = await Notifications.getDevicePushTokenAsync();
+    console.log('[Notifications] FCM Token obtido:', tokenData.data?.substring(0, 25) + '...');
+    // Retorna objeto { data: token } para manter compatibilidade com AuthContext
+    return tokenData;
+  } catch (error) {
+    console.error('[Notifications] Erro ao obter FCM token:', error);
+    return null;
+  }
 }
 
-export async function scheduleCheckinReminder(raceName, raceDate, hoursBefore = 24) {
-  if (!isAvailable) return;
-
-  const trigger = new Date(raceDate);
-  trigger.setHours(trigger.getHours() - hoursBefore);
-
-  if (trigger <= new Date()) {
-    console.log('[Notifications] Horario ja passou, nao agenda notificacao');
-    return;
-  }
-
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: 'Lembrete de Check-in',
-      body: `A corrida "${raceName}" esta chegada! Voce tem ate 24h antes para confirmar sua presenca.`,
-      data: { type: 'checkin_reminder', raceName },
-    },
-    trigger,
+/**
+ * Registra um listener para quando o usuário TOCA em uma notificação.
+ * Retorna a função de cleanup para ser chamada no useEffect.
+ *
+ * @param {Function} onTap - Callback com os dados da notificação tocada.
+ * @returns {Function} Função de cleanup.
+ */
+export function addNotificationTapListener(onTap) {
+  const subscription = Notifications.addNotificationResponseReceivedListener(response => {
+    const data = response.notification.request.content.data;
+    console.log('[Notifications] Notificação tocada, dados:', data);
+    if (onTap) onTap(data);
   });
-
-  console.log(`[Notifications] Lembrete agendado para ${trigger}`);
+  return () => subscription.remove();
 }
 
-export async function cancelCheckinReminder(raceName) {
-  console.log(`[Notifications] Cancelando lembretes para ${raceName}`);
+/**
+ * Registra um listener para notificações recebidas com o app em primeiro plano.
+ *
+ * @param {Function} onReceive - Callback com a notificação recebida.
+ * @returns {Function} Função de cleanup.
+ */
+export function addNotificationReceivedListener(onReceive) {
+  const subscription = Notifications.addNotificationReceivedListener(notification => {
+    console.log('[Notifications] Notificação recebida em primeiro plano:', notification);
+    if (onReceive) onReceive(notification);
+  });
+  return () => subscription.remove();
 }
 
 export default {
   registerForPushNotificationsAsync,
-  scheduleCheckinReminder,
-  cancelCheckinReminder,
+  addNotificationTapListener,
+  addNotificationReceivedListener,
 };

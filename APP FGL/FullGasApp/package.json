@@ -15,6 +15,7 @@
     "@react-navigation/stack": "^7.8.5",
     "axios": "^1.13.6",
     "expo": "~55.0.6",
+    "expo-device": "~55.0.21",
     "expo-image": "~55.0.6",
     "expo-notifications": "~0.31.1",
     "expo-secure-store": "~55.0.8",

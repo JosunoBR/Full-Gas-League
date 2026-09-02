@@ -22,14 +22,23 @@
       },
       "icon": "./assets/icon.png",
       "package": "com.josunogueira.fullgasapp",
-      "usesCleartextTraffic": true
+      "usesCleartextTraffic": true,
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-secure-store",
-      "expo-image"
+      "expo-image",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#E10600",
+          "sounds": []
+        }
+      ]
     ],
     "extra": {
       "eas": {
