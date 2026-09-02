@@ -20,9 +20,12 @@ app/static/uploads/*
 .idea/
 .vscode/
 
-# Pastas de build/deploy alternativas
+# Pastas de build/deploy alternativas e temporários de mobile
 APP_FGL/
-APP FGL/
+**/node_modules/
+**/.expo/
+**/dist/
+APP FGL/FullGasApp/android/
 
 # Arquivos temporários e de saída
 *.txt
