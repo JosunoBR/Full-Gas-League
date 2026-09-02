@@ -156,8 +156,13 @@ init_schema()
 # Inicializa o APScheduler com os jobs de notificações automáticas
 # O check USE_RELOADER evita dupla inicialização em modo debug do Flask
 if not os.environ.get('WERKZEUG_RUN_MAIN'):
-    init_scheduler(app)
-    atexit.register(lambda: __import__('app.services.scheduler_service', fromlist=['scheduler']).scheduler.shutdown(wait=False))
+    try:
+        init_scheduler(app)
+        from app.services.scheduler_service import scheduler
+        if scheduler:
+            atexit.register(lambda: scheduler.shutdown(wait=False) if (scheduler and scheduler.running) else None)
+    except Exception as e:
+        print(f"Aviso ao inicializar scheduler: {e}")
 
 if __name__ == '__main__':
     # Criação das Tabelas e Admin Inicial (Executado apenas ao rodar o servidor)

@@ -1,22 +1,17 @@
-"""
-scheduler_service.py
-====================
-Jobs de notificações automáticas usando APScheduler.
+try:
+    from apscheduler.schedulers.background import BackgroundScheduler
+    from apscheduler.triggers.interval import IntervalTrigger
+    from apscheduler.triggers.cron import CronTrigger
+    HAS_APSCHEDULER = True
+except ImportError:
+    HAS_APSCHEDULER = False
 
-Jobs ativos:
-  - lembrete_corrida_2_dias:  Dispara 48h antes de cada corrida agendada.
-  - alertas_ban_dia_corrida:  Dispara todo dia às 08:00 para pilotos com bans.
-  - alerta_prazo_defesa:      Dispara a cada hora, avisa pilotos com prazo de defesa expirando em 24h.
-"""
-from apscheduler.schedulers.background import BackgroundScheduler
-from apscheduler.triggers.interval import IntervalTrigger
-from apscheduler.triggers.cron import CronTrigger
 import logging
 
 logger = logging.getLogger(__name__)
 
-# Instância global do scheduler
-scheduler = BackgroundScheduler(timezone='America/Sao_Paulo')
+# Instância global do scheduler (apenas se a biblioteca estiver instalada)
+scheduler = BackgroundScheduler(timezone='America/Sao_Paulo') if HAS_APSCHEDULER else None
 
 
 def _lembrete_corrida_2_dias():
@@ -174,8 +169,11 @@ def _alerta_prazo_defesa():
 def init_scheduler(app):
     """
     Inicializa e inicia o APScheduler com a referência ao app Flask.
-    Deve ser chamado UMA vez no factory da aplicação (app/__init__.py).
     """
+    if not HAS_APSCHEDULER or scheduler is None:
+        logger.warning("[SCHEDULER] APScheduler não instalado. Lembretes automáticos desativados.")
+        return
+
     if scheduler.running:
         logger.warning("[SCHEDULER] Scheduler já está rodando — ignorando segunda inicialização.")
         return
