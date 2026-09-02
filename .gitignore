@@ -1,13 +1,56 @@
 # Ambientes Virtuais
 venv/
+.venv/
+.venv-local/
 .env
 
 # Python
 __pycache__/
 *.pyc
+*.pyo
+.pytest_cache/
 
 # Banco de Dados Local
 *.db
 
 # Uploads e arquivos estáticos de usuário
 app/static/uploads/*
+
+# IDEs e Editores
+.idea/
+.vscode/
+
+# Pastas de build/deploy alternativas
+APP_FGL/
+APP FGL/
+
+# Arquivos temporários e de saída
+*.txt
+*.patch
+*.log
+
+# Scripts de manutenção/scratch (não fazem parte do app)
+scratch/
+scratch_*.py
+fix*.py
+dump_*.py
+check_*.py
+copy_*.py
+delete_*.py
+verificar_*.py
+limpar_*.py
+backup_*.py
+populate_*.py
+atualizar_*.py
+restaurar_*.py
+corrigir_*.py
+run_tests.py
+test_*.py
+b64.txt
+out.txt
+out2.txt
+db_test_output.txt
+planAdmin.prompt.md
+
+# Backups
+backups_seguranca/
