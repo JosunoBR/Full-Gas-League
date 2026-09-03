@@ -1317,6 +1317,19 @@ def notify_race_broadcast(race_id):
         flash(msg, 'warning')
     return redirect(request.referrer or url_for('admin.manage_season', season_id=race.season_id))
 
+@admin_bp.route('/race/<int:race_id>/notify-checkin', methods=['POST'])
+def notify_race_checkin(race_id):
+    """Envia alerta de check-in via push notification para todos os pilotos pendentes desta corrida."""
+    from app.services.scheduler_service import notificar_checkin_pendente
+    race = Race.query.get_or_404(race_id)
+
+    sucesso, msg, count = notificar_checkin_pendente(race_id=race.id)
+    if sucesso:
+        flash(msg, 'success')
+    else:
+        flash(msg, 'warning')
+    return redirect(request.referrer or url_for('admin.race_results', race_id=race.id))
+
 @admin_bp.route('/race/<int:race_id>/generate_grid')
 def generate_grid_text(race_id):
     race = Race.query.get_or_404(race_id)

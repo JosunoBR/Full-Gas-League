@@ -253,6 +253,122 @@ def notificar_transmissao_corrida_dia(corrida_especifica_id=None, youtube_url_cu
     return True, f"Anúncio de transmissão enviado com sucesso para {success_count} piloto(s)!", success_count
 
 
+def notificar_checkin_pendente(race_id=None):
+    """
+    Busca corridas na janela de check-in (ou uma corrida específica por race_id)
+    e envia notificação push para os pilotos do grid que ainda estão com o
+    check-in PENDENTE (não confirmaram nem justificaram).
+
+    :param race_id: (Opcional) ID de uma corrida específica.
+    :return: (sucesso: bool, mensagem: str, total_enviados: int)
+    """
+    from flask import current_app
+    from app.models import Race, RaceRegistration, PilotProfile
+    from app.services.notification_service import NotificationService
+    from app.utils import get_brasilia_now
+    from datetime import timedelta
+
+    hoje = get_brasilia_now().date()
+
+    if race_id:
+        corridas = Race.query.filter(Race.id == race_id).all()
+    else:
+        # Janela de check-in: corridas agendadas entre hoje e os próximos 2 dias (48h)
+        limite_futuro = hoje + timedelta(days=2)
+        corridas = Race.query.filter(
+            Race.data_corrida >= hoje,
+            Race.data_corrida <= limite_futuro,
+            Race.status == 'Agendada'
+        ).order_by(Race.data_corrida.asc()).all()
+
+    if not corridas:
+        return False, "Nenhuma corrida agendada na janela de check-in encontrada.", 0
+
+    total_notificados = 0
+
+    for corrida in corridas:
+        if not corrida.grid_id:
+            continue
+
+        race_grid_str = str(corrida.grid_id)
+
+        # Busca todos os pilotos com token FCM cadastrado
+        todos_pilotos = PilotProfile.query.filter(
+            PilotProfile.fcm_token.isnot(None),
+            PilotProfile.fcm_token != ''
+        ).all()
+
+        pilotos_do_grid = []
+        for p in todos_pilotos:
+            tokens_grid = [token.strip() for token in (p.grid or '').split(',') if token.strip()]
+            if (race_grid_str in tokens_grid) or ('RESERVA' in tokens_grid):
+                pilotos_do_grid.append(p)
+            elif (p.teams and any(t.grid_id == corrida.grid_id for t in p.teams)) or \
+                 (p.reserve_teams and any(t.grid_id == corrida.grid_id for t in p.reserve_teams)):
+                pilotos_do_grid.append(p)
+
+        if not pilotos_do_grid:
+            continue
+
+        # Verifica quem já respondeu ao check-in nesta corrida (CONFIRMADO ou JUSTIFICADO/AUSENTE)
+        registrations = RaceRegistration.query.filter_by(race_id=corrida.id).all()
+        respondidos_ids = {
+            reg.pilot_id for reg in registrations
+            if reg.status in ['CONFIRMADO', 'JUSTIFICADO', 'AUSENTE']
+        }
+
+        # Filtra apenas os que ainda NÃO responderam
+        pendentes = [p for p in pilotos_do_grid if p.id not in respondidos_ids]
+        tokens = list(set([p.fcm_token for p in pendentes if p.fcm_token]))
+
+        if not tokens:
+            continue
+
+        # Mensagem contextualizada conforme a proximidade da corrida
+        dias_restantes = (corrida.data_corrida - hoje).days if corrida.data_corrida else 0
+        if dias_restantes == 0:
+            title = f"🚨 URGENTE: Check-in da corrida de HOJE! | {corrida.nome_gp}"
+            body = f"A corrida é HOJE! Acesse o app e confirme sua presença ou justifique ausência agora."
+        elif dias_restantes == 1:
+            title = f"⏳ Lembrete: Check-in para {corrida.nome_gp}"
+            body = f"A corrida é amanhã! Confirme sua presença no app da Full Gas League antes do fechamento."
+        else:
+            title = f"📋 Check-in Aberto: {corrida.nome_gp}"
+            body = f"O check-in para o {corrida.nome_gp} já está disponível no app. Confirme sua presença!"
+
+        logger.info(f"[CHECK-IN NOTIF] Enviando lembrete para {len(tokens)} pilotos pendentes — {corrida.nome_gp}")
+
+        success_count, invalid_tokens = NotificationService.send_multicast_notification(
+            tokens=tokens,
+            title=title,
+            body=body,
+            data={
+                "type": "checkin",
+                "race_id": str(corrida.id)
+            }
+        )
+
+        if invalid_tokens:
+            NotificationService.cleanup_invalid_tokens(invalid_tokens)
+
+        total_notificados += success_count
+
+    if total_notificados > 0:
+        return True, f"Notificação de check-in enviada para {total_notificados} piloto(s) com check-in pendente!", total_notificados
+    else:
+        return False, "Nenhum piloto pendente com token de notificação ativo encontrado para as etapas.", 0
+
+
+def _lembrete_checkin_pendente_scheduler():
+    """
+    Disparado pelo scheduler para enviar lembrete de check-in a todos os pilotos pendentes.
+    """
+    from flask import current_app
+    with current_app.app_context():
+        sucesso, msg, count = notificar_checkin_pendente()
+        logger.info(f"[SCHEDULER CHECKIN] {msg}")
+
+
 def _notificacao_corrida_hoje_youtube():
     """
     Disparado pelo scheduler nos horários programados para alertar todos os membros
@@ -316,6 +432,22 @@ def init_scheduler(app):
         replace_existing=True
     )
 
+    # Job 6: Lembrete de Check-in (Manhã) — todo dia às 10:00 (Brasília)
+    scheduler.add_job(
+        func=lambda: app.app_context().push() or _lembrete_checkin_pendente_scheduler(),
+        trigger=CronTrigger(hour=10, minute=0),
+        id='lembrete_checkin_pendente_10h',
+        replace_existing=True
+    )
+
+    # Job 7: Lembrete de Check-in (Fim de tarde) — todo dia às 17:00 (Brasília)
+    scheduler.add_job(
+        func=lambda: app.app_context().push() or _lembrete_checkin_pendente_scheduler(),
+        trigger=CronTrigger(hour=17, minute=0),
+        id='lembrete_checkin_pendente_17h',
+        replace_existing=True
+    )
+
     scheduler.start()
-    logger.info("[SCHEDULER] APScheduler iniciado com 5 jobs de notificação.")
+    logger.info("[SCHEDULER] APScheduler iniciado com 7 jobs de notificação.")
 

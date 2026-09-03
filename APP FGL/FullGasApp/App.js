@@ -107,9 +107,11 @@ function Routes() {
           navigationRef.navigate('MainApp', { screen: 'TribunalTab' });
           break;
         case 'news':
+        case 'checkin':
+        case 'checkin_reminder':
+        case 'race_reminder':
           navigationRef.navigate('MainApp', { screen: 'HomeTab' });
           break;
-        case 'race_reminder':
         case 'ban_alert':
           navigationRef.navigate('MainApp', { screen: 'ProfileTab' });
           break;

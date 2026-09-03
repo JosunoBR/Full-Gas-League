@@ -78,7 +78,8 @@ class NotificationService:
                 priority='high',
                 notification=messaging.AndroidNotification(
                     sound='default',
-                    icon='ic_notification'
+                    icon='ic_notification',
+                    channel_id='fullgas-default'
                 )
             )
         )
@@ -124,7 +125,8 @@ class NotificationService:
                 priority='high',
                 notification=messaging.AndroidNotification(
                     sound='default',
-                    icon='ic_notification'
+                    icon='ic_notification',
+                    channel_id='fullgas-default'
                 )
             )
         )
