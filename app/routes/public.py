@@ -161,6 +161,10 @@ def login():
 
         login_user(user, remember=remember)
 
+        next_page = request.args.get('next')
+        if next_page and next_page.startswith('/') and not next_page.startswith('//'):
+            return redirect(next_page)
+
         if user.role == 'PILOTO':
             return redirect(url_for('public.my_profile'))
         elif user.role in ['SUPER_ADM', 'ADM']:
@@ -1137,16 +1141,19 @@ def open_protest():
         db.session.add(novo)
         db.session.commit()
 
-        # Envia notificação para o piloto acusado
+        # Envia notificação e e-mail para o piloto acusado
         try:
             acusado = PilotProfile.query.get(novo.acusado_id)
-            if acusado and acusado.fcm_token:
-                NotificationService.send_single_notification(
-                    token=acusado.fcm_token,
-                    title="🚨 Você recebeu um ticket!",
-                    body=f"Um protesto foi aberto contra você no {novo.etapa.nome_gp}. Acesse o site para apresentar sua defesa.",
-                    data={"type": "protest_opened", "protest_id": str(novo.id)}
-                )
+            if acusado:
+                if acusado.fcm_token:
+                    NotificationService.send_single_notification(
+                        token=acusado.fcm_token,
+                        title="🚨 Você recebeu um ticket!",
+                        body=f"Um protesto foi aberto contra você no {novo.etapa.nome_gp}. Acesse o site para apresentar sua defesa.",
+                        data={"type": "protest_opened", "protest_id": str(novo.id)}
+                    )
+                from app.services.email_service import EmailService
+                EmailService.send_protest_alert_email(novo, acusado, alert_type="abertura")
         except Exception as e:
             print(f"Falha ao enviar notificação de protesto: {e}")
 

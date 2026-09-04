@@ -3,6 +3,22 @@ import os
 # Pega o caminho absoluto da pasta onde este arquivo (config.py) está
 basedir = os.path.abspath(os.path.dirname(__file__))
 
+# Carrega variáveis do arquivo .env automaticamente se existir
+env_file = os.path.join(basedir, '.env')
+if os.path.exists(env_file):
+    try:
+        with open(env_file, 'r', encoding='utf-8') as _f:
+            for _line in _f:
+                _line = _line.strip()
+                if _line and not _line.startswith('#') and '=' in _line:
+                    _k, _v = _line.split('=', 1)
+                    _k = _k.strip()
+                    _v = _v.strip().strip('"').strip("'")
+                    if _k and _k not in os.environ:
+                        os.environ[_k] = _v
+    except Exception:
+        pass
+
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'chave-super-secreta-fullgas-2026'
     # JWT do App (mantem consistente independente do entrypoint)

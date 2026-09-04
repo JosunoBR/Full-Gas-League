@@ -715,6 +715,13 @@ def create_protest():
         except Exception as err:
             print(f"[API] Erro notificação protesto: {err}")
 
+    # Notificação por E-mail com link direto para defesa
+    try:
+        from app.services.email_service import EmailService
+        EmailService.send_protest_alert_email(protesto, acusado, alert_type="abertura")
+    except Exception as err:
+        print(f"[API] Erro ao enviar e-mail de protesto: {err}")
+
     return jsonify({"msg": "Protesto aberto com sucesso", "id": protesto.id}), 201
 
 @api_bp.route('/protests/<int:protest_id>/defense', methods=['POST'])

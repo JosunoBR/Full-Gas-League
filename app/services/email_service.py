@@ -121,17 +121,29 @@ class EmailService:
     # DISPARO MANUAL (PAINEL DE COMUNICAÇÃO)
     # =========================================================================
     @classmethod
+    def _get_base_url(cls, app):
+        """Retorna o domínio base ativo (considerando request atual ou fallback config)."""
+        try:
+            from flask import has_request_context, request
+            if has_request_context() and request.host_url:
+                return request.host_url.rstrip('/')
+        except Exception:
+            pass
+        return app.config.get('BASE_URL') or 'https://fullgasleague.com.br'
+
+    @classmethod
     def send_custom_broadcast(cls, subject, recipients, message_html, category="Comunicado Oficial"):
         """
         Envia comunicado criado pelo Administrador no Painel de Comunicação.
         """
         app = current_app._get_current_object()
+        base_url = cls._get_base_url(app)
         full_html = render_template(
             'emails/broadcast_email.html',
             subject=subject,
             category=category,
             message_content=message_html,
-            base_url=app.config.get('BASE_URL'),
+            base_url=base_url,
             instagram_url=app.config.get('INSTAGRAM_URL'),
             youtube_url=app.config.get('YOUTUBE_URL')
         )
@@ -159,12 +171,13 @@ class EmailService:
             return 0
 
         app = current_app._get_current_object()
+        base_url = cls._get_base_url(app)
         subject = f"🏎️ FullGas League: {race.nome_gp} em 48 horas!"
         html_content = render_template(
             'emails/race_reminder_email.html',
             race=race,
             subject=subject,
-            base_url=app.config.get('BASE_URL'),
+            base_url=base_url,
             instagram_url=app.config.get('INSTAGRAM_URL'),
             youtube_url=app.config.get('YOUTUBE_URL')
         )
@@ -182,6 +195,7 @@ class EmailService:
             return False
 
         app = current_app._get_current_object()
+        base_url = cls._get_base_url(app)
         is_race_ban = (ban_type == "race_ban")
         subject = "⛔ Notificação Oficial: Restrição de Corrida (Race Ban)" if is_race_ban else "⚠️ Notificação Oficial: Restrição de Qualificação (Quali Ban)"
 
@@ -191,7 +205,7 @@ class EmailService:
             race=race,
             ban_type=ban_type,
             subject=subject,
-            base_url=app.config.get('BASE_URL')
+            base_url=base_url
         )
         cls.send_async(subject, [pilot.user.email], html_content)
         return True
@@ -208,6 +222,7 @@ class EmailService:
             return False
 
         app = current_app._get_current_object()
+        base_url = cls._get_base_url(app)
 
         subjects = {
             'abertura': f"⚖️ Tribunal FullGas: Protesto #{protest.id} aberto contra você",
@@ -224,7 +239,7 @@ class EmailService:
             alert_type=alert_type,
             extra_info=extra_info,
             subject=subject,
-            base_url=app.config.get('BASE_URL')
+            base_url=base_url
         )
         cls.send_async(subject, [pilot.user.email], html_content)
         return True

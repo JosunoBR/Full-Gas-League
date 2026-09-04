@@ -2342,6 +2342,20 @@ def view_protest(protest_id):
                         )
                         if result == 'INVALID_TOKEN':
                             NotificationService.cleanup_invalid_tokens([parte.fcm_token])
+
+                # E-mail de veredito com link para o dossiê do tribunal
+                try:
+                    from app.services.email_service import EmailService
+                    for parte in [acusado, acusador]:
+                        if parte:
+                            EmailService.send_protest_alert_email(
+                                protesto,
+                                parte,
+                                alert_type="veredito",
+                                extra_info={"penalidade": verdict, "parecer": justificativa}
+                            )
+                except Exception as mail_err:
+                    current_app.logger.warning(f"[EMAIL] Falha ao enviar e-mail de veredito do protesto {protesto.id}: {mail_err}")
             except Exception as notif_err:
                 current_app.logger.warning(f"[NOTIF] Falha ao notificar veredito protesto {protesto.id}: {notif_err}")
 
