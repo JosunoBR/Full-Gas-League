@@ -187,36 +187,6 @@
 
     <!-- COLUNA LATERAL DE INSTRUÇÕES -->
     <div class="col-lg-4">
-        <!-- GUIA RESEND -->
-        <div class="card border-silver bg-dark shadow mb-4">
-            <div class="card-header bg-transparent border-bottom border-secondary py-3">
-                <h6 class="text-white fw-bold mb-0">
-                    <i class="fa-solid fa-shield-halved text-danger me-2"></i> Configuração de Envio Real
-                </h6>
-            </div>
-            <div class="card-body p-3 text-white-50 small" style="line-height: 1.6;">
-                <p>
-                    {% if is_resend_active %}
-                        <span class="text-success fw-bold"><i class="fa-solid fa-circle-check"></i> Chave RESEND_API_KEY detectada!</span> Os comunicados enviados por esta tela e pelos agendamentos automáticos serão entregues diretamente na caixa de entrada dos pilotos.
-                    {% else %}
-                        O sistema está atualmente em <strong class="text-info">Modo Simulação</strong>. Você pode testar prévias e disparos livremente sem risco de disparos acidentais.
-                    {% endif %}
-                </p>
-                <hr class="border-secondary">
-                <h6 class="text-white fw-bold small mb-2">Como Ativar o Disparo Real (Gratuito até 3.000/mês):</h6>
-                <ol class="ps-3 mb-0">
-                    <li>Acesse <a href="https://resend.com" target="_blank" class="text-danger fw-bold">resend.com</a> e crie uma conta gratuita.</li>
-                    <li>Cadastre seu domínio próprio na aba <em>Domains</em> e gere a sua API Key.</li>
-                    <li>Adicione a chave no arquivo <code>.env</code>:
-                        <div class="p-2 my-2 rounded bg-black text-light font-monospace" style="font-size: 11px;">
-                            RESEND_API_KEY=re_sua_chave_aqui<br>
-                            MAIL_REPLY_TO=fullgasracingf1@gmail.com
-                        </div>
-                    </li>
-                    <li>Pronto! Todas as respostas dos pilotos chegarão no seu Gmail da liga.</li>
-                </ol>
-            </div>
-        </div>
 
         <!-- RECURSOS AUTÔNOMOS -->
         <div class="card border-silver bg-dark shadow">
