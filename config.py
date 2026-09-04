@@ -44,3 +44,12 @@ class Config:
     YOUTUBE_URL = 'https://www.youtube.com/@FullGasLeagueF1Oficial'
     CONTACT_EMAIL = 'fullgasracingf1@gmail.com'
 
+    # --- CONFIGURAÇÃO DE E-MAILS (RESEND / SMTP) ---
+    RESEND_API_KEY = os.environ.get('RESEND_API_KEY')
+    # Remetente padrão oficial (utilize seu domínio configurado no Resend)
+    MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER') or 'FullGas League <contato@fullgasleague.com.br>'
+    # Para onde vão as respostas quando o piloto clicar em "Responder":
+    MAIL_REPLY_TO = os.environ.get('MAIL_REPLY_TO') or 'fullgasracingf1@gmail.com'
+    # URL base da aplicação para links em e-mails
+    BASE_URL = os.environ.get('BASE_URL') or 'https://fullgasleague.com.br'
+

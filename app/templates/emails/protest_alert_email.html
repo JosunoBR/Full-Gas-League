@@ -1,0 +1,66 @@
+{% extends "emails/base_email.html" %}
+
+{% block content %}
+{% if alert_type == 'abertura' %}
+  <div class="badge-category" style="border-color: #58a6ff; background-color: rgba(56, 139, 253, 0.2); color: #58a6ff;">
+    TRIBUNAL DE COMISSÁRIOS • NOVO PROTESTO
+  </div>
+  <h2 style="color: #ffffff; margin-top: 0; font-size: 22px; font-weight: 700;">
+    ⚖️ Protesto Aberto: Incidente em Análise
+  </h2>
+  <p>Olá, <strong>{{ pilot.nickname }}</strong>,</p>
+  <p>
+    Um protesto oficial foi protocolado contra você referente à etapa recente.
+  </p>
+  <div class="info-box" style="border-left-color: #58a6ff;">
+    <p style="margin: 0 0 6px 0;"><strong>Protocolo:</strong> #{{ protest.id }}</p>
+    <p style="margin: 0 0 6px 0;"><strong>Volta / Momento:</strong> {{ protest.volta_incidente or "Não informado" }}</p>
+    <p style="margin: 0;"><strong>Alegação do Reclamante:</strong> {{ protest.motivo or "Incidente sob investigação" }}</p>
+  </div>
+  <p style="color: #ff7b72; font-weight: 600;">
+    ⏳ Você possui 48 horas a partir da abertura para apresentar sua defesa e enviar seu vídeo através do painel.
+  </p>
+
+{% elif alert_type == 'prazo_24h' %}
+  <div class="badge-category" style="border-color: #d29922; background-color: rgba(210, 153, 34, 0.2); color: #e3b341;">
+    URGENTE • PRAZO EXPIRANDO
+  </div>
+  <h2 style="color: #e3b341; margin-top: 0; font-size: 22px; font-weight: 700;">
+    ⏳ Menos de 24 horas para enviar sua Defesa!
+  </h2>
+  <p>Olá, <strong>{{ pilot.nickname }}</strong>,</p>
+  <p>
+    O prazo regulamentar para cadastrar sua defesa no <strong>Protesto #{{ protest.id }}</strong> está se encerrando em menos de 24 horas.
+  </p>
+  <div class="info-box" style="border-left-color: #d29922;">
+    <p style="margin: 0;">
+      Caso sua defesa e evidências em vídeo não sejam submetidas até o término do prazo, o caso será julgado à revelia com base apenas nas imagens do reclamante e da transmissão oficial.
+    </p>
+  </div>
+
+{% else %}
+  <div class="badge-category" style="border-color: #238636; background-color: rgba(35, 134, 54, 0.2); color: #3fb950;">
+    DECISÃO DOS COMISSÁRIOS • VEREDITO
+  </div>
+  <h2 style="color: #ffffff; margin-top: 0; font-size: 22px; font-weight: 700;">
+    📋 Julgamento Concluído: Protesto #{{ protest.id }}
+  </h2>
+  <p>Olá, <strong>{{ pilot.nickname }}</strong>,</p>
+  <p>
+    A Direção de Prova e o Colégio de Comissários concluíram a análise do <strong>Protesto #{{ protest.id }}</strong>.
+  </p>
+  <div class="info-box" style="border-left-color: #238636;">
+    <p style="margin: 0 0 6px 0;"><strong>Status Final:</strong> {{ protest.status }}</p>
+    {% if extra_info %}
+      <p style="margin: 0 0 6px 0;"><strong>Penalidade / Resolução:</strong> {{ extra_info.penalidade or "Sem punição aplicada" }}</p>
+      <p style="margin: 0;"><strong>Parecer dos Comissários:</strong> {{ extra_info.parecer or "Consulte a ata no portal." }}</p>
+    {% endif %}
+  </div>
+{% endif %}
+
+<div style="text-align: center; margin-top: 30px;">
+  <a href="{{ base_url or 'https://fullgasleague.com.br' }}/pilot/protests" class="btn-action" target="_blank">
+    Acessar Tribunal no Portal
+  </a>
+</div>
+{% endblock %}

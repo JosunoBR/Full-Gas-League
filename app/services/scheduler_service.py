@@ -62,6 +62,17 @@ def _lembrete_corrida_2_dias():
             if invalid:
                 NotificationService.cleanup_invalid_tokens(invalid)
 
+            # DISPARO AUTÔNOMO DE E-MAILS (FullGas League)
+            try:
+                from app.services.email_service import EmailService
+                # Busca todos os pilotos do grid (com ou sem app instalado)
+                todos_pilotos_grid = PilotProfile.query.filter(
+                    PilotProfile.grid.contains(str(corrida.grid_id))
+                ).all()
+                EmailService.send_race_reminder_email(corrida, todos_pilotos_grid)
+            except Exception as e:
+                logger.error(f"[SCHEDULER] Erro ao enviar e-mail autônomo de 48h: {e}")
+
 
 def _alertas_ban_dia_corrida():
     """
@@ -107,6 +118,13 @@ def _alertas_ban_dia_corrida():
                     if result == 'INVALID_TOKEN':
                         NotificationService.cleanup_invalid_tokens([piloto.fcm_token])
 
+                    # E-mail formal de Race Ban
+                    try:
+                        from app.services.email_service import EmailService
+                        EmailService.send_ban_alert_email(piloto, corrida, "race_ban")
+                    except Exception as e:
+                        logger.error(f"[SCHEDULER] Erro ao enviar e-mail de race ban: {e}")
+
                 # Quali Ban: penalidade de campeonato ativa
                 elif piloto.penalidade_campeonato and piloto.penalidade_campeonato > 0:
                     result = NotificationService.send_single_notification(
@@ -118,14 +136,22 @@ def _alertas_ban_dia_corrida():
                     if result == 'INVALID_TOKEN':
                         NotificationService.cleanup_invalid_tokens([piloto.fcm_token])
 
+                    # E-mail formal de Quali Ban
+                    try:
+                        from app.services.email_service import EmailService
+                        EmailService.send_ban_alert_email(piloto, corrida, "quali_ban")
+                    except Exception as e:
+                        logger.error(f"[SCHEDULER] Erro ao enviar e-mail de quali ban: {e}")
+
         logger.info(f"[SCHEDULER] Alertas de ban verificados para {len(corridas_hoje)} corrida(s) hoje.")
 
 
 def _alerta_prazo_defesa():
     """
-    Roda a cada hora.
-    Avisa pilotos acusados cujo prazo de defesa expira nas próximas 24 horas.
-    Só envia uma vez (marca com flag no corpo para evitar spam — controla via data_criacao).
+    Roda a cada 2 horas.
+    Envia alerta contínuo para o piloto acusado enquanto o ticket estiver com
+    status 'AGUARDANDO_DEFESA' e dentro do prazo regulamentar de 48 horas.
+    Assim que o acusado apresenta a defesa (status muda), as notificações cessam.
     """
     from flask import current_app
     from app.models import db, Protesto, PilotProfile
@@ -135,35 +161,49 @@ def _alerta_prazo_defesa():
 
     with current_app.app_context():
         agora = get_brasilia_now()
-        # Prazo de defesa: 48h após a criação do protesto (ajuste conforme regra do campeonato)
+        # Prazo de defesa: 48 horas após a criação do protesto
         PRAZO_DEFESA_HORAS = 48
-        JANELA_AVISO_HORAS = 24
+        limite_criacao = agora - timedelta(hours=PRAZO_DEFESA_HORAS)
 
-        limite_criacao_min = agora - timedelta(hours=PRAZO_DEFESA_HORAS)
-        limite_criacao_max = agora - timedelta(hours=PRAZO_DEFESA_HORAS - JANELA_AVISO_HORAS)
-
-        protestos_expirando = Protesto.query.filter(
+        # Busca todos os protestos aguardando defesa dentro do prazo de 48h
+        protestos_pendentes = Protesto.query.filter(
             Protesto.status == 'AGUARDANDO_DEFESA',
-            Protesto.data_criacao >= limite_criacao_min,
-            Protesto.data_criacao <= limite_criacao_max,
+            Protesto.data_criacao >= limite_criacao
         ).all()
 
-        for protesto in protestos_expirando:
+        for protesto in protestos_pendentes:
             acusado = db.session.get(PilotProfile, protesto.acusado_id)
-            if not acusado or not acusado.fcm_token:
+            if not acusado:
                 continue
 
-            result = NotificationService.send_single_notification(
-                token=acusado.fcm_token,
-                title="⏳ Prazo de defesa expirando!",
-                body=f"Você tem menos de 24h para enviar sua defesa no protesto #{protesto.id}. Acesse o site agora.",
-                data={"type": "defense_deadline", "protest_id": str(protesto.id)}
-            )
-            if result == 'INVALID_TOKEN':
-                NotificationService.cleanup_invalid_tokens([acusado.fcm_token])
+            # Calcula horas restantes até encerrar o prazo de 48h
+            tempo_decorrido = (agora - protesto.data_criacao).total_seconds() / 3600.0
+            horas_restantes = max(1, int(PRAZO_DEFESA_HORAS - tempo_decorrido))
 
-        if protestos_expirando:
-            logger.info(f"[SCHEDULER] Alertas de prazo de defesa enviados: {len(protestos_expirando)} protesto(s).")
+            # Notificação Push no App (FCM)
+            if acusado.fcm_token:
+                result = NotificationService.send_single_notification(
+                    token=acusado.fcm_token,
+                    title=f"⏳ Ticket #{protesto.id}: Defesa Pendente",
+                    body=f"Você tem um ticket aguardando sua defesa ({horas_restantes}h restantes). Acesse o app para anexar sua versão e vídeo.",
+                    data={"type": "defense_deadline", "protest_id": str(protesto.id)}
+                )
+                if result == 'INVALID_TOKEN':
+                    NotificationService.cleanup_invalid_tokens([acusado.fcm_token])
+
+            # Disparo de e-mail de alerta de defesa pendente
+            try:
+                from app.services.email_service import EmailService
+                EmailService.send_protest_alert_email(
+                    protesto,
+                    acusado,
+                    'prazo_24h' if horas_restantes <= 24 else 'abertura'
+                )
+            except Exception as e:
+                logger.error(f"[SCHEDULER] Erro ao enviar e-mail de prazo de defesa: {e}")
+
+        if protestos_pendentes:
+            logger.info(f"[SCHEDULER] Cobrança de defesa enviada a cada 2h para {len(protestos_pendentes)} protesto(s) pendente(s).")
 
 
 def notificar_transmissao_corrida_dia(corrida_especifica_id=None, youtube_url_custom=None, titulo_custom=None, mensagem_custom=None):
@@ -408,10 +448,10 @@ def init_scheduler(app):
         replace_existing=True
     )
 
-    # Job 3: Prazo de defesa — a cada 1 hora
+    # Job 3: Cobrança de defesa pendente — a cada 2 horas
     scheduler.add_job(
         func=lambda: app.app_context().push() or _alerta_prazo_defesa(),
-        trigger=IntervalTrigger(hours=1),
+        trigger=IntervalTrigger(hours=2),
         id='alerta_prazo_defesa',
         replace_existing=True
     )

@@ -1,4 +1,5 @@
 import os
+print("Carregando módulos da aplicação FullGas League...", flush=True)
 from datetime import datetime, timedelta, timezone
 from flask import Flask, request
 from flask_login import LoginManager, current_user
@@ -9,6 +10,7 @@ from app.models import db, User, PilotProfile, AccessLog
 from app.routes.public import public_bp
 from app.routes.admin import admin_bp
 from app.routes.api import api_bp # Importa a nova API
+from app.routes.communication import communication_bp # Central de Comunicação e E-mails
 from config import Config
 from sqlalchemy import text, event
 from sqlalchemy.engine import Engine
@@ -149,6 +151,7 @@ def log_user_access():
 app.register_blueprint(public_bp)
 app.register_blueprint(admin_bp, url_prefix='/admin')
 app.register_blueprint(api_bp, url_prefix='/api')
+app.register_blueprint(communication_bp, url_prefix='/admin/comunicacao')
 
 # Executa inicialização de schema e tabelas no carregamento do WSGI
 init_schema()
@@ -186,7 +189,7 @@ if __name__ == '__main__':
             db.session.add(perfil_admin)
         
         db.session.commit()
-        print("Acesso Admin garantido: admin@fullgas.com / admin123")
+        print("Acesso Admin garantido: admin@fullgas.com / admin123", flush=True)
 
         # Aquecimento de Cache da Home para temporadas ativas
         try:
@@ -195,9 +198,11 @@ if __name__ == '__main__':
             active_seasons = Season.query.filter_by(ativa=True).all()
             for s in active_seasons:
                 StandingsService.get_home_data(s.id)
-            print("Cache da Home pré-aquecido com sucesso!")
+            print("Cache da Home pré-aquecido com sucesso!", flush=True)
         except Exception as e:
-            print(f"Aviso no pré-aquecimento do cache: {e}")
+            print(f"Aviso no pré-aquecimento do cache: {e}", flush=True)
+
+        print("Iniciando servidor Web na porta 5000 (Acesse: http://127.0.0.1:5000)...", flush=True)
 
     app.run(debug=True, host='0.0.0.0')
 

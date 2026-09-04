@@ -1,0 +1,46 @@
+{% extends "emails/base_email.html" %}
+
+{% block content %}
+{% if ban_type == "race_ban" %}
+  <div class="badge-category" style="border-color: #da3633; background-color: rgba(218, 54, 51, 0.2); color: #ff7b72;">
+    RESTRIÇÃO DE CORRIDA • RACE BAN
+  </div>
+  <h2 style="color: #ff7b72; margin-top: 0; font-size: 22px; font-weight: 700;">
+    ⛔ Aviso de Restrição: Race Ban Ativo
+  </h2>
+  <p>Prezado(a) <strong>{{ pilot.nickname }}</strong>,</p>
+  <p>
+    Informamos formalmente que, devido ao esgotamento da sua pontuação de CNH (atualmente em <strong>{{ pilot.pontos_cnh }} pontos</strong>), você está cumprindo penalidade de <strong>RACE BAN</strong> para a etapa de hoje: <strong>{{ race.nome_gp }}</strong>.
+  </p>
+  <div class="info-box" style="border-left-color: #da3633;">
+    <p style="margin: 0; font-size: 14px;">
+      <strong>Regulamento Disciplinar:</strong> Você não está autorizado a participar da sessão de qualificação nem da corrida principal deste evento. O descumprimento acarretará penalidades graves adicionais.
+    </p>
+  </div>
+{% else %}
+  <div class="badge-category" style="border-color: #d29922; background-color: rgba(210, 153, 34, 0.2); color: #e3b341;">
+    RESTRIÇÃO DISCIPLINAR • QUALI BAN
+  </div>
+  <h2 style="color: #e3b341; margin-top: 0; font-size: 22px; font-weight: 700;">
+    ⚠️ Aviso de Restrição: Quali Ban Ativo
+  </h2>
+  <p>Prezado(a) <strong>{{ pilot.nickname }}</strong>,</p>
+  <p>
+    Informamos que você possui uma penalidade ativa que impede sua participação na sessão de qualificação da etapa de hoje (<strong>{{ race.nome_gp }}</strong>).
+  </p>
+  <div class="info-box" style="border-left-color: #d29922;">
+    <p style="margin: 0; font-size: 14px;">
+      <strong>Motivo Registrado:</strong> {{ pilot.motivo_penalidade or "Penalidade acumulada por advertências/decisão dos comissários." }}
+    </p>
+  </div>
+  <p style="font-size: 14px; color: #8b949e;">
+    Você deverá largar do final do grid na corrida principal, conforme estabelecido no regulamento.
+  </p>
+{% endif %}
+
+<div style="text-align: center; margin-top: 30px;">
+  <a href="{{ base_url or 'https://fullgasleague.com.br' }}/my_profile" class="btn-action" target="_blank">
+    Consultar Meu Perfil e CNH
+  </a>
+</div>
+{% endblock %}

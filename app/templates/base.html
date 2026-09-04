@@ -215,6 +215,7 @@
                                 {% endif %}
                                 {% if current_user.role in ['SUPER_ADM', 'ADM'] %}
                                     <li><a class="dropdown-item" href="{{ url_for('admin.manual') }}">Manual da Direção</a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('communication.index') }}"><i class="fa-solid fa-paper-plane text-danger me-2"></i>Comunicação & E-mails</a></li>
                                 {% endif %}
                                 {% if current_user.role == 'SUPER_ADM' %}
                                     <li><a class="dropdown-item" href="{{ url_for('admin.invites') }}">Convites</a></li>

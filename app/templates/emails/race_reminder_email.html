@@ -1,0 +1,55 @@
+{% extends "emails/base_email.html" %}
+
+{% block content %}
+<div class="badge-category">LEMBRETE DE CORRIDA • 48 HORAS</div>
+
+<h2 style="color: #ffffff; margin-top: 0; font-size: 22px; font-weight: 700;">
+  🏎️ Prepare seu carro: {{ race.nome_gp }}!
+</h2>
+
+<p>Olá, Piloto!</p>
+<p>
+  A sua próxima batalha no asfalto virtual está se aproximando! Faltam apenas <strong>48 horas</strong> para a largada de mais uma etapa eletrizante da <strong>FullGas League</strong>.
+</p>
+
+<div class="info-box">
+  <table width="100%" style="font-size: 14px; color: #e6edf3;">
+    <tr>
+      <td style="padding: 6px 0; width: 35%; color: #8b949e;"><strong>Grande Prêmio:</strong></td>
+      <td style="padding: 6px 0; font-weight: bold; color: #ffffff;">{{ race.nome_gp }}</td>
+    </tr>
+    <tr>
+      <td style="padding: 6px 0; color: #8b949e;"><strong>Data da Etapa:</strong></td>
+      <td style="padding: 6px 0; font-weight: bold; color: #ff7b72;">
+        {{ race.data_corrida.strftime('%d/%m/%Y') if race.data_corrida else 'Consulte o calendário' }}
+      </td>
+    </tr>
+    {% if race.horario %}
+    <tr>
+      <td style="padding: 6px 0; color: #8b949e;"><strong>Horário Previsto:</strong></td>
+      <td style="padding: 6px 0; color: #ffffff;">{{ race.horario }}</td>
+    </tr>
+    {% endif %}
+    {% if race.grid_rel %}
+    <tr>
+      <td style="padding: 6px 0; color: #8b949e;"><strong>Grid:</strong></td>
+      <td style="padding: 6px 0; color: #ffffff;">{{ race.grid_rel.nome }}</td>
+    </tr>
+    {% endif %}
+  </table>
+</div>
+
+<h3 style="color: #ffffff; font-size: 16px; margin-top: 24px;">📋 Recomendações da Direção de Prova:</h3>
+<ul style="color: #c9d1d9; padding-left: 20px; line-height: 1.7;">
+  <li>Realize o <strong>Check-in de Presença</strong> no App ou no Portal antes do prazo limite.</li>
+  <li>Confira sua <strong>pontuação na CNH</strong> e verifique se você possui penalidades aplicadas.</li>
+  <li>Esteja conectado na sala do lobby com pelo menos 15 minutos de antecedência.</li>
+  <li>Mantenha a pilotagem limpa e o respeito às regras do regulamento oficial.</li>
+</ul>
+
+<div style="text-align: center; margin-top: 30px;">
+  <a href="{{ base_url or 'https://fullgasleague.com.br' }}/my_profile" class="btn-action" target="_blank">
+    Fazer Check-in / Ver Meu Perfil
+  </a>
+</div>
+{% endblock %}
