@@ -2157,8 +2157,8 @@ def seletiva():
         action = request.form.get('action')
         if action == 'config_grid':
             nome = request.form.get('nome')
-            vagas_input = int(request.form.get('vagas') or 20)
-            vagas = vagas_input if vagas_input in [20, 22] else 20
+            vagas_input = int(request.form.get('vagas') or 22)
+            vagas = vagas_input if vagas_input in [20, 22] else 22
             ordem = int(request.form.get('ordem') or 0)
             campeonato_equipes = True if request.form.get('campeonato_equipes') == 'on' else False
             exibir_lastro = not campeonato_equipes
