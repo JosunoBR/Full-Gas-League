@@ -150,6 +150,8 @@ def restrict_access():
         # Whitelist de endpoints permitidos para o Narrador
         allowed_endpoints = [
             'overview',
+            'export_classification',
+            'export_constructors_classification',
             'pilot_stats',
             'pilot_career_stats',
             'analytics',
@@ -168,6 +170,8 @@ def restrict_access():
         allowed_endpoints = [
             'dashboard',
             'overview',
+            'export_classification',
+            'export_constructors_classification',
             'pilot_stats',
             'pilot_career_stats',
             'analytics',
@@ -240,7 +244,7 @@ def dashboard():
 
 @admin_bp.route('/analytics')
 def analytics():
-    if current_user.role not in ['SUPER_ADM', 'ADM']:
+    if current_user.role not in ['SUPER_ADM', 'ADM', 'COMISSARIO']:
         flash('Acesso negado. Área exclusiva para Administradores.', 'danger')
         return redirect(url_for('admin.dashboard'))
 
@@ -553,35 +557,210 @@ def pilot_career_stats():
         stats_rows=stats_rows
     )
 
+def format_driver_broadcast_name(pilot):
+    """
+    Retorna o primeiro nome + inicial do último sobrenome do piloto para a transmissão/CSV (ex: Lucas V., Marcello B., João B.).
+    Se houver apenas um nome ou nickname único, retorna apenas ele.
+    Se não houver nome real cadastrado, utiliza o nickname como fallback (removendo tags de equipe/clan se houver).
+    """
+    raw_name = (pilot.nome_real or '').strip()
+    if not raw_name:
+        nick = (pilot.nickname or '').strip()
+        if '|' in nick:
+            raw_name = nick.split('|')[-1].strip()
+        else:
+            raw_name = nick
+    if not raw_name:
+        return 'Piloto'
+
+    tokens = raw_name.split()
+    if not tokens:
+        return 'Piloto'
+
+    def format_word(w):
+        return w.capitalize() if (w.isupper() or w.islower()) else w
+
+    first = format_word(tokens[0])
+    if len(tokens) == 1:
+        return first
+
+    # Pega o último sobrenome
+    last = tokens[-1].strip()
+    last_initial = ''
+    for ch in last:
+        if ch.isalpha():
+            last_initial = ch.upper()
+            break
+
+    if last_initial:
+        return f"{first} {last_initial}."
+    return first
+
+
 @admin_bp.route('/overview/export')
 def export_classification():
-    # parameters
+    """
+    Exporta a classificação do Grid para CSV no padrão exato solicitado:
+    Colunas: POSIÇÃO;EQUIPE;NOME;PONTOS
+    Delimitador: Ponto e vírgula (;) com BOM UTF-8 para compatibilidade perfeita com Microsoft Excel.
+    """
+    import csv, io
+
     season_id = request.args.get('season_id', type=int)
     grid_id = request.args.get('grid_id', type=int)
+
+    if not season_id:
+        season_ativa, _ = _get_season_context()
+        if season_ativa:
+            season_id = season_ativa.id
+
     if not season_id or not grid_id:
         flash('Parâmetros insuficientes para exportar.', 'danger')
         return redirect(url_for('admin.overview', s=season_id))
 
     season = db.session.get(Season, season_id)
-    if not season:
-        flash('Temporada não encontrada.', 'danger')
+    grid_cfg = db.session.get(GridConfig, grid_id)
+    if not season or not grid_cfg:
+        flash('Temporada ou Grid não encontrados.', 'danger')
         return redirect(url_for('admin.overview'))
 
-    # Usa o mesmo serviço para garantir consistência dos dados
-    stats_data = StatsService.get_grid_statistics(season_id, grid_id)
+    pilotos = PilotProfile.query.join(User).all()
+    all_season_teams = Team.query.filter_by(season_id=season.id).all()
 
-    # build csv
-    import csv, io
+    classificacao = []
+    for p in pilotos:
+        resultados_season = [r for r in p.race_results if r.race.season_id == season.id]
+        teams_season = [t for t in all_season_teams if any(pilot.id == p.id for pilot in t.pilots)]
+        reserves_season = [t for t in all_season_teams if any(pilot.id == p.id for pilot in t.reserves)]
+
+        grids_participados_ids = set()
+        if p.grid and p.grid != 'SEM_GRID':
+            grids_participados_ids.update(int(token) for token in p.grid.split(',') if token.strip().isdigit())
+        for t in (teams_season + reserves_season):
+            if t.grid_id:
+                grids_participados_ids.add(t.grid_id)
+
+        if grid_id not in grids_participados_ids:
+            continue
+
+        res_no_grid = [r for r in resultados_season if grid_matches(r.race, grid_cfg)]
+        pontos = ScoringService.calculate_pilot_total_points(p.id, season.id, grid_id)
+        vitorias = sum(1 for r in res_no_grid if r.posicao == 1 and not r.dsq)
+        podios = sum(1 for r in res_no_grid if r.posicao in [1, 2, 3] and not r.dsq)
+
+        # Identificação da equipe no grid
+        team_obj = next((t for t in teams_season if t.grid_id == grid_id), None)
+        if not team_obj:
+            team_obj = next((t for t in reserves_season if t.grid_id == grid_id), None)
+        if not team_obj:
+            sorted_res = sorted(
+                res_no_grid,
+                key=lambda x: (x.race.data_corrida or datetime.min.date(), x.id or 0),
+                reverse=True
+            )
+            for r in sorted_res:
+                if r.team_snapshot:
+                    team_obj = r.team_snapshot
+                    break
+
+        team_name = team_obj.nome.strip() if team_obj else '-'
+        b_name = format_driver_broadcast_name(p)
+
+        classificacao.append({
+            'piloto': p,
+            'broadcast_name': b_name,
+            'team': team_name,
+            'pontos': pontos,
+            'vitorias': vitorias,
+            'podios': podios
+        })
+
+    # Ordenação por pontos, vitórias e pódios decrescentes
+    classificacao.sort(key=lambda x: (x['pontos'], x['vitorias'], x['podios']), reverse=True)
+
     si = io.StringIO()
-    writer = csv.writer(si)
-    writer.writerow(['Pos','Piloto','Vitórias','Pódios','Pontos'])
-    
-    for idx, row in enumerate(stats_data, start=1):
-        writer.writerow([idx, row['piloto'].nickname, row['wins'], row['podiums'], row['points']])
-        
-    output = si.getvalue()
-    return current_app.response_class(output, mimetype='text/csv',
-                                       headers={'Content-Disposition':f'attachment;filename=classificacao_grid_{grid_id}_season_{season_id}.csv'})
+    delim = request.args.get('delim') or ';'
+    writer = csv.writer(si, delimiter=delim)
+    writer.writerow(['POSIÇÃO', 'EQUIPE', 'NOME', 'PONTOS'])
+
+    for idx, row in enumerate(classificacao, start=1):
+        pts = row['pontos']
+        if isinstance(pts, (int, float)) and float(pts).is_integer():
+            pts_str = str(int(pts))
+        else:
+            pts_str = str(pts)
+        writer.writerow([idx, row['team'], row['broadcast_name'], pts_str])
+
+    # UTF-8 BOM (\ufeff) para compatibilidade nativa com Excel
+    output = '\ufeff' + si.getvalue()
+    safe_grid_nome = grid_cfg.nome.lower().replace(' ', '_')
+    filename = f"classificacao_grid_{safe_grid_nome}.csv"
+
+    return current_app.response_class(
+        output,
+        mimetype='text/csv; charset=utf-8',
+        headers={'Content-Disposition': f'attachment; filename="{filename}"'}
+    )
+
+
+@admin_bp.route('/overview/export_constructors')
+def export_constructors_classification():
+    """
+    Exporta a classificação de Construtores do Grid para CSV no padrão compatível com Excel:
+    Colunas: POSIÇÃO;EQUIPE;PONTOS
+    Delimitador: Ponto e vírgula (;) com BOM UTF-8 para compatibilidade perfeita com Microsoft Excel.
+    """
+    import csv, io
+
+    season_id = request.args.get('season_id', type=int)
+    grid_id = request.args.get('grid_id', type=int)
+
+    if not season_id:
+        season_ativa, _ = _get_season_context()
+        if season_ativa:
+            season_id = season_ativa.id
+
+    if not season_id or not grid_id:
+        flash('Parâmetros insuficientes para exportar.', 'danger')
+        return redirect(url_for('admin.overview', s=season_id))
+
+    season = db.session.get(Season, season_id)
+    grid_cfg = db.session.get(GridConfig, grid_id)
+    if not season or not grid_cfg:
+        flash('Temporada ou Grid não encontrados.', 'danger')
+        return redirect(url_for('admin.overview'))
+
+    team_ctx = build_team_context(season.id)
+    raw_constructors = ScoringService.build_constructors_for_home(
+        season.id, [grid_cfg], team_ctx["canonical_teams"], team_ctx["alias_ids_by_key"]
+    )
+    constructors_list = raw_constructors.get(grid_cfg.id, [])
+
+    si = io.StringIO()
+    delim = request.args.get('delim') or ';'
+    writer = csv.writer(si, delimiter=delim)
+    writer.writerow(['POSIÇÃO', 'EQUIPE', 'PONTOS'])
+
+    for idx, item in enumerate(constructors_list, start=1):
+        team = item['equipe']
+        pts = item['pontos']
+        if isinstance(pts, (int, float)) and float(pts).is_integer():
+            pts_str = str(int(pts))
+        else:
+            pts_str = str(pts)
+        writer.writerow([idx, team.nome.strip(), pts_str])
+
+    # UTF-8 BOM (\ufeff) para compatibilidade nativa com Excel
+    output = '\ufeff' + si.getvalue()
+    safe_grid_nome = grid_cfg.nome.lower().replace(' ', '_')
+    filename = f"construtores_grid_{safe_grid_nome}.csv"
+
+    return current_app.response_class(
+        output,
+        mimetype='text/csv; charset=utf-8',
+        headers={'Content-Disposition': f'attachment; filename="{filename}"'}
+    )
+
 
 @admin_bp.route('/historic')
 @login_required
@@ -953,9 +1132,9 @@ def create_season():
             if names[i].strip():
                 # Tratamento seguro para conversão de valores, previne erro 500 se o campo vier vazio
                 try:
-                    vagas_val = int(vagas[i]) if i < len(vagas) and vagas[i].strip() else 20
+                    vagas_val = int(vagas[i]) if i < len(vagas) and vagas[i].strip() else 22
                 except ValueError:
-                    vagas_val = 20
+                    vagas_val = 22
                     
                 try:
                     ordem_val = int(ordens[i]) if i < len(ordens) and ordens[i].strip() else (i + 1)
@@ -1017,7 +1196,7 @@ def manage_season(season_id):
     if not final_grids:
         # Fallback: busca grids das corridas se não houver config
         grids_in_season = [r[0] for r in db.session.query(Race.grid).filter_by(season_id=season.id).distinct().all()]
-        final_grids = [type('HistoricalGrid', (object,), {'id': 0, 'nome': g, 'vagas': 20, 'ordem': 999, 'exibir_lastro': True})() for g in grids_in_season]
+        final_grids = [type('HistoricalGrid', (object,), {'id': 0, 'nome': g, 'vagas': 22, 'ordem': 999, 'exibir_lastro': True})() for g in grids_in_season]
 
     return render_template('admin/season_detail.html', season=season, pistas=PISTAS_F1, grid_configs=final_grids)
 
@@ -1262,7 +1441,7 @@ def edit_race(race_id):
                 
         for g_name in grids_in_season:
             if g_name not in seen_names:
-                final_grids.append(type('HistoricalGrid', (object,), {'id': 0, 'nome': g_name, 'vagas': 20, 'ordem': 999, 'exibir_lastro': True})())
+                final_grids.append(type('HistoricalGrid', (object,), {'id': 0, 'nome': g_name, 'vagas': 22, 'ordem': 999, 'exibir_lastro': True})())
                 seen_names.add(g_name)
             
     final_grids.sort(key=lambda x: x.ordem if hasattr(x, 'ordem') else 999)
@@ -2157,8 +2336,7 @@ def seletiva():
         action = request.form.get('action')
         if action == 'config_grid':
             nome = request.form.get('nome')
-            vagas_input = int(request.form.get('vagas') or 22)
-            vagas = vagas_input if vagas_input in [20, 22] else 22
+            vagas = int(request.form.get('vagas') or 22)
             ordem = int(request.form.get('ordem') or 0)
             campeonato_equipes = True if request.form.get('campeonato_equipes') == 'on' else False
             exibir_lastro = not campeonato_equipes

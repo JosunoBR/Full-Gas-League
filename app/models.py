@@ -345,7 +345,7 @@ class GridConfig(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     season_id = db.Column(db.Integer, db.ForeignKey('season.id'), nullable=True)
     nome = db.Column(db.String(50), nullable=False)
-    vagas = db.Column(db.Integer, nullable=False, default=20)
+    vagas = db.Column(db.Integer, nullable=False, default=22)
     ordem = db.Column(db.Integer, default=0)
     exibir_lastro = db.Column(db.Boolean, default=True)
 

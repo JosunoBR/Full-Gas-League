@@ -15,23 +15,31 @@ class ComissarioRoleTestCase(unittest.TestCase):
         self.comissario_user = User.query.filter_by(username='test_comissario').first()
         if not self.comissario_user:
             self.comissario_user = User(username='test_comissario', email='comissario@test.local', role='COMISSARIO')
-            self.comissario_user.set_password('pass123')
             db.session.add(self.comissario_user)
-            db.session.commit()
+        self.comissario_user.role = 'COMISSARIO'
+        self.comissario_user.set_password('pass123')
+        db.session.commit()
 
         # Cria usuário Super Admin para teste
         self.superadmin_user = User.query.filter_by(username='test_superadmin').first()
         if not self.superadmin_user:
             self.superadmin_user = User(username='test_superadmin', email='superadmin@test.local', role='SUPER_ADM')
-            self.superadmin_user.set_password('pass123')
             db.session.add(self.superadmin_user)
-            db.session.commit()
+        self.superadmin_user.role = 'SUPER_ADM'
+        self.superadmin_user.set_password('pass123')
+        db.session.commit()
 
     def tearDown(self):
         self.app_context.pop()
 
     def login(self, username, password='pass123'):
-        return self.client.post('/login', data={'login': username, 'password': password}, follow_redirects=True)
+        if username == 'test_comissario':
+            email = self.comissario_user.email
+        elif username == 'test_superadmin':
+            email = self.superadmin_user.email
+        else:
+            email = f"{username}@test.local" if '@' not in username else username
+        return self.client.post('/login', data={'email': email, 'password': password}, follow_redirects=True)
 
     def logout(self):
         return self.client.get('/logout', follow_redirects=True)

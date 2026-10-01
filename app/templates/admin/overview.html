@@ -249,11 +249,10 @@
 
                 <a href="{{ url_for('admin.pilot_stats', season_id=season.id, grid_id=grid.id) }}" class="btn btn-outline-light btn-sm ms-2">
                     <i class="fa-solid fa-chart-column"></i> Estatísticas
-                    <i class="fa-solid fa-chart-pie"></i> Estatísticas
                 </a>
             </div>
             <div class="col text-end">
-                <a href="{{ url_for('admin.export_classification', season_id=season.id, grid_id=grid.id) }}" class="btn btn-outline-light btn-sm" title="Exportar CSV">
+                <a href="{{ url_for('admin.export_classification', season_id=season.id, grid_id=grid.id) }}" class="btn btn-outline-success btn-sm" title="Exportar Classificação para CSV (Excel)">
                     <i class="fa-solid fa-file-csv"></i> CSV
                 </a>
             </div>
@@ -264,6 +263,7 @@
                     <div class="card-header bg-dark border-secondary d-flex justify-content-between align-items-center">
                         <h6 class="mb-0 text-white"><i class="fa-solid fa-trophy text-warning"></i> Tabela de Classificacao</h6>
                         <div class="d-flex align-items-center">
+                            <a href="{{ url_for('admin.export_classification', season_id=season.id, grid_id=grid.id) }}" class="btn btn-outline-success btn-sm py-0 px-2 me-2" title="Exportar Classificação para CSV (Excel)"><i class="fa-solid fa-file-csv"></i><span class="d-none d-md-inline ms-1"> CSV</span></a>
                             <button class="btn btn-outline-light btn-sm py-0 px-2 export-png-btn me-2" data-target-id="classification-card-{{ grid.id }}" data-filename="classificacao_grid_{{ grid.nome }}.png" title="Exportar para PNG"><i class="fa-solid fa-image"></i><span class="d-none d-md-inline ms-1"> PNG</span></button>
                             <ul class="nav nav-pills nav-pills-sm" id="pills-overview-tab-{{ grid.id }}" role="tablist">
                                 <li class="nav-item" role="presentation">
@@ -440,9 +440,12 @@
                 <div class="card shadow border-secondary mb-4" id="constructors-card-{{ grid.id }}">
                     <div class="card-header bg-dark border-secondary d-flex justify-content-between align-items-center">
                         <h6 class="mb-0 text-white"><i class="fa-solid fa-flag-checkered text-info"></i> Construtores</h6>
-                        <button class="btn btn-outline-light btn-sm py-0 px-2 export-png-btn" data-target-id="constructors-card-{{ grid.id }}" data-filename="construtores_grid_{{ grid.nome }}.png" title="Exportar para PNG">
-                            <i class="fa-solid fa-image"></i><span class="d-none d-md-inline ms-1"> PNG</span>
-                        </button>
+                        <div class="d-flex align-items-center">
+                            <a href="{{ url_for('admin.export_constructors_classification', season_id=season.id, grid_id=grid.id) }}" class="btn btn-outline-success btn-sm py-0 px-2 me-2" title="Exportar Construtores para CSV (Excel)"><i class="fa-solid fa-file-csv"></i><span class="d-none d-md-inline ms-1"> CSV</span></a>
+                            <button class="btn btn-outline-light btn-sm py-0 px-2 export-png-btn" data-target-id="constructors-card-{{ grid.id }}" data-filename="construtores_grid_{{ grid.nome }}.png" title="Exportar para PNG">
+                                <i class="fa-solid fa-image"></i><span class="d-none d-md-inline ms-1"> PNG</span>
+                            </button>
+                        </div>
                     </div>
                     <div class="table-responsive">
                         <table class="table table-dark table-hover table-sm mb-0 align-middle f1-classification-table">
