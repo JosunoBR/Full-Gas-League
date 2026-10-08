@@ -69,6 +69,12 @@ def create_test_app(database_uri, upload_folder):
     def load_user(user_id):
         return db.session.get(User, int(user_id))
 
+    @app.template_filter('format_datetime')
+    def format_datetime(value, format="%d/%m/%Y às %H:%M"):
+        if value is None:
+            return ""
+        return value.strftime(format)
+
     app.register_blueprint(public_bp)
     app.register_blueprint(admin_bp, url_prefix='/admin')
     return app
@@ -438,6 +444,106 @@ class ProtestFlowTests(unittest.TestCase):
 
         self.assertEqual(after_count, before_count)
 
+    def test_pilots_cannot_view_or_cast_votes(self):
+        # 1. Registra um voto de comissário
+        with self.app.app_context():
+            protest = db.session.get(Protesto, self.protest_id)
+            protest.status = 'EM_VOTACAO'
+            voto = VotoComissario(
+                protesto_id=self.protest_id,
+                admin_id=self.voter_user_id,
+                escolha='GRAVE'
+            )
+            db.session.add(voto)
+            db.session.commit()
+
+        # 2. Comissário não envolvido visualiza apuração e bloco de voto
+        self._login_as(self.voter_user_id)
+        resp_comm = self.client.get(f'/admin/protests/{self.protest_id}')
+        self.assertEqual(resp_comm.status_code, 200)
+        html_comm = resp_comm.data.decode('utf-8')
+        self.assertIn('APURAÇÃO DOS VOTOS', html_comm)
+        self.assertIn('Seu Voto', html_comm)
+        self.assertIn('Comissario', html_comm)
+
+        # 3. Piloto acusado via /tribunal/protesto/<id> - NUNCA deve ver apuração, votos ou nomes
+        self._login_as(self.accused_user_id)
+        resp_accused = self.client.get(f'/tribunal/protesto/{self.protest_id}')
+        self.assertEqual(resp_accused.status_code, 200)
+        html_accused = resp_accused.data.decode('utf-8')
+        self.assertNotIn('APURAÇÃO DOS VOTOS', html_accused)
+        self.assertNotIn('Seu Voto', html_accused)
+        self.assertNotIn('Comissario', html_accused)
+        self.assertIn('Incidente em Análise', html_accused)
+
+        # 4. Piloto acusador via /admin/protests/<id> - NUNCA deve ver apuração, votos ou nomes
+        self._login_as(self.accuser_user_id)
+        resp_accuser = self.client.get(f'/admin/protests/{self.protest_id}')
+        self.assertEqual(resp_accuser.status_code, 200)
+        html_accuser = resp_accuser.data.decode('utf-8')
+        self.assertNotIn('APURAÇÃO DOS VOTOS', html_accuser)
+        self.assertNotIn('Seu Voto', html_accuser)
+        self.assertNotIn('Comissario', html_accuser)
+        self.assertIn('Incidente em Análise', html_accuser)
+
+        # 5. Piloto tentando votar via POST - bloqueado por não ser comissário
+        resp_post = self.client.post(
+            f'/admin/protests/{self.protest_id}',
+            data={'voto': 'INOCENTE'},
+            follow_redirects=True
+        )
+        self.assertIn('Apenas comiss', resp_post.data.decode('utf-8'))
+        with self.app.app_context():
+            pilot_vote = VotoComissario.query.filter_by(protesto_id=self.protest_id, admin_id=self.accuser_user_id).first()
+            self.assertIsNone(pilot_vote)
+
+    def test_involved_commissioner_cannot_view_or_cast_votes(self):
+        # Comissário que é piloto e parte envolvida no protesto
+        with self.app.app_context():
+            involved_comm_user = User(username='comm_involved', email='comm_inv@test.local', role='COMISSARIO')
+            involved_comm_user.set_password('123456')
+            db.session.add(involved_comm_user)
+            db.session.flush()
+
+            involved_comm_profile = PilotProfile(
+                user_id=involved_comm_user.id,
+                nickname='CommInvolved',
+                nome_real='Comissario Envolvido',
+                grid=str(self.grid_id)
+            )
+            db.session.add(involved_comm_profile)
+            db.session.flush()
+
+            protest = db.session.get(Protesto, self.protest_id)
+            protest.acusado_id = involved_comm_profile.id
+            protest.status = 'EM_VOTACAO'
+
+            voto = VotoComissario(
+                protesto_id=self.protest_id,
+                admin_id=self.voter_user_id,
+                escolha='LEVE'
+            )
+            db.session.add(voto)
+            db.session.commit()
+            inv_user_id = involved_comm_user.id
+
+        # Comissário envolvido NÃO pode ver apuração dos outros nem votar
+        self._login_as(inv_user_id)
+        resp = self.client.get(f'/admin/protests/{self.protest_id}')
+        self.assertEqual(resp.status_code, 200)
+        html = resp.data.decode('utf-8')
+        self.assertNotIn('APURAÇÃO DOS VOTOS', html)
+        self.assertNotIn('Seu Voto', html)
+
+        # Tentativa de votar é bloqueada
+        resp_post = self.client.post(
+            f'/admin/protests/{self.protest_id}',
+            data={'voto': 'INOCENTE'},
+            follow_redirects=True
+        )
+        self.assertIn('Conflito de interesse', resp_post.data.decode('utf-8'))
+
 
 if __name__ == '__main__':
     unittest.main()
+

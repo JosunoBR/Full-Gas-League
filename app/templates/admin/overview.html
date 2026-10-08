@@ -495,53 +495,12 @@
 {% endif %}
 
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="{{ url_for('static', filename='js/media_exporter.js') }}"></script>
 <script>
 // data for overview filters
 const overviewData = {{ overview_json|tojson }};
 
 document.addEventListener('DOMContentLoaded', () => {
-    // --- NEW: PNG EXPORT LOGIC ---
-    document.querySelectorAll('.export-png-btn').forEach(btn => {
-        btn.addEventListener('click', async () => {
-            const targetId = btn.getAttribute('data-target-id');
-            const filename = btn.getAttribute('data-filename');
-            const targetElement = document.getElementById(targetId);
-
-            if (!targetElement) {
-                console.error('Target element for export not found:', targetId);
-                return;
-            }
-
-            const originalBtnHtml = btn.innerHTML;
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-
-            try {
-                const targetWidth = 3840; // 4K width
-                const scale = targetWidth / targetElement.offsetWidth;
-
-                const canvas = await html2canvas(targetElement, {
-                    backgroundColor: '#0b0d11', // A dark background matching the theme
-                    scale: scale,
-                    useCORS: true
-                });
-
-                const link = document.createElement('a');
-                link.href = canvas.toDataURL('image/png');
-                link.download = filename || `export_${targetId}.png`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-
-            } catch (e) {
-                console.error('Error exporting to PNG:', e);
-                alert('Ocorreu um erro ao gerar a imagem PNG.');
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = originalBtnHtml;
-            }
-        });
-    });
 
     // handlers for dropdown links
     document.querySelectorAll('[id^="filterPilots-"]').forEach(btn => {

@@ -2,7 +2,7 @@ import os
 import secrets
 import shutil
 from datetime import datetime, timedelta
-from flask import Blueprint, render_template, request, flash, redirect, url_for, current_app, abort, jsonify
+from flask import Blueprint, render_template, request, flash, redirect, url_for, current_app, abort, jsonify, send_file
 from flask_login import login_required, current_user
 from sqlalchemy import func, case
 from app.models import db, User, PilotProfile, Season, Race, RaceResult, Invite, Protesto, VotoComissario, Team, RaceRegistration, SeletivaEntry, News, GridConfig, SeasonChampion, PilotGridPhoto, HomeCache, AccessLog
@@ -17,6 +17,7 @@ from app.services.team_context import build_team_context
 from app.services.simhub_service import SimHubService
 from app.services.protest_service import ProtestService
 from app.services.notification_service import NotificationService
+from app.services.media_service import MediaService
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -149,18 +150,21 @@ def restrict_access():
 
         # Whitelist de endpoints permitidos para o Narrador
         allowed_endpoints = [
+            'dashboard',
             'overview',
             'export_classification',
             'export_constructors_classification',
             'pilot_stats',
             'pilot_career_stats',
             'analytics',
+            'media_hub',
+            'media_constructors_graphic',
         ]
 
         if endpoint_name not in allowed_endpoints:
-            flash('Narradores têm acesso apenas à tela de Overview e Estatísticas.', 'warning')
-            # O ponto de entrada seguro para o narrador é a overview.
-            return redirect(url_for('admin.overview'))
+            flash('Narradores têm acesso apenas ao Dashboard, Overview, Estatísticas e Mídia.', 'warning')
+            # O ponto de entrada seguro para o narrador é o dashboard.
+            return redirect(url_for('admin.dashboard'))
 
     # 3. Restrições específicas para Comissário (Visão Geral, Analytics, Histórico e Tribunal)
     if current_user.role == 'COMISSARIO':
@@ -178,10 +182,12 @@ def restrict_access():
             'historic',
             'protests',
             'view_protest',
+            'media_hub',
+            'media_constructors_graphic',
         ]
 
         if endpoint_name not in allowed_endpoints:
-            flash('Comissários têm acesso apenas aos cards Visão Geral, Analytics, Histórico e Tribunal.', 'warning')
+            flash('Comissários têm acesso apenas aos cards Visão Geral, Analytics, Histórico, Tribunal e Mídia.', 'warning')
             return redirect(url_for('admin.dashboard'))
 
 # --- DASHBOARD E VISÃO GERAL ---
@@ -759,6 +765,187 @@ def export_constructors_classification():
         output,
         mimetype='text/csv; charset=utf-8',
         headers={'Content-Disposition': f'attachment; filename="{filename}"'}
+    )
+
+
+def _build_grid_media_data(season, grid_cfg):
+    """
+    Constrói a lista consolidada de classificação de pilotos e disciplina
+    para um grid e temporada específicos.
+    """
+    punicoes_temporada = Protesto.query.join(Race).filter(
+        Protesto.status == 'CONCLUIDO',
+        Race.season_id == season.id
+    ).all()
+
+    punicoes_by_pilot = {}
+    for prot in punicoes_temporada:
+        if prot.acusado_id not in punicoes_by_pilot:
+            punicoes_by_pilot[prot.acusado_id] = []
+        punicoes_by_pilot[prot.acusado_id].append(prot)
+
+    pilotos = PilotProfile.query.join(User).all()
+    all_season_teams = Team.query.filter_by(season_id=season.id).all()
+
+    classificacao = []
+    g_id = grid_cfg.id
+
+    for p in pilotos:
+        resultados_season = [r for r in p.race_results if r.race.season_id == season.id]
+        grids_participados_ids = set()
+        teams_season = [t for t in all_season_teams if any(pilot.id == p.id for pilot in t.pilots)]
+        reserves_season = [t for t in all_season_teams if any(pilot.id == p.id for pilot in t.reserves)]
+
+        if p.grid and p.grid != 'SEM_GRID':
+            grid_tokens = [token.strip() for token in p.grid.split(',') if token.strip().isdigit()]
+            grids_participados_ids.update(int(token) for token in grid_tokens)
+        for t in (teams_season + reserves_season):
+            if t.grid_id:
+                grids_participados_ids.add(t.grid_id)
+
+        if g_id not in grids_participados_ids:
+            continue
+
+        res_no_grid = [r for r in resultados_season if grid_matches(r.race, grid_cfg)]
+        my_punicoes = punicoes_by_pilot.get(p.id, [])
+        my_punicoes_grid = [pun for pun in my_punicoes if pun.grid_id == g_id]
+
+        pontos_totais = ScoringService.calculate_pilot_total_points(p.id, season.id, g_id)
+        vitorias = sum(1 for r in res_no_grid if r.posicao == 1 and not r.dsq)
+        podios = sum(1 for r in res_no_grid if r.posicao in [1, 2, 3] and not r.dsq)
+
+        is_reserve = False
+        is_titular = any(t.grid_id == g_id for t in teams_season)
+        if not is_titular:
+            is_reserve = any(t.grid_id == g_id for t in reserves_season)
+
+        team_obj = next((t for t in teams_season if t.grid_id == g_id), None)
+        if not team_obj:
+            team_obj = next((t for t in reserves_season if t.grid_id == g_id), None)
+        if not team_obj:
+            sorted_res = sorted(
+                res_no_grid,
+                key=lambda x: (x.race.data_corrida or datetime.min.date(), x.id or 0),
+                reverse=True
+            )
+            for r in sorted_res:
+                if r.team_snapshot:
+                    team_obj = r.team_snapshot
+                    break
+
+        team_name = team_obj.nome.strip() if team_obj else '-'
+        b_name = format_driver_broadcast_name(p)
+
+        info = {
+            'piloto': p,
+            'broadcast_name': b_name,
+            'team': team_name,
+            'pontos': pontos_totais,
+            'vitorias': vitorias,
+            'podios': podios,
+            'cnh': p.pontos_cnh,
+            'advertencias': p.advertencias_acumuladas,
+            'punicoes': my_punicoes_grid,
+            'is_reserve': is_reserve
+        }
+        if not any(x['piloto'].id == p.id for x in classificacao):
+            classificacao.append(info)
+
+    classificacao.sort(key=lambda x: (x['pontos'], x['vitorias'], x['podios']), reverse=True)
+    disciplina = list(classificacao)
+    disciplina.sort(key=lambda x: x['cnh'])
+
+    return {
+        'classificacao': classificacao,
+        'disciplina': disciplina
+    }
+
+
+@admin_bp.route('/media')
+@login_required
+def media_hub():
+    """
+    Central de Mídia & Broadcast: hub unificado para narradores, operadores e social media.
+    Permite filtrar por Temporada, Grid e Tipo (Titulares, Reservas, Construtores, Disciplina),
+    com preview em tempo real e ações rápidas de exportação (CSV / PNG 4K).
+    """
+    season_id = request.args.get('season_id', type=int)
+    grid_id = request.args.get('grid_id', type=int)
+    tipo = request.args.get('tipo', default='titulares', type=str)
+
+    if tipo not in ['titulares', 'reservas', 'construtores', 'disciplina']:
+        tipo = 'titulares'
+
+    all_active_seasons = Season.query.filter_by(ativa=True).order_by(Season.id.desc()).all()
+    season = None
+    if season_id:
+        season = db.session.get(Season, season_id)
+    if not season and all_active_seasons:
+        season = all_active_seasons[0]
+
+    grid_configs = []
+    selected_grid = None
+    if season:
+        grid_configs = GridConfig.query.filter_by(season_id=season.id).order_by(GridConfig.ordem).all()
+        if grid_id:
+            selected_grid = next((g for g in grid_configs if g.id == grid_id), None)
+        if not selected_grid and grid_configs:
+            selected_grid = grid_configs[0]
+
+    dados_grid = {'classificacao': [], 'disciplina': []}
+    constructors_list = []
+
+    if season and selected_grid:
+        if tipo in ['titulares', 'reservas', 'disciplina']:
+            dados_grid = _build_grid_media_data(season, selected_grid)
+        elif tipo == 'construtores':
+            team_ctx = build_team_context(season.id)
+            raw_constructors = ScoringService.build_constructors_for_home(
+                season.id, [selected_grid], team_ctx["canonical_teams"], team_ctx["alias_ids_by_key"]
+            )
+            constructors_list = raw_constructors.get(selected_grid.id, [])
+
+    return render_template(
+        'admin/media.html',
+        season=season,
+        all_active_seasons=all_active_seasons,
+        grid_configs=grid_configs,
+        selected_grid=selected_grid,
+        tipo=tipo,
+        dados_grid=dados_grid,
+        constructors_list=constructors_list
+    )
+
+
+@admin_bp.route('/media/constructors_graphic')
+@login_required
+def media_constructors_graphic():
+    """
+    Retorna o cartaz oficial de construtores em alta resolução (1080x1350)
+    gerado dinamicamente com tipografia F1 e as 11 equipes no grid.
+    Suporta parâmetro ?download=1 para forçar download do arquivo.
+    """
+    season_id = request.args.get('season_id', type=int)
+    grid_id = request.args.get('grid_id', type=int)
+    download = request.args.get('download', default=0, type=int)
+
+    if not season_id or not grid_id:
+        abort(400, "Parâmetros season_id e grid_id são obrigatórios.")
+
+    grid_cfg = db.session.get(GridConfig, grid_id)
+    if not grid_cfg:
+        abort(404, "Grid não encontrado.")
+
+    buf = MediaService.generate_constructors_graphic(season_id, grid_id)
+
+    safe_grid_nome = grid_cfg.nome.lower().replace(' ', '_')
+    filename = f"cartaz_construtores_{safe_grid_nome}.png"
+
+    return send_file(
+        buf,
+        mimetype='image/png',
+        as_attachment=bool(download),
+        download_name=filename
     )
 
 
@@ -2469,6 +2656,11 @@ def view_protest(protest_id):
 
     if request.method == 'POST':
         if 'voto' in request.form and protesto.status in ['EM_VOTACAO', 'AGUARDANDO_DEFESA']:
+            # Apenas comissários e administradores podem votar
+            if current_user.role not in ['SUPER_ADM', 'ADM', 'COMISSARIO']:
+                flash('Apenas comissários e administradores podem votar.', 'danger')
+                return redirect(url_for('admin.view_protest', protest_id=protesto.id))
+
             # Impedir que partes envolvidas votem no próprio processo (exceto Super Admin)
             if current_user.pilot_profile and (current_user.pilot_profile.id == protesto.acusado_id or current_user.pilot_profile.id == protesto.acusador_id) and current_user.role != 'SUPER_ADM':
                 flash('Conflito de interesse: Você é parte envolvida neste protesto.', 'danger')

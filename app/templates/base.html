@@ -199,6 +199,7 @@
                             <ul class="dropdown-menu dropdown-menu-dark border-secondary">
                                 <li><a class="dropdown-item" href="{{ url_for('admin.dashboard') }}">Dashboard</a></li>
                                 <li><a class="dropdown-item" href="{{ url_for('admin.overview') }}"><i class="fa-solid fa-chart-pie text-danger me-2"></i>Visão Geral</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('admin.media_hub') }}"><i class="fa-solid fa-clapperboard text-warning me-2"></i>Mídia & Broadcast</a></li>
                                 <li><a class="dropdown-item" href="{{ url_for('admin.analytics') }}"><i class="fa-solid fa-chart-line text-info me-2"></i>Analytics & Acessos</a></li>
                                 <li><hr class="dropdown-divider border-secondary"></li>
                                 {% if current_user.role in ['SUPER_ADM', 'ADM'] %}

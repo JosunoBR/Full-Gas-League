@@ -23,9 +23,15 @@
                 <span class="badge bg-info text-dark border border-info px-3 py-2">EM VOTAÇÃO</span>
             {% endif %}
             
-            <a href="{{ url_for('admin.protests') }}" class="btn btn-outline-light btn-sm">
-                <i class="fa-solid fa-arrow-left me-2"></i> Voltar
-            </a>
+            {% if current_user.role in ['SUPER_ADM', 'ADM', 'COMISSARIO'] %}
+                <a href="{{ url_for('admin.protests') }}" class="btn btn-outline-light btn-sm">
+                    <i class="fa-solid fa-arrow-left me-2"></i> Voltar ao Tribunal
+                </a>
+            {% else %}
+                <a href="{{ url_for('public.my_profile') }}" class="btn btn-outline-light btn-sm">
+                    <i class="fa-solid fa-arrow-left me-2"></i> Voltar ao Meu Perfil
+                </a>
+            {% endif %}
         </div>
     </div>
 
@@ -103,7 +109,12 @@
         </div>
 
         <div class="col-lg-4">
-            
+            {% set is_involved_pilot = current_user.pilot_profile and (current_user.pilot_profile.id == protesto.acusado_id or current_user.pilot_profile.id == protesto.acusador_id) %}
+            {% set can_view_votes = current_user.role in ['SUPER_ADM', 'ADM', 'COMISSARIO'] and (current_user.role == 'SUPER_ADM' or not is_involved_pilot) %}
+            {% set can_vote = current_user.role in ['SUPER_ADM', 'ADM', 'COMISSARIO'] and not is_involved_pilot %}
+
+            {# CARD: SEU VOTO (Visível apenas para comissários/admins autorizados e não envolvidos no incidente) #}
+            {% if can_vote %}
             <div class="card bg-dark border-info mb-4 shadow-lg">
                 <div class="card-header bg-info text-dark fw-bold">
                     <i class="fa-solid fa-check-to-slot me-2"></i> Seu Voto
@@ -118,11 +129,6 @@
                     {% endif %}
 
                     {% if protesto.status != 'CONCLUIDO' %}
-                    {% if current_user.pilot_profile and (current_user.pilot_profile.id == protesto.acusado_id or current_user.pilot_profile.id == protesto.acusador_id) and current_user.role != 'SUPER_ADM' %}
-                        <div class="alert alert-warning text-center small mb-0 border-warning">
-                            <i class="fa-solid fa-ban me-1"></i> <strong>Impedimento:</strong><br>Você é parte envolvida (acusado/acusador) e não tem direito a voto.
-                        </div>
-                    {% else %}
                         <form method="POST" class="d-grid gap-2">
                             <button type="submit" name="voto" value="INOCENTE" class="btn btn-outline-success btn-sm fw-bold text-start ps-3">
                                 <i class="fa-solid fa-circle me-2"></i> Inocente (0 pts)
@@ -143,7 +149,6 @@
                                 <i class="fa-solid fa-circle me-2"></i> Punição Grave (-10 pts)
                             </button>
                         </form>
-                    {% endif %}
                     {% else %}
                         <div class="alert alert-secondary text-center small mb-0">
                             <i class="fa-solid fa-lock me-1"></i> Votação encerrada.
@@ -151,13 +156,18 @@
                     {% endif %}
                 </div>
             </div>
+            {% endif %}
 
-            <div class="card bg-dark border-danger shadow-lg">
-                <div class="card-header bg-danger text-white fw-bold">
-                    <i class="fa-solid fa-scale-balanced me-2"></i> Zona do Diretor de Prova
+            {# CARD: STATUS / DECISÃO OFICIAL (Para pilotos mostra apenas status ou veredito; para comissários mostra apuração) #}
+            <div class="card bg-dark {% if can_view_votes %}border-danger{% else %}border-secondary{% endif %} shadow-lg">
+                <div class="card-header {% if can_view_votes %}bg-danger text-white{% else %}bg-secondary text-white{% endif %} fw-bold">
+                    <i class="fa-solid fa-scale-balanced me-2"></i> 
+                    {% if can_view_votes %}Zona do Diretor de Prova{% else %}Julgamento do Incidente{% endif %}
                 </div>
                 <div class="card-body">
                     
+                    {# APURAÇÃO DOS VOTOS: ESTRITAMENTE VISÍVEL PARA COMISSÁRIOS / ADMINS #}
+                    {% if can_view_votes %}
                     <div class="d-flex justify-content-between align-items-center border-bottom border-secondary pb-2 mb-3">
                         <h6 class="text-white mb-0">APURAÇÃO DOS VOTOS:</h6>
                         <span class="badge bg-secondary">{{ protesto.votos|length }} voto(s)</span>
@@ -186,6 +196,7 @@
                             <p class="text-muted small fst-italic mb-0">Nenhum voto computado ainda.</p>
                         {% endfor %}
                     </div>
+                    {% endif %}
 
                     {% if protesto.status != 'CONCLUIDO' %}
                         {% if current_user.role == 'SUPER_ADM' %}
@@ -210,14 +221,22 @@
                             </button>
                         </form>
                         {% else %}
-                            <div class="alert alert-dark border-secondary text-white-50 text-center small">
-                                Aguardando decisão do Diretor de Prova.
+                            <div class="alert alert-dark border-secondary text-white-50 text-center py-4 mb-0">
+                                <i class="fa-solid fa-hourglass-half fa-2x mb-2 text-warning"></i>
+                                <p class="mb-1 fw-bold text-white">Incidente em Análise</p>
+                                <small class="text-white-50">
+                                    {% if can_view_votes %}
+                                        Aguardando decisão final do Diretor de Prova.
+                                    {% else %}
+                                        O Colégio de Comissários está avaliando o incidente. A decisão oficial e eventuais penalidades serão publicadas aqui assim que o julgamento for encerrado.
+                                    {% endif %}
+                                </small>
                             </div>
                         {% endif %}
 
                     {% else %}
                         <div class="bg-secondary bg-opacity-10 p-3 rounded border border-secondary border-opacity-25 mb-3">
-                            <p class="text-white-50 small mb-1">Veredito Final:</p>
+                            <p class="text-white-50 small mb-1">Veredito Oficial:</p>
                             <h5 class="text-white fw-bold mb-3">
                                 {% if protesto.veredito_final == 'INOCENTE' or protesto.veredito_final == 'INCIDENTE_CORRIDA' %}
                                     <span class="text-success">{{ protesto.veredito_final }}</span>
@@ -225,8 +244,8 @@
                                     <span class="text-danger">{{ protesto.veredito_final }}</span>
                                 {% endif %}
                             </h5>
-                            <p class="text-white-50 small mb-1">Justificativa:</p>
-                            <p class="text-white fst-italic small">"{{ protesto.justificativa_texto }}"</p>
+                            <p class="text-white-50 small mb-1">Justificativa da Direção de Prova:</p>
+                            <p class="text-white fst-italic small mb-0">"{{ protesto.justificativa_texto }}"</p>
                         </div>
 
                         {% if current_user.role == 'SUPER_ADM' %}

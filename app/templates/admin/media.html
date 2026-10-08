@@ -1,0 +1,385 @@
+{% extends "base.html" %}
+
+{% block title %}Central de Mídia & Broadcast - FullGas League{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+    <!-- Header do Módulo -->
+    <div class="row align-items-center mb-4">
+        <div class="col-md-8">
+            <h2 class="text-white fw-bold mb-1">
+                <i class="fa-solid fa-clapperboard text-danger me-2"></i>Central de Mídia & Broadcast
+            </h2>
+            <p class="text-white-50 mb-0 small">
+                Extração de dados para GC/overlay (vMix, OBS) e geração de cartazes e tabelas em alta resolução para redes sociais.
+            </p>
+        </div>
+        <div class="col-md-4 text-md-end mt-3 mt-md-0">
+            <a href="{{ url_for('admin.overview', s=season.id if season else None) }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fa-solid fa-arrow-left me-1"></i> Voltar à Visão Geral
+            </a>
+        </div>
+    </div>
+
+    <!-- Barra de Filtros Reativa (Server-Side) -->
+    <div class="card bg-dark border-secondary shadow-sm mb-4">
+        <div class="card-body p-3">
+            <form method="GET" action="{{ url_for('admin.media_hub') }}" class="row g-3 align-items-end" id="mediaFilterForm">
+                
+                <!-- Temporada -->
+                <div class="col-md-4">
+                    <label class="form-label text-white-50 small fw-bold mb-1">
+                        <i class="fa-solid fa-trophy text-warning me-1"></i> Temporada:
+                    </label>
+                    <select name="season_id" class="form-select form-select-sm bg-dark text-white border-secondary" onchange="this.form.submit()">
+                        {% for s in all_active_seasons %}
+                            <option value="{{ s.id }}" {% if season and season.id == s.id %}selected{% endif %}>
+                                {{ s.nome }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Grid -->
+                <div class="col-md-4">
+                    <label class="form-label text-white-50 small fw-bold mb-1">
+                        <i class="fa-solid fa-layer-group text-info me-1"></i> Grid:
+                    </label>
+                    <select name="grid_id" class="form-select form-select-sm bg-dark text-white border-secondary" onchange="this.form.submit()">
+                        {% for g in grid_configs %}
+                            <option value="{{ g.id }}" {% if selected_grid and selected_grid.id == g.id %}selected{% endif %}>
+                                {{ g.nome }}
+                            </option>
+                        {% else %}
+                            <option value="">Nenhum grid configurado</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Tipo de Visualização -->
+                <div class="col-md-4">
+                    <label class="form-label text-white-50 small fw-bold mb-1">
+                        <i class="fa-solid fa-filter text-danger me-1"></i> Tipo de Conteúdo:
+                    </label>
+                    <select name="tipo" class="form-select form-select-sm bg-dark text-white border-secondary" onchange="this.form.submit()">
+                        <option value="titulares" {% if tipo == 'titulares' %}selected{% endif %}>🏆 Pilotos (Titulares)</option>
+                        <option value="reservas" {% if tipo == 'reservas' %}selected{% endif %}>⏱️ Pilotos (Reservas)</option>
+                        <option value="construtores" {% if tipo == 'construtores' %}selected{% endif %}>🏁 Construtores (Cartaz & Tabela)</option>
+                        <option value="disciplina" {% if tipo == 'disciplina' %}selected{% endif %}>⚠️ Risco Disciplinar (CNH)</option>
+                    </select>
+                </div>
+
+            </form>
+        </div>
+    </div>
+
+    {% if not season or not selected_grid %}
+        <div class="alert alert-warning border-0 shadow text-center py-4">
+            <i class="fa-solid fa-triangle-exclamation fs-3 d-block mb-2"></i>
+            Nenhuma temporada ou grid ativo encontrado para exibição.
+        </div>
+    {% else %}
+
+        <!-- Barra de Ações Rápidas (Toolbar de Exportação) -->
+        <div class="card bg-dark border-secondary shadow-sm mb-4">
+            <div class="card-body p-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <div>
+                    <span class="text-white fw-bold small text-uppercase">
+                        Ações Disponíveis para:
+                    </span>
+                    <span class="badge bg-danger ms-1 px-2 py-1">
+                        {{ selected_grid.nome }} - 
+                        {% if tipo == 'titulares' %}Titulares
+                        {% elif tipo == 'reservas' %}Reservas
+                        {% elif tipo == 'construtores' %}Construtores
+                        {% elif tipo == 'disciplina' %}Disciplina
+                        {% endif %}
+                    </span>
+                </div>
+
+                <div class="d-flex flex-wrap gap-2">
+                    {% if tipo == 'construtores' %}
+                        <!-- Download CSV Construtores -->
+                        <a href="{{ url_for('admin.export_constructors_classification', season_id=season.id, grid_id=selected_grid.id) }}" 
+                           class="btn btn-outline-success btn-sm px-3" 
+                           title="Exportar CSV de Construtores (Excel / vMix)">
+                            <i class="fa-solid fa-file-csv me-1"></i> Baixar CSV (vMix / Excel)
+                        </a>
+
+                        <!-- Download Cartaz Gráfico 1080x1350 -->
+                        <a href="{{ url_for('admin.media_constructors_graphic', season_id=season.id, grid_id=selected_grid.id, download=1) }}" 
+                           class="btn btn-danger btn-sm px-3 fw-bold" 
+                           title="Baixar Cartaz Oficial PNG em alta resolução">
+                            <i class="fa-solid fa-download me-1"></i> Baixar Cartaz PNG (Social 1080x1350)
+                        </a>
+
+                    {% elif tipo in ['titulares', 'reservas'] %}
+                        <!-- Download CSV Pilotos -->
+                        <a href="{{ url_for('admin.export_classification', season_id=season.id, grid_id=selected_grid.id) }}" 
+                           class="btn btn-outline-success btn-sm px-3" 
+                           title="Exportar CSV de Pilotos (Excel / vMix)">
+                            <i class="fa-solid fa-file-csv me-1"></i> Baixar CSV (vMix / Excel)
+                        </a>
+
+                        <!-- Download Imagem 4K da Tabela Web -->
+                        <button class="btn btn-outline-light btn-sm px-3 export-png-btn" 
+                                data-target-id="media-preview-card" 
+                                data-filename="classificacao_{{ tipo }}_{{ selected_grid.nome.lower().replace(' ', '_') }}.png"
+                                title="Exportar Card em Imagem PNG 4K">
+                            <i class="fa-solid fa-image me-1"></i> Baixar Imagem PNG (Alta Resolução 4K)
+                        </button>
+
+                    {% elif tipo == 'disciplina' %}
+                        <!-- Download Imagem 4K de Disciplina -->
+                        <button class="btn btn-outline-light btn-sm px-3 export-png-btn" 
+                                data-target-id="media-preview-card" 
+                                data-filename="disciplina_{{ selected_grid.nome.lower().replace(' ', '_') }}.png"
+                                title="Exportar Tabela de Disciplina em PNG 4K">
+                            <i class="fa-solid fa-image me-1"></i> Baixar Imagem PNG (Alta Resolução 4K)
+                        </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Área de Preview do Conteúdo Selecionado -->
+        <div class="row justify-content-center">
+
+            {% if tipo == 'construtores' %}
+                <!-- Preview Especial: Cartaz Gráfico Oficial 1080x1350 -->
+                <div class="col-lg-7 text-center">
+                    <div class="card bg-dark border-secondary shadow mb-4">
+                        <div class="card-header bg-dark border-secondary text-start d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0 text-white">
+                                <i class="fa-solid fa-image text-danger me-2"></i>Cartaz Gráfico Oficial de Construtores
+                            </h6>
+                            <a href="{{ url_for('admin.media_constructors_graphic', season_id=season.id, grid_id=selected_grid.id, download=1) }}" 
+                               class="btn btn-outline-light btn-sm py-0 px-2" title="Baixar Imagem">
+                                <i class="fa-solid fa-download"></i>
+                            </a>
+                        </div>
+                        <div class="card-body p-3 bg-black text-center">
+                            <img src="{{ url_for('admin.media_constructors_graphic', season_id=season.id, grid_id=selected_grid.id) }}" 
+                                 alt="Cartaz Oficial de Construtores" 
+                                 class="img-fluid rounded shadow border border-secondary"
+                                 style="max-height: 780px; width: auto; object-fit: contain;">
+                        </div>
+                        <div class="card-footer bg-dark border-secondary text-muted small text-start">
+                            <i class="fa-solid fa-circle-info me-1"></i> Resolução original: 1080x1350px (Formato 4:5 oficial com tipografia e cores da temporada 2026).
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabela de Apoio de Construtores -->
+                <div class="col-lg-5">
+                    <div class="card bg-dark border-secondary shadow mb-4" id="media-preview-card">
+                        <div class="card-header bg-dark border-secondary d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0 text-white">
+                                <i class="fa-solid fa-flag-checkered text-info me-2"></i>Tabela de Construtores
+                            </h6>
+                            <button class="btn btn-outline-light btn-sm py-0 px-2 export-png-btn" 
+                                    data-target-id="media-preview-card" 
+                                    data-filename="tabela_construtores_{{ selected_grid.nome.lower().replace(' ', '_') }}.png"
+                                    title="Exportar Tabela em PNG">
+                                <i class="fa-solid fa-image"></i><span class="d-none d-md-inline ms-1"> PNG</span>
+                            </button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-dark table-hover table-sm mb-0 align-middle f1-classification-table">
+                                <thead>
+                                    <tr class="text-white-50 small">
+                                        <th class="text-center ps-3" style="width: 60px;">Pos</th>
+                                        <th>Equipe</th>
+                                        <th class="text-center pe-3" style="width: 80px;">Pontos</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in constructors_list %}
+                                    <tr>
+                                        <td class="text-center fw-bold text-secondary ps-3">{{ loop.index }}º</td>
+                                        <td class="fw-bold">{{ item.equipe.nome }}</td>
+                                        <td class="text-center fw-bold text-info pe-3 fs-6">{{ '%g'|format(item.pontos|float) }}</td>
+                                    </tr>
+                                    {% else %}
+                                    <tr><td colspan="3" class="text-center py-3 text-white">Sem dados de construtores cadastrados.</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            {% elif tipo == 'titulares' %}
+                <!-- Tabela de Pilotos Titulares -->
+                <div class="col-lg-9">
+                    <div class="card bg-dark border-secondary shadow mb-4" id="media-preview-card">
+                        <div class="card-header bg-dark border-secondary d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0 text-white">
+                                <i class="fa-solid fa-trophy text-warning me-2"></i>Classificação de Pilotos (Titulares) - {{ selected_grid.nome }}
+                            </h6>
+                            <button class="btn btn-outline-light btn-sm py-0 px-2 export-png-btn" 
+                                    data-target-id="media-preview-card" 
+                                    data-filename="classificacao_titulares_{{ selected_grid.nome.lower().replace(' ', '_') }}.png"
+                                    title="Exportar Card em PNG 4K">
+                                <i class="fa-solid fa-image"></i><span class="d-none d-md-inline ms-1"> PNG 4K</span>
+                            </button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-dark table-hover table-sm mb-0 align-middle f1-classification-table">
+                                <thead>
+                                    <tr class="text-white-50 small">
+                                        <th class="ps-3 text-center" style="width: 60px;">Pos</th>
+                                        <th>Piloto (Broadcast)</th>
+                                        <th>Equipe</th>
+                                        <th class="text-center">Vitórias</th>
+                                        <th class="text-center">Pódios</th>
+                                        <th class="text-center pe-3 text-white" style="width: 90px;">Pontos</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% set ns_titular = namespace(count=1) %}
+                                    {% for row in dados_grid['classificacao'] if not row.is_reserve %}
+                                    <tr>
+                                        <td class="text-center fw-bold ps-3 text-secondary">{{ ns_titular.count }}º</td>
+                                        <td class="fw-bold">
+                                            <span class="text-white">{{ row.broadcast_name }}</span>
+                                            {% if row.piloto.nickname != row.broadcast_name %}
+                                                <small class="text-white-50 ms-1">({{ row.piloto.nickname }})</small>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-white-50">{{ row.team }}</td>
+                                        <td class="text-center text-white small">{{ row.vitorias }}</td>
+                                        <td class="text-center text-white small">{{ row.podios }}</td>
+                                        <td class="text-center fw-bold pe-3 fs-6 text-warning">{{ '%g' | format(row.pontos|float) }}</td>
+                                    </tr>
+                                    {% set ns_titular.count = ns_titular.count + 1 %}
+                                    {% else %}
+                                    <tr><td colspan="6" class="text-center py-4 text-white">Nenhum piloto titular cadastrado com pontuação.</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            {% elif tipo == 'reservas' %}
+                <!-- Tabela de Pilotos Reservas -->
+                <div class="col-lg-9">
+                    <div class="card bg-dark border-secondary shadow mb-4" id="media-preview-card">
+                        <div class="card-header bg-dark border-secondary d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0 text-white">
+                                <i class="fa-solid fa-stopwatch text-info me-2"></i>Classificação de Pilotos (Reservas) - {{ selected_grid.nome }}
+                            </h6>
+                            <button class="btn btn-outline-light btn-sm py-0 px-2 export-png-btn" 
+                                    data-target-id="media-preview-card" 
+                                    data-filename="classificacao_reservas_{{ selected_grid.nome.lower().replace(' ', '_') }}.png"
+                                    title="Exportar Card em PNG 4K">
+                                <i class="fa-solid fa-image"></i><span class="d-none d-md-inline ms-1"> PNG 4K</span>
+                            </button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-dark table-hover table-sm mb-0 align-middle f1-classification-table">
+                                <thead>
+                                    <tr class="text-white-50 small">
+                                        <th class="ps-3 text-center" style="width: 60px;">Pos</th>
+                                        <th>Piloto (Broadcast)</th>
+                                        <th>Equipe</th>
+                                        <th class="text-center">Vitórias</th>
+                                        <th class="text-center">Pódios</th>
+                                        <th class="text-center pe-3 text-white" style="width: 90px;">Pontos</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% set ns_reserva = namespace(count=1) %}
+                                    {% for row in dados_grid['classificacao'] if row.is_reserve %}
+                                    <tr>
+                                        <td class="text-center fw-bold ps-3 text-secondary">{{ ns_reserva.count }}º</td>
+                                        <td class="fw-bold">
+                                            <span class="text-white">{{ row.broadcast_name }}</span>
+                                            {% if row.piloto.nickname != row.broadcast_name %}
+                                                <small class="text-white-50 ms-1">({{ row.piloto.nickname }})</small>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-white-50">{{ row.team }}</td>
+                                        <td class="text-center text-white small">{{ row.vitorias }}</td>
+                                        <td class="text-center text-white small">{{ row.podios }}</td>
+                                        <td class="text-center fw-bold pe-3 fs-6 text-warning">{{ '%g' | format(row.pontos|float) }}</td>
+                                    </tr>
+                                    {% set ns_reserva.count = ns_reserva.count + 1 %}
+                                    {% else %}
+                                    <tr><td colspan="6" class="text-center py-4 text-white">Nenhum piloto reserva cadastrado com pontuação.</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            {% elif tipo == 'disciplina' %}
+                <!-- Tabela de Disciplina / CNH -->
+                <div class="col-lg-8">
+                    <div class="card bg-dark border-secondary shadow mb-4" id="media-preview-card">
+                        <div class="card-header bg-dark border-secondary d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0 text-white">
+                                <i class="fa-solid fa-triangle-exclamation text-danger me-2"></i>Risco Disciplinar (CNH) - {{ selected_grid.nome }}
+                            </h6>
+                            <button class="btn btn-outline-light btn-sm py-0 px-2 export-png-btn" 
+                                    data-target-id="media-preview-card" 
+                                    data-filename="disciplina_{{ selected_grid.nome.lower().replace(' ', '_') }}.png"
+                                    title="Exportar Card em PNG 4K">
+                                <i class="fa-solid fa-image"></i><span class="d-none d-md-inline ms-1"> PNG 4K</span>
+                            </button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-dark table-hover table-sm mb-0 align-middle f1-classification-table">
+                                <thead>
+                                    <tr class="text-white-50 small">
+                                        <th class="ps-3">Piloto</th>
+                                        <th class="text-center" style="width: 100px;">CNH</th>
+                                        <th class="text-center pe-3" style="width: 100px;">Advertências</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for row in dados_grid['disciplina'] %}
+                                    <tr>
+                                        <td class="ps-3">
+                                            <span class="fw-bold text-white">{{ row.broadcast_name }}</span>
+                                            {% if row.piloto.nickname != row.broadcast_name %}
+                                                <small class="text-white-50 ms-1">({{ row.piloto.nickname }})</small>
+                                            {% endif %}
+                                            {% if row.is_reserve %}
+                                                <span class="badge bg-secondary border border-dark text-white ms-1" style="font-size: 0.65em;">R</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center fw-bold">
+                                            {% if row.cnh <= 5 %}
+                                                <span class="badge bg-danger text-white">{{ row.cnh }}</span>
+                                            {% elif row.cnh <= 15 %}
+                                                <span class="badge bg-warning text-dark">{{ row.cnh }}</span>
+                                            {% else %}
+                                                <span class="text-success">{{ row.cnh }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center pe-3 text-white">{{ row.advertencias }}</td>
+                                    </tr>
+                                    {% else %}
+                                    <tr><td colspan="3" class="text-center py-4 text-white">Sem dados de disciplina para este grid.</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+
+        </div>
+
+    {% endif %}
+
+</div>
+
+<!-- Scripts de Exportação 4K -->
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="{{ url_for('static', filename='js/media_exporter.js') }}"></script>
+{% endblock %}
