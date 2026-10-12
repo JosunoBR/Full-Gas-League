@@ -4,7 +4,9 @@ import sqlite3
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 DB_PATHS = [
     os.path.join(BASE_DIR, 'f1_league.db'),
-    os.path.join(BASE_DIR, 'instance', 'f1_league.db')
+    os.path.join(BASE_DIR, 'instance', 'f1_league.db'),
+    '/home/fullgasleague/Full-Gas-League/f1_league.db',
+    '/home/fullgasleague/f1_league.db'
 ]
 
 def migrate_database(db_path):

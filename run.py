@@ -40,12 +40,28 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
 # Inicialização do Banco de Dados
 db.init_app(app)
 
+def ensure_schema_migrations():
+    """Garante que colunas críticas adicionadas recentemente existam no banco SQLite,
+    evitando quebras em produção após deploy no host (PythonAnywhere/VPS)."""
+    with app.app_context():
+        try:
+            with db.engine.connect() as conn:
+                res = conn.execute(text("PRAGMA table_info(protesto)")).fetchall()
+                cols = [r[1] for r in res] if res else []
+                if cols and 'tipo_ban' not in cols:
+                    conn.execute(text("ALTER TABLE protesto ADD COLUMN tipo_ban VARCHAR(30) DEFAULT 'NENHUM'"))
+                    conn.commit()
+                    print("[SCHEMA] Coluna 'protesto.tipo_ban' adicionada automaticamente com sucesso!", flush=True)
+        except Exception as e:
+            print(f"[SCHEMA] Aviso na verificação de schema: {e}", flush=True)
+
 def init_schema():
     with app.app_context():
         try:
             db.create_all()
-        except Exception:
-            pass
+            ensure_schema_migrations()
+        except Exception as e:
+            print(f"[SCHEMA] Aviso em init_schema: {e}", flush=True)
         finally:
             db.session.remove()
 
