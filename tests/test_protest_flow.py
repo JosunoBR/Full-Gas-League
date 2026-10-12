@@ -288,6 +288,7 @@ class ProtestFlowTests(unittest.TestCase):
             data={
                 'encerrar': 'true',
                 'veredito_final': 'MEDIA',
+                'tipo_ban': 'QUALI_BAN',
                 'justificativa': 'Responsavel pelo toque e pela perda de posicao.',
             },
             follow_redirects=False,

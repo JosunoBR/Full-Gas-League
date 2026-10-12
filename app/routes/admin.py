@@ -2631,6 +2631,13 @@ def _resolve_protest_verdict(form_data):
     return verdict if verdict in valid_verdicts else None
 
 
+def _resolve_protest_ban(form_data):
+    """Obtém o tipo de ban selecionado manualmente."""
+    tipo_ban = (form_data.get('tipo_ban') or 'NENHUM').strip().upper()
+    valid_bans = {'NENHUM', 'QUALI_BAN', 'RACE_BAN', 'AMBOS'}
+    return tipo_ban if tipo_ban in valid_bans else 'NENHUM'
+
+
 def _resolve_reopened_protest_status(protesto):
     """Ao reabrir, volta para votação se já existir defesa; senão, aguarda defesa."""
     has_defense = bool((protesto.argumento_defesa or '').strip() or (protesto.video_defesa or '').strip())
@@ -2679,6 +2686,7 @@ def view_protest(protest_id):
 
         if ('fechar' in request.form or 'encerrar' in request.form) and current_user.role == 'SUPER_ADM':
             verdict = _resolve_protest_verdict(request.form)
+            tipo_ban = _resolve_protest_ban(request.form)
             justificativa = (request.form.get('justificativa') or '').strip()
 
             if not verdict:
@@ -2689,6 +2697,7 @@ def view_protest(protest_id):
                 return redirect(url_for('admin.view_protest', protest_id=protesto.id))
 
             protesto.veredito_final = verdict
+            protesto.tipo_ban = tipo_ban
             protesto.justificativa_texto = justificativa
             protesto.status = 'CONCLUIDO'
             protesto.data_fechamento = datetime.utcnow()
@@ -2722,7 +2731,7 @@ def view_protest(protest_id):
                                 protesto,
                                 parte,
                                 alert_type="veredito",
-                                extra_info={"penalidade": verdict, "parecer": justificativa}
+                                extra_info={"penalidade": verdict, "tipo_ban": tipo_ban, "parecer": justificativa}
                             )
                 except Exception as mail_err:
                     current_app.logger.warning(f"[EMAIL] Falha ao enviar e-mail de veredito do protesto {protesto.id}: {mail_err}")
@@ -2734,6 +2743,7 @@ def view_protest(protest_id):
         if 'reabrir' in request.form and current_user.role == 'SUPER_ADM':
             protesto.status = _resolve_reopened_protest_status(protesto)
             protesto.veredito_final = None
+            protesto.tipo_ban = 'NENHUM'
             protesto.justificativa_texto = None
             protesto.data_fechamento = None
             HomeCache.query.filter_by(season_id=protesto.etapa.season_id).delete()

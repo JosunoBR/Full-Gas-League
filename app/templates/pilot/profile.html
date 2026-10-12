@@ -110,8 +110,10 @@
 
                 <h3 class="fw-bold mb-0 text-white">
                     {{ perfil.nickname }}
-                    {% if quali_ban %}
-                        <span class="badge bg-danger text-white ms-2 fs-6 align-middle" title="Quali Ban Ativo"><i class="fa-solid fa-ban"></i></span>
+                    {% if race_ban %}
+                        <span class="badge bg-danger text-white ms-2 fs-6 align-middle" title="Race Ban Ativo"><i class="fa-solid fa-ban me-1"></i>RACE BAN</span>
+                    {% elif quali_ban %}
+                        <span class="badge bg-warning text-dark ms-2 fs-6 align-middle" title="Quali Ban Ativo"><i class="fa-solid fa-ban me-1"></i>QUALI BAN</span>
                     {% endif %}
                     {% if perfil.user and perfil.user.role in ['ADM', 'SUPER_ADM'] %}
                         <span class="badge bg-danger text-white ms-2 fs-6 align-middle" title="Administrador do Sistema"><i class="fa-solid fa-user-shield"></i> ADM</span>

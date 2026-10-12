@@ -28,11 +28,11 @@ def realizar_backup():
     # 4. Copia o arquivo
     try:
         shutil.copy2(DB_FILE, backup_path)
-        print(f"✅ Backup realizado com sucesso!")
-        print(f"📁 Arquivo: {backup_name}")
-        print("Pode prosseguir com a migração com segurança.")
+        print("[OK] Backup realizado com sucesso!")
+        print(f"[ARQUIVO] {backup_name}")
+        print("Pode prosseguir com a migracao com seguranca.")
     except Exception as e:
-        print(f"❌ Falha ao copiar arquivo: {e}")
+        print(f"[ERRO] Falha ao copiar arquivo: {e}")
 
 if __name__ == "__main__":
     realizar_backup()

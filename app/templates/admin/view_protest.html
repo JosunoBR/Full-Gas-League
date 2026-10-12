@@ -203,7 +203,7 @@
                         <form method="POST">
                             <div class="mb-3">
                                 <label class="form-label text-danger fw-bold small">Veredito Final</label>
-                                <select name="veredito_final" class="form-select bg-dark text-white border-secondary btn-sm">
+                                <select name="veredito_final" class="form-select bg-dark text-white border-secondary btn-sm" id="veredito_final">
                                     <option value="INOCENTE">Inocente</option>
                                     <option value="INCIDENTE_CORRIDA">Incidente de Corrida</option>
                                     <option value="ADVERTENCIA">Advertência</option>
@@ -211,6 +211,18 @@
                                     <option value="MEDIA">Punição Média (-5 pts)</option>
                                     <option value="GRAVE">Punição Grave (-10 pts)</option>
                                 </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label text-warning fw-bold small">Aplicação de Ban (Grid / Prova)</label>
+                                <select name="tipo_ban" class="form-select bg-dark text-white border-secondary btn-sm" id="tipo_ban">
+                                    <option value="NENHUM">Nenhum Ban</option>
+                                    <option value="QUALI_BAN">Quali Ban (Próxima etapa)</option>
+                                    <option value="RACE_BAN">Race Ban (Próxima etapa)</option>
+                                    <option value="AMBOS">Quali Ban + Race Ban</option>
+                                </select>
+                                <div class="form-text text-white-50" style="font-size: 0.72rem;">
+                                    Escolha manual: define se o piloto terá restrição de classificação ou suspensão da prova.
+                                </div>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label text-danger fw-bold small">Justificativa Oficial</label>
@@ -237,13 +249,28 @@
                     {% else %}
                         <div class="bg-secondary bg-opacity-10 p-3 rounded border border-secondary border-opacity-25 mb-3">
                             <p class="text-white-50 small mb-1">Veredito Oficial:</p>
-                            <h5 class="text-white fw-bold mb-3">
+                            <h5 class="text-white fw-bold mb-2">
                                 {% if protesto.veredito_final == 'INOCENTE' or protesto.veredito_final == 'INCIDENTE_CORRIDA' %}
                                     <span class="text-success">{{ protesto.veredito_final }}</span>
                                 {% else %}
                                     <span class="text-danger">{{ protesto.veredito_final }}</span>
                                 {% endif %}
                             </h5>
+
+                            {% if protesto.tipo_ban and protesto.tipo_ban != 'NENHUM' %}
+                            <div class="mb-3">
+                                <span class="text-white-50 small d-block mb-1">Penalidade Adicional de Ban:</span>
+                                {% if protesto.tipo_ban == 'QUALI_BAN' %}
+                                    <span class="badge bg-warning text-dark px-2 py-1"><i class="fa-solid fa-ban me-1"></i> QUALI BAN</span>
+                                {% elif protesto.tipo_ban == 'RACE_BAN' %}
+                                    <span class="badge bg-danger text-white px-2 py-1"><i class="fa-solid fa-ban me-1"></i> RACE BAN</span>
+                                {% elif protesto.tipo_ban == 'AMBOS' %}
+                                    <span class="badge bg-danger text-white px-2 py-1 me-1"><i class="fa-solid fa-ban me-1"></i> QUALI BAN</span>
+                                    <span class="badge bg-danger text-white px-2 py-1"><i class="fa-solid fa-ban me-1"></i> RACE BAN</span>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+
                             <p class="text-white-50 small mb-1">Justificativa da Direção de Prova:</p>
                             <p class="text-white fst-italic small mb-0">"{{ protesto.justificativa_texto }}"</p>
                         </div>

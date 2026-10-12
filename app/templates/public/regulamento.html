@@ -1,139 +1,130 @@
 {% extends "base.html" %}
 
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/regulamento.css') }}">
+{% endblock %}
+
 {% block content %}
-<div class="row justify-content-center mb-5">
+<div class="row justify-content-center mb-4">
     <div class="col-lg-10 text-center">
-        <h1 class="text-white fw-bold display-4 mb-3" style="font-family: 'Cinzel', serif;">REGULAMENTO OFICIAL</h1>
-        <p class="lead text-white-50">
-            FULL GÁS LEAGUE | REGULAMENTO GERAL - 13 DE JULHO DE 2026
+        <h1 class="text-white fw-bold display-4 mb-2" style="font-family: 'Cinzel', serif;">REGULAMENTO OFICIAL</h1>
+        <p class="lead text-white-50 mb-0">
+            FULL GÁS LEAGUE | DIRETRIZES ESPORTIVAS E DISCIPLINARES
         </p>
         <div class="mx-auto mt-3" style="width: 100px; height: 3px; background-color: #E60000;"></div>
     </div>
 </div>
 
-<div class="row justify-content-center">
+<!-- ABAS DE NAVEGAÇÃO DOS DOIS REGULAMENTOS -->
+<div class="row justify-content-center mb-4">
     <div class="col-lg-10">
-        <div class="card bg-dark border-silver shadow">
-            <div class="card-body p-4 p-md-5 text-white">
+        <ul class="nav nav-pills nav-fill" id="rulesNavTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active py-3 fw-bold" id="tab-rivals-btn" data-bs-toggle="pill" data-bs-target="#tab-rivals" type="button" role="tab" aria-controls="tab-rivals" aria-selected="true">
+                    <i class="fa-solid fa-people-group me-2 text-danger"></i> Campeonato de Equipes (Full Gas Rivals)
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link py-3 fw-bold" id="tab-pilotos-btn" data-bs-toggle="pill" data-bs-target="#tab-pilotos" type="button" role="tab" aria-controls="tab-pilotos" aria-selected="false">
+                    <i class="fa-solid fa-helmet-safety me-2 text-danger"></i> Campeonato de Pilotos (5ª Temporada)
+                </button>
+            </li>
+        </ul>
+    </div>
+</div>
 
-                <!-- CAPÍTULO 1: INTRODUÇÃO -->
-                <div class="mb-5">
-                    <h3 class="fw-bold text-danger mb-3"><i class="fa-solid fa-flag-checkered me-2"></i> 1. CAPÍTULO 1: INTRODUÇÃO</h3>
-                    <p class="text-white-50 fs-6">
-                        <strong>1.1.</strong> A <strong>Full Gas League (FGL)</strong> é uma liga de Fórmula 1 virtual organizada para promover competições equilibradas, justas e profissionais. Este regulamento rege integralmente <strong>TODOS</strong> os grids da Liga, sendo de cumprimento obrigatório e sem prejuízo de disposições específicas e subsidiárias para cada competição sob responsabilidade da liga. Ao se inscrever, o piloto declara ciência e concordância integral com as normas descritas na presente.
-                    </p>
-                    <p class="text-white-50 fs-6">
-                        <strong>1.2.</strong> Sem prejuízo das normas acerca da conduta e disposições gerais, a liga poderá adotar procedimentos alternativos de <strong>SELETIVA</strong> e <strong>CAMPEONATO</strong>.
-                    </p>
-                    <p class="text-white-50 fs-6">
-                        <strong>1.3.</strong> As inscrições são abertas a todos os pilotos que forem aprovados na <strong>SELETIVA DE PILOTOS</strong>, evento organizado em data e formatos específicos propriamente descritos.
-                    </p>
-                    <p class="text-white-50 fs-6">
-                        <strong>1.4.</strong> Todos os pilotos interessados podem participar da Seletiva Full Gás League, independentemente de experiência prévia ou nacionalidade.
-                    </p>
-                    <p class="text-white-50 fs-6">
-                        <strong>1.5.</strong> Todas as plataformas compatíveis com o jogo <strong>F1 25 e sua DLC</strong> serão aceitas, garantindo ampla participação.
-                    </p>
-                    
-                    <h5 class="fw-bold text-white mt-4 mb-3"><i class="fa-solid fa-share-nodes me-2 text-danger"></i> 1.6. Mídias da Full Gás League:</h5>
-                    <div class="row g-3">
-                        <div class="col-md-4">
-                            <a href="https://instagram.com" target="_blank" class="btn btn-outline-danger w-100 text-start text-white border-secondary bg-dark p-3 text-decoration-none">
-                                <i class="fa-brands fa-instagram text-danger fs-4 me-2 align-middle"></i> <strong>Instagram</strong>
-                            </a>
+<div class="tab-content" id="rulesTabContent">
+    <!-- ========================================== -->
+    <!-- ABA 1: CAMPEONATO DE EQUIPES (RIVALS)       -->
+    <!-- ========================================== -->
+    <div class="tab-pane fade show active" id="tab-rivals" role="tabpanel" aria-labelledby="tab-rivals-btn">
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <div class="card bg-dark border-silver shadow">
+                    <div class="card-body p-4 p-md-5 text-white">
+
+                        <!-- CAPÍTULO 1: INTRODUÇÃO -->
+                        <div class="mb-5">
+                            <h3 class="fw-bold text-danger mb-3"><i class="fa-solid fa-flag-checkered me-2"></i> 1. CAPÍTULO 1: INTRODUÇÃO</h3>
+                            <p class="text-white-50 fs-6">
+                                <strong>1.1.</strong> A <strong>Full Gas League (FGL)</strong> promove competições virtuais equilibradas, justas e profissionais. Este regulamento rege integralmente o <strong>Grid Rivals (Campeonato de Equipes)</strong> e é de cumprimento obrigatório para todas as escuderias e pilotos inscritos.
+                            </p>
+                            <p class="text-white-50 fs-6">
+                                <strong>1.2.</strong> As inscrições são abertas a equipes. Todas as plataformas compatíveis com o jogo <strong>F1 25 e sua DLC</strong> serão aceitas, garantindo ampla participação e crossplay.
+                            </p>
+                            
+                            <h5 class="fw-bold text-white mt-4 mb-3"><i class="fa-solid fa-share-nodes me-2 text-danger"></i> 1.6. Mídias da Full Gás League:</h5>
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <a href="https://instagram.com" target="_blank" rel="noopener" class="btn btn-outline-danger w-100 text-start text-white border-secondary bg-dark p-3 text-decoration-none">
+                                        <i class="fa-brands fa-instagram text-danger fs-4 me-2 align-middle"></i> <strong>Instagram</strong>
+                                    </a>
+                                </div>
+                                <div class="col-md-4">
+                                    <a href="https://youtube.com" target="_blank" rel="noopener" class="btn btn-outline-danger w-100 text-start text-white border-secondary bg-dark p-3 text-decoration-none">
+                                        <i class="fa-brands fa-youtube text-danger fs-4 me-2 align-middle"></i> <strong>Youtube</strong>
+                                    </a>
+                                </div>
+                                <div class="col-md-4">
+                                    <a href="https://twitch.tv" target="_blank" rel="noopener" class="btn btn-outline-danger w-100 text-start text-white border-secondary bg-dark p-3 text-decoration-none">
+                                        <i class="fa-brands fa-twitch text-danger fs-4 me-2 align-middle"></i> <strong>Twitch</strong>
+                                    </a>
+                                </div>
+                                <div class="col-md-6">
+                                    <a href="https://tiktok.com" target="_blank" rel="noopener" class="btn btn-outline-danger w-100 text-start text-white border-secondary bg-dark p-3 text-decoration-none">
+                                        <i class="fa-brands fa-tiktok text-danger fs-4 me-2 align-middle"></i> <strong>TikTok</strong>
+                                    </a>
+                                </div>
+                                <div class="col-md-6">
+                                    <a href="https://www.fullgasleague.com.br/" target="_blank" rel="noopener" class="btn btn-outline-danger w-100 text-start text-white border-secondary bg-dark p-3 text-decoration-none">
+                                        <i class="fa-solid fa-globe text-danger fs-4 me-2 align-middle"></i> <strong>Site Oficial:</strong> fullgasleague.com.br
+                                    </a>
+                                </div>
+                            </div>
                         </div>
-                        <div class="col-md-4">
-                            <a href="https://youtube.com" target="_blank" class="btn btn-outline-danger w-100 text-start text-white border-secondary bg-dark p-3 text-decoration-none">
-                                <i class="fa-brands fa-youtube text-danger fs-4 me-2 align-middle"></i> <strong>Youtube</strong>
-                            </a>
+
+                        <hr class="border-secondary my-4">
+
+                        <!-- CAPÍTULO 2: INSCRIÇÃO E CAMPEONATO DE EQUIPES -->
+                        <div class="mb-5">
+                            <h3 class="fw-bold text-danger mb-3"><i class="fa-solid fa-people-group me-2"></i> 2. CAPÍTULO 2: INSCRIÇÃO E COMPOSIÇÃO DAS EQUIPES</h3>
+                            
+                            <h5 class="fw-bold text-white mt-4">2.1. Composição e Inscrição</h5>
+                            <ul class="list-unstyled text-white-50">
+                                <li class="mb-2"><strong>2.1.1.</strong> O campeonato comporta até <strong>11 equipes</strong> participantes.</li>
+                                <li class="mb-2"><strong>2.1.2.</strong> Cada equipe é composta obrigatoriamente por <strong>2 pilotos titulares e 2 reservas fixos</strong> (mínimo de 4 pilotos inscritos). É permitido cadastrar até 2 reservas adicionais, totalizando no máximo 6 pilotos por equipe.</li>
+                                <li class="mb-2"><strong>2.1.3. Rotatividade Obrigatória:</strong> Cada equipe escala 2 pilotos por corrida. <strong>A mesma dupla não pode correr duas etapas consecutivas</strong>; ao menos um integrante deve ser trocado a cada corrida, independentemente de ser titular ou reserva.</li>
+                                <li class="mb-2"><strong>2.1.4.</strong> A taxa de inscrição é de <strong>R$ 185 por equipe</strong> (incluindo os 4 pilotos obrigatórios). Cada reserva adicional custa <strong>R$ 30</strong>.</li>
+                                <li class="mb-2"><strong>2.1.5.</strong> Substituições adicionais durante o campeonato têm custo de <strong>R$ 30</strong>. O novo piloto inicia com zero ponto e não herda pontuações anteriores.</li>
+                                <li class="mb-2"><strong>2.1.6.</strong> Todo participante deve enviar foto modelo 3x4 com rosto visível, sem bonés, óculos escuros ou chapéus. Não há reembolso após o início oficial da temporada.</li>
+                            </ul>
+
+                            <h5 class="fw-bold text-white mt-4">2.2. Do Campeonato</h5>
+                            <ul class="list-unstyled text-white-50">
+                                <li class="mb-2"><strong>2.2.1.</strong> O campeonato conta com <strong>8 ETAPAS</strong> realizadas semanalmente às <strong>Segundas-feiras, às 21h30</strong>.</li>
+                                <li class="mb-2"><strong>2.2.2.</strong> Cada etapa é composta por uma <strong>qualificação curta</strong> (18 min) e corrida com <strong>50% da distância oficial</strong>. Em caso de necessidade técnica, a qualificação poderá ser de volta única e a corrida reduzida para 35%.</li>
+                                <li class="mb-2"><strong>2.2.3.</strong> O piloto só é considerado concluinte após cruzar a linha de chegada; sair antes do encerramento oficial da sessão pode gerar DNF.</li>
+                            </ul>
+
+                            <h5 class="fw-bold text-white mt-4">2.4. Gravação e Transmissão</h5>
+                            <ul class="list-unstyled text-white-50">
+                                <li class="mb-2"><strong>2.4.1.</strong> É <strong>obrigatório gravar</strong> a qualificação e corrida completa com telemetria ativa. As gravações não devem ser apagadas antes da conclusão de todos os julgamentos dos comissários.</li>
+                                <li class="mb-2"><strong>2.4.2.</strong> As transmissões oficiais com narração e comentários são exibidas nos canais oficiais da Twitch e YouTube da FullGas League.</li>
+                            </ul>
                         </div>
-                        <div class="col-md-4">
-                            <a href="https://twitch.tv" target="_blank" class="btn btn-outline-danger w-100 text-start text-white border-secondary bg-dark p-3 text-decoration-none">
-                                <i class="fa-brands fa-twitch text-danger fs-4 me-2 align-middle"></i> <strong>Twitch</strong>
-                            </a>
-                        </div>
-                        <div class="col-md-6">
-                            <a href="https://tiktok.com" target="_blank" class="btn btn-outline-danger w-100 text-start text-white border-secondary bg-dark p-3 text-decoration-none">
-                                <i class="fa-brands fa-tiktok text-danger fs-4 me-2 align-middle"></i> <strong>TikTok</strong>
-                            </a>
-                        </div>
-                        <div class="col-md-6">
-                            <a href="https://www.fullgasleague.com.br/" target="_blank" class="btn btn-outline-danger w-100 text-start text-white border-secondary bg-dark p-3 text-decoration-none">
-                                <i class="fa-solid fa-globe text-danger fs-4 me-2 align-middle"></i> <strong>Site Oficial:</strong> fullgasleague.com.br
-                            </a>
-                        </div>
-                    </div>
-                </div>
 
-                <hr class="border-secondary my-4">
+                        <hr class="border-secondary my-4">
 
-                <!-- CAPÍTULO 2: DA SELETIVA -->
-                <div class="mb-5">
-                    <h3 class="fw-bold text-danger mb-3"><i class="fa-solid fa-trophy me-2"></i> 2. CAPÍTULO 2: DA SELETIVA</h3>
-                    
-                    <h5 class="fw-bold text-white mt-4">2.1. Inscrição</h5>
-                    <ul class="list-unstyled text-white-50">
-                        <li class="mb-2"><strong>2.1.1.</strong> A Seletiva de determinado grid poderá seguir <strong>RITO PRÓPRIO</strong>, a ser explicitado por meios de comunicação oficiais da liga e/ou documentação subsidiária pertinente. Esses meios podem alterar o procedimento para análise de qualificatória nos grids, <strong>SEM PREJUÍZO</strong> das outras designações aqui descritas.</li>
-                        <li class="mb-2"><strong>2.1.2.</strong> Os grids, costumeiramente, seguem o seguinte padrão: <span class="badge bg-warning text-dark">GRID OURO</span>, <span class="badge bg-secondary">GRID PRATA</span> e <span class="badge bg-danger">GRID BRONZE</span>. A Full Gás também dispõe de grids que não se qualificam na competição usual, como o <strong>GRID DE EQUIPES (GRID RIVALS)</strong>. Todos os grids podem ter ritos próprios.</li>
-                        <li class="mb-2"><strong>2.1.3.</strong> Será cobrada uma taxa de inscrição simbólica no montante de <strong>R$45</strong>, destinada a cobrir custos operacionais.</li>
-                        <li class="mb-2"><strong>2.1.4.</strong> O número de participantes é <strong>aberto</strong>, respeitando a ordem de inscrição.</li>
-                        <li class="mb-2"><strong>2.1.5.</strong> Após o início do campeonato, <strong>não haverá possibilidade de reembolso</strong>.<small class="d-block text-muted mt-1">* A possibilidade de reembolso será considerada apenas nos casos de BANIMENTO do jogador no cenário de COMPETIÇÃO.</small></li>
-                        <li class="mb-2"><strong>2.1.6.</strong> O participante que realizar a inscrição deve enviar uma foto no modelo 3x4, sem óculos escuros, bonés ou chapéus.</li>
-                    </ul>
-
-                    <h5 class="fw-bold text-white mt-4">2.2. Do Campeonato</h5>
-                    <ul class="list-unstyled text-white-50">
-                        <li class="mb-2"><strong>2.2.1.</strong> O evento contará com <strong>6 ETAPAS</strong>, realizadas ao longo de 6 semanas. As corridas ocorrerão nas <strong>Quartas 20h (Bronze)</strong>, <strong>Quinta 20h (Ouro)</strong> e <strong>Domingo 21h (Prata)</strong>.</li>
-                        <li class="mb-2"><strong>2.2.2.</strong> A liga terá 4 campeonatos, sendo 3 deles ranqueados e 1 de equipes.</li>
-                        <li class="mb-2"><strong>2.2.3.</strong> As pistas selecionadas para SELETIVA e CAMPEONATO serão previamente notificadas nos meios de comunicação oficiais da Liga.</li>
-                        <li class="mb-2"><strong>2.2.4.</strong> Cada corrida será composta por uma <strong>qualificação curta</strong> seguida de uma corrida com <strong>50% da distância oficial</strong>.</li>
-                        <li class="mb-2"><strong>2.2.5.</strong> A qualificação curta, em caso de atraso no grid, poderá ser substituída por <strong>QUALIFICAÇÃO DE UMA VOLTA</strong> conforme necessário.</li>
-                    </ul>
-
-                    <h5 class="fw-bold text-white mt-4">2.3. Sistema de Classificação e Pontos</h5>
-                    <ul class="list-unstyled text-white-50">
-                        <li class="mb-2"><strong>2.3.1.</strong> Todos os pilotos que completarem <strong>90% da distância total</strong> da corrida terão seus pontos validados.</li>
-                        <li class="mb-2"><strong>2.3.2.</strong> Um piloto que desconectou após cobrir <strong>50% da distância</strong> da corrida será classificado onde a sua IA terminou.</li>
-                        <li class="mb-2"><strong>2.3.3.</strong> Um piloto que desconectou abaixo de 50% terá seu resultado automaticamente desconsiderado.<small class="d-block text-muted mt-1">* Caso seja evidenciada justificativa plausível fora do controle do jogador, o resultado poderá ser considerado após deliberação.</small></li>
-                    </ul>
-
-                    <h5 class="fw-bold text-white mt-4">2.4. Gravação</h5>
-                    <ul class="list-unstyled text-white-50">
-                        <li class="mb-2"><strong>2.4.1.</strong> Os pilotos <strong>devem registrar</strong> a sua qualificação e corrida no caso de ocorrerem incidentes.</li>
-                        <li class="mb-2"><strong>2.4.2.</strong> Os pilotos <strong>não devem apagar</strong> as suas filmagens até que todas as conclusões dos comissários de bordo tenham sido divulgadas.</li>
-                    </ul>
-
-                    <h5 class="fw-bold text-white mt-4">2.5. Transmissões de Pilotos</h5>
-                    <ul class="list-unstyled text-white-50">
-                        <li class="mb-2"><strong>2.5.1.</strong> A transmissão da onboard é <strong>permitida</strong> a qualquer piloto que esteja correndo.</li>
-                        <li class="mb-2"><strong>2.5.2.</strong> Todas as corridas comentadas serão transmitidas nos canais da <strong>Twitch e Youtube</strong> da FullGás League.</li>
-                    </ul>
-                </div>
-
-                <hr class="border-secondary my-4">
-
-                <!-- CAPÍTULO 3: DA PONTUAÇÃO -->
-                <div class="mb-5">
-                    <h3 class="fw-bold text-danger mb-3"><i class="fa-solid fa-list-ol me-2"></i> 3. CAPÍTULO 3: DA PONTUAÇÃO</h3>
-                    <p class="text-white-50">
-                        <strong>3.1.1.</strong> Todas as informações acerca da pontuação estarão plenamente distribuídas no site oficial da liga.
-                    </p>
-                    
-                    <h5 class="fw-bold text-white mb-3">3.2. Tabelas de Pontuação Oficial</h5>
-                    
-                    <ul class="nav nav-pills mb-3" id="pills-tab" role="tablist">
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link active btn-sm fw-bold" id="pills-20-tab" data-bs-toggle="pill" data-bs-target="#pills-20" type="button">Grid Padrão (20 Pilotos)</button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link btn-sm fw-bold" id="pills-22-tab" data-bs-toggle="pill" data-bs-target="#pills-22" type="button">Grid Cheio (22 Pilotos)</button>
-                        </li>
-                    </ul>
-
-                    <div class="tab-content mb-4" id="pills-tabContent">
-                        <!-- TABELA 20 PILOTOS -->
-                        <div class="tab-pane fade show active" id="pills-20" role="tabpanel">
-                            <div class="table-responsive">
+                        <!-- CAPÍTULO 3: DA PONTUAÇÃO -->
+                        <div class="mb-5">
+                            <h3 class="fw-bold text-danger mb-3"><i class="fa-solid fa-list-ol me-2"></i> 3. CAPÍTULO 3: DA PONTUAÇÃO</h3>
+                            <p class="text-white-50">
+                                <strong>3.1.</strong> A pontuação conquistada pelos pilotos escalados compõe a classificação geral dos construtores/equipes no Grid Rivals.
+                            </p>
+                            
+                            <h5 class="fw-bold text-white mb-3">3.2. Tabela de Pontuação Oficial (Grid 22 Pilotos)</h5>
+                            
+                            <div class="table-responsive mb-4">
                                 <table class="table table-dark table-bordered table-striped text-center align-middle">
                                     <thead class="table-danger">
                                         <tr>
@@ -144,24 +135,342 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <tr><td>P1</td><td class="fw-bold text-success">35 Pts</td><td>P11</td><td>10 Pts</td></tr>
-                                        <tr><td>P2</td><td class="fw-bold text-success">30 Pts</td><td>P12</td><td>9 Pts</td></tr>
-                                        <tr><td>P3</td><td class="fw-bold text-success">27 Pts</td><td>P13</td><td>8 Pts</td></tr>
-                                        <tr><td>P4</td><td>24 Pts</td><td>P14</td><td>7 Pts</td></tr>
-                                        <tr><td>P5</td><td>22 Pts</td><td>P15</td><td>6 Pts</td></tr>
-                                        <tr><td>P6</td><td>20 Pts</td><td>P16</td><td>5 Pts</td></tr>
-                                        <tr><td>P7</td><td>18 Pts</td><td>P17</td><td>4 Pts</td></tr>
-                                        <tr><td>P8</td><td>16 Pts</td><td>P18</td><td>3 Pts</td></tr>
-                                        <tr><td>P9</td><td>14 Pts</td><td>P19</td><td>2 Pts</td></tr>
-                                        <tr><td>P10</td><td>12 Pts</td><td>P20</td><td>1 Pt</td></tr>
+                                        <tr><td>P1</td><td class="fw-bold text-success">35 Pts</td><td>P12</td><td>11 Pts</td></tr>
+                                        <tr><td>P2</td><td class="fw-bold text-success">30 Pts</td><td>P13</td><td>10 Pts</td></tr>
+                                        <tr><td>P3</td><td class="fw-bold text-success">27 Pts</td><td>P14</td><td>9 Pts</td></tr>
+                                        <tr><td>P4</td><td>24 Pts</td><td>P15</td><td>8 Pts</td></tr>
+                                        <tr><td>P5</td><td>22 Pts</td><td>P16</td><td>7 Pts</td></tr>
+                                        <tr><td>P6</td><td>20 Pts</td><td>P17</td><td>6 Pts</td></tr>
+                                        <tr><td>P7</td><td>18 Pts</td><td>P18</td><td>5 Pts</td></tr>
+                                        <tr><td>P8</td><td>16 Pts</td><td>P19</td><td>4 Pts</td></tr>
+                                        <tr><td>P9</td><td>14 Pts</td><td>P20</td><td>3 Pts</td></tr>
+                                        <tr><td>P10</td><td>13 Pts</td><td>P21</td><td>2 Pts</td></tr>
+                                        <tr><td>P11</td><td>12 Pts</td><td>P22</td><td>1 Pt</td></tr>
                                     </tbody>
                                 </table>
                             </div>
+
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <div class="p-3 bg-secondary bg-opacity-10 border border-secondary rounded h-100">
+                                        <strong class="text-white"><i class="fa-solid fa-ban text-danger me-2"></i> 3.3. Não Completaram (NC)</strong>
+                                        <p class="text-white-50 small mb-0 mt-1">Pilotos que não completarem a corrida não pontuam.</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="p-3 bg-secondary bg-opacity-10 border border-secondary rounded h-100">
+                                        <strong class="text-white"><i class="fa-solid fa-stopwatch text-info me-2"></i> 3.4. Volta Rápida</strong>
+                                        <p class="text-white-50 small mb-0 mt-1">Piloto que registrar a melhor volta ganha <strong>1 ponto extra</strong>.</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="p-3 bg-secondary bg-opacity-10 border border-secondary rounded h-100">
+                                        <strong class="text-white"><i class="fa-solid fa-comments text-warning me-2"></i> 3.5. Torcida na Live</strong>
+                                        <p class="text-white-50 small mb-0 mt-1">Piloto com maior engajamento ganha <strong>1 ponto extra</strong>.</p>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
-                        <!-- TABELA 22 PILOTOS -->
-                        <div class="tab-pane fade" id="pills-22" role="tabpanel">
-                            <div class="table-responsive">
+                        <hr class="border-secondary my-4">
+
+                        <!-- CAPÍTULO 4: LOBBY E CENÁRIOS DA CORRIDA -->
+                        <div class="mb-5">
+                            <h3 class="fw-bold text-danger mb-3"><i class="fa-solid fa-sliders me-2"></i> 4. CAPÍTULO 4: LOBBY E CENÁRIOS DA CORRIDA</h3>
+                            
+                            <h5 class="fw-bold text-white mt-4">4.1. Lobby e Presença</h5>
+                            <ul class="list-unstyled text-white-50">
+                                <li class="mb-2"><strong>4.1.1.</strong> O lobby abre entre 10 e 30 minutos antes do início da sessão. Tolerância máxima de <strong>5 minutos</strong> para entrada no lobby.</li>
+                                <li class="mb-2"><strong>4.1.2.</strong> O piloto deve confirmar presença ou ausência no site oficial até <strong>2 horas antes</strong> da prova.</li>
+                                <li class="mb-2"><strong>4.1.3.</strong> A ausência de check-in gera <strong>1 ponto de penalidade na CNH</strong>, mesmo que o piloto participe.</li>
+                                <li class="mb-2"><strong>4.1.4.</strong> O início da prova pode ser atrasado pela direção em até 20 minutos; passado esse prazo, a sessão será adiada.</li>
+                                <li class="mb-2"><strong>4.1.5.</strong> Quórum mínimo de 12 participantes para realização de corrida oficial.</li>
+                            </ul>
+
+                            <h5 class="fw-bold text-white mt-4">4.2. Configurações do Lobby</h5>
+                            <div class="row g-3 text-white-50">
+                                <div class="col-md-6">
+                                    <div class="p-3 bg-dark border border-secondary rounded h-100">
+                                        <h6 class="fw-bold text-danger">4.2.1. Opções de Lobby</h6>
+                                        <ul class="ps-3 mb-0 small">
+                                            <li>Privacidade: Apenas convite / seguir por amizade</li>
+                                            <li>Categoria do carro: F1 2026 Multiplayer</li>
+                                            <li>Configuração do carro: Completo</li>
+                                            <li>Desempenho do carro: Igual</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="p-3 bg-dark border border-secondary rounded h-100">
+                                        <h6 class="fw-bold text-danger">4.2.2. Restrições de Assistência</h6>
+                                        <ul class="ps-3 mb-0 small">
+                                            <li>Assistência de Direção / Freio: Desligado</li>
+                                            <li>Linha de Corrida: Completa | ABS: Ligado</li>
+                                            <li>Controle de Tração: Completa | Câmbio: Automático</li>
+                                            <li>Assistência dos boxes: Desligado | Liberação: Manual</li>
+                                            <li>Assistência de ERS & DRS: Desligado</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="p-3 bg-dark border border-secondary rounded h-100">
+                                        <h6 class="fw-bold text-danger">4.2.3. Estrutura de Fim de Semana & Clima</h6>
+                                        <ul class="ps-3 mb-0 small">
+                                            <li>Estrutura: Padrão | Prática: Desligado</li>
+                                            <li>Qualificação: Curto / 18 minutos | Sessão: Longa</li>
+                                            <li>Clima rápido: Dinâmico | Hora de início: Realista</li>
+                                            <li>Precisão das previsões: Aproximadamente</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="p-3 bg-dark border border-secondary rounded h-100">
+                                        <h6 class="fw-bold text-danger">4.2.5. Regras, Bandeiras & Simulação</h6>
+                                        <ul class="ps-3 mb-0 small">
+                                            <li>Corte de curvas: Rígido | Parque Fechado: Ligado</li>
+                                            <li>Safety Car: Reduzido | Volta de Apresentação: Off</li>
+                                            <li>IA: 70 | Danos: Padrão (Taxa Reduzida)</li>
+                                            <li>Largada: Manual | Colisões: Ligado | Fantasmas: Ligado</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <h5 class="fw-bold text-white mt-4">4.3. Desconexões e Problemas Técnicos</h5>
+                            <p class="text-white-50 mb-1"><strong>4.3.1.</strong> Em caso de desconexão, são permitidas até 2 tentativas de retorno à sessão.</p>
+                            <p class="text-white-50 mb-1"><strong>4.3.2.</strong> Menos de 50% concluída: reinício completo da corrida.</p>
+                            <p class="text-white-50 mb-1"><strong>4.3.3.</strong> Mais de 50% concluída: reinício com corrida reduzida para 25%.</p>
+                        </div>
+
+                        <hr class="border-secondary my-4">
+
+                        <!-- CAPÍTULO 5: ETIQUETA DE CORRIDA -->
+                        <div class="mb-5">
+                            <h3 class="fw-bold text-danger mb-3"><i class="fa-solid fa-shield-halved me-2"></i> 5. CAPÍTULO 5: ETIQUETA DE CORRIDA</h3>
+                            
+                            <h5 class="fw-bold text-white mt-4">5.1. Normas de Pilotagem</h5>
+                            <ul class="list-unstyled text-white-50">
+                                <li class="mb-2"><strong>5.1.1.</strong> Condução perigosa ou errática é estritamente proibida em qualquer momento da sessão.</li>
+                                <li class="mb-2"><strong>5.1.2.</strong> Ao estarem lado a lado na entrada da curva, <strong>ambos devem deixar espaço de no mínimo um carro</strong>.</li>
+                                <li class="mb-2"><strong>5.1.3. Vácuo e Jogo de Equipe:</strong> Vácuo é <strong>permitido apenas entre companheiros de equipe</strong>. Ajudar concorrentes adversários pode gerar desclassificação (DSQ).</li>
+                                <li class="mb-2"><strong>5.1.4. Qualy Ban:</strong> O piloto punido com qualy ban não pode sair dos boxes para marcar tempo. Descumprir gera desclassificação imediata.</li>
+                                <li class="mb-2"><strong>5.1.5. Safety Car & Boxes:</strong> Manter distância e delta adequado. O abandono de corrida <strong>deve ser feito exclusivamente dentro dos boxes</strong>.</li>
+                            </ul>
+                        </div>
+
+                        <hr class="border-secondary my-4">
+
+                        <!-- CAPÍTULO 6: COMISSÁRIOS E PENALIDADES -->
+                        <div class="mb-5">
+                            <h3 class="fw-bold text-danger mb-3"><i class="fa-solid fa-gavel me-2"></i> 6. CAPÍTULO 6: COMISSÁRIOS, INCIDENTES E PENALIDADES</h3>
+                            
+                            <p class="text-white-50">
+                                <strong>6.2. Relato de Incidentes:</strong> Incidentes devem ser submetidos via site oficial em até <strong>24 horas</strong> após o encerramento da prova. A defesa terá <strong>48 horas</strong> para anexar vídeo da onboard com telemetria ativa.
+                            </p>
+
+                            <h5 class="fw-bold text-white mt-4">6.4. Tabela de Penalidades & CNH</h5>
+                            <p class="text-white-50">Todos os pilotos iniciam cada campeonato com <strong>25 pontos na CNH</strong>.</p>
+                            
+                            <div class="row g-3 mb-4">
+                                <div class="col-md-6 col-lg-4">
+                                    <div class="p-3 bg-dark border border-secondary rounded h-100">
+                                        <h6 class="text-warning fw-bold">Advertência</h6>
+                                        <p class="text-white-50 small mb-0">Sem efeito imediato na pontuação.<br>Reincidência é enquadrada em punições com efeito.</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 col-lg-4">
+                                    <div class="p-3 bg-dark border border-secondary rounded h-100">
+                                        <h6 class="text-info fw-bold">Punição Pena</h6>
+                                        <p class="text-white-50 small mb-0">+3s no tempo final + 1 ponto na superlicença.<br>(Caso NC: Perda de 2 pts no campeonato)</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 col-lg-4">
+                                    <div class="p-3 bg-dark border border-warning rounded h-100">
+                                        <h6 class="text-warning fw-bold">Punição Leve</h6>
+                                        <p class="text-white-50 small mb-0">Rodar adversário / perda de posições sem danos.<br><span class="text-danger fw-bold">-3 pts tabela | -3 CNH</span><br>(Caso NC: Perda de 3 pts no campeonato)</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 col-lg-6">
+                                    <div class="p-3 bg-dark border border-danger rounded h-100">
+                                        <h6 class="text-danger fw-bold">Punição Média</h6>
+                                        <p class="text-white-50 small mb-0">Causar danos ao carro adversário.<br><span class="text-danger fw-bold">-5 pts tabela | -5 CNH | Qualy Ban</span><br>(Caso NC: Perda de 5 pts no campeonato)</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 col-lg-6">
+                                    <div class="p-3 bg-dark border border-danger rounded h-100">
+                                        <h6 class="text-danger fw-bold">Punição Grave / Gravíssima</h6>
+                                        <p class="text-white-50 small mb-0">Causar abandono (NC) ou incidentes gravíssimos.<br><span class="text-danger fw-bold">-10 pts tabela | -10 CNH | Qualy Ban</span><br>(Caso NC: Perda de 7 a 10 pts no campeonato)</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <h5 class="fw-bold text-white mt-4">6.4.6. Acúmulo de Pontos na Superlicença / CNH</h5>
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <div class="p-3 bg-warning text-dark rounded text-center fw-bold">
+                                        8 PONTOS<br><span class="fw-normal">Qualiban (Qualificação suspensa na etapa seguinte)</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="p-3 bg-danger text-white rounded text-center fw-bold">
+                                        12 PONTOS<br><span class="fw-normal">Raceban (Impedido de correr na etapa seguinte)</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="p-3 bg-dark border border-danger text-danger rounded text-center fw-bold">
+                                        25 PONTOS<br><span class="fw-normal text-white-50">Banimento Total da Temporada</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="border-secondary my-4">
+
+                        <!-- CAPÍTULOS 7, 8, 9 E 10 -->
+                        <div class="row g-4 mb-5">
+                            <div class="col-md-6">
+                                <div class="p-4 bg-dark border border-secondary rounded h-100">
+                                    <h5 class="fw-bold text-danger mb-3"><i class="fa-solid fa-users me-2"></i> 7. Conduta Fora da Pista</h5>
+                                    <p class="text-white-50 small">
+                                        O cadastro no site oficial e a presença nos grupos de comunicação via WhatsApp são obrigatórios. Ofensas, spam ou atitudes antidesportivas geram punições administrativas severas.
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="p-4 bg-dark border border-secondary rounded h-100">
+                                    <h5 class="fw-bold text-danger mb-3"><i class="fa-solid fa-microchip me-2"></i> 8. Gravação & Anti-Cheat</h5>
+                                    <p class="text-white-50 small">
+                                        A gravação da sessão é mandatória. A recusa em fornecer telemetria ou realizar checagens solicitadas pela direção resultará em exclusão da liga.
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="p-4 bg-dark border border-secondary rounded h-100">
+                                    <h5 class="fw-bold text-danger mb-3"><i class="fa-solid fa-camera me-2"></i> 9. Direitos de Imagem</h5>
+                                    <p class="text-white-50 small">
+                                        Ao se inscrever, equipes e pilotos autorizam o uso de imagens, onboards e transmissões para divulgação nos canais oficiais da FullGas League.
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="p-4 bg-dark border border-secondary rounded h-100">
+                                    <h5 class="fw-bold text-danger mb-3"><i class="fa-solid fa-award me-2"></i> 10. Das Premiações</h5>
+                                    <p class="text-white-50 small">
+                                        As premiações do campeonato são entregues ao final da temporada. Equipes com faltas não justificadas na etapa final perdem direito à premiação.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- DOWNLOAD DO REGULAMENTO -->
+                        <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between p-3 rounded bg-secondary bg-opacity-10 border border-secondary border-opacity-25 mt-4">
+                            <div class="d-flex align-items-center mb-3 mb-md-0">
+                                <i class="fa-solid fa-file-pdf text-danger fs-3 me-3"></i>
+                                <div>
+                                    <h6 class="mb-0 fw-bold text-white">Regulamento Oficial Rivals (PDF)</h6>
+                                    <small class="text-white-50">Documento integral para consulta offline.</small>
+                                </div>
+                            </div>
+                            <a href="{{ url_for('static', filename='downloads/regulamento-full-gas-rivals.pdf') }}" target="_blank" download class="btn btn-outline-danger btn-sm px-3 py-2 fw-bold text-nowrap">
+                                <i class="fa-solid fa-download me-1"></i> Baixar Regulamento
+                            </a>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- ABA 2: CAMPEONATO DE PILOTOS (5ª TEMPORADA) -->
+    <!-- ========================================== -->
+    <div class="tab-pane fade" id="tab-pilotos" role="tabpanel" aria-labelledby="tab-pilotos-btn">
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <div class="card bg-dark border-silver shadow">
+                    <div class="card-body p-4 p-md-5 text-white">
+
+                        <!-- CAPÍTULO 1: INTRODUÇÃO -->
+                        <div class="mb-5">
+                            <h3 class="fw-bold text-danger mb-3"><i class="fa-solid fa-flag-checkered me-2"></i> 1. CAPÍTULO 1: INTRODUÇÃO</h3>
+                            <p class="text-white-50 fs-6">
+                                <strong>1.1.</strong> A <strong>Full Gas League (FGL)</strong> é uma liga de Fórmula 1 virtual organizada para promover competições equilibradas, justas e profissionais. Este regulamento rege os grids individuais (<strong>Turbo, Nitro e Fast</strong>) da <strong>5ª Temporada</strong>, sendo de cumprimento obrigatório para todos os pilotos.
+                            </p>
+                            <p class="text-white-50 fs-6">
+                                <strong>1.2.</strong> As inscrições são abertas aos pilotos que forem aprovados na Seletiva da temporada. Todas as plataformas compatíveis com o jogo <strong>F1 25 e sua DLC</strong> serão aceitas via crossplay.
+                            </p>
+                            
+                            <h5 class="fw-bold text-white mt-4 mb-3"><i class="fa-solid fa-share-nodes me-2 text-danger"></i> 1.6. Mídias da Full Gás League:</h5>
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <a href="https://instagram.com" target="_blank" rel="noopener" class="btn btn-outline-danger w-100 text-start text-white border-secondary bg-dark p-3 text-decoration-none">
+                                        <i class="fa-brands fa-instagram text-danger fs-4 me-2 align-middle"></i> <strong>Instagram</strong>
+                                    </a>
+                                </div>
+                                <div class="col-md-4">
+                                    <a href="https://youtube.com" target="_blank" rel="noopener" class="btn btn-outline-danger w-100 text-start text-white border-secondary bg-dark p-3 text-decoration-none">
+                                        <i class="fa-brands fa-youtube text-danger fs-4 me-2 align-middle"></i> <strong>Youtube</strong>
+                                    </a>
+                                </div>
+                                <div class="col-md-4">
+                                    <a href="https://twitch.tv" target="_blank" rel="noopener" class="btn btn-outline-danger w-100 text-start text-white border-secondary bg-dark p-3 text-decoration-none">
+                                        <i class="fa-brands fa-twitch text-danger fs-4 me-2 align-middle"></i> <strong>Twitch</strong>
+                                    </a>
+                                </div>
+                                <div class="col-md-6">
+                                    <a href="https://tiktok.com" target="_blank" rel="noopener" class="btn btn-outline-danger w-100 text-start text-white border-secondary bg-dark p-3 text-decoration-none">
+                                        <i class="fa-brands fa-tiktok text-danger fs-4 me-2 align-middle"></i> <strong>TikTok</strong>
+                                    </a>
+                                </div>
+                                <div class="col-md-6">
+                                    <a href="https://www.fullgasleague.com.br/" target="_blank" rel="noopener" class="btn btn-outline-danger w-100 text-start text-white border-secondary bg-dark p-3 text-decoration-none">
+                                        <i class="fa-solid fa-globe text-danger fs-4 me-2 align-middle"></i> <strong>Site Oficial:</strong> fullgasleague.com.br
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="border-secondary my-4">
+
+                        <!-- CAPÍTULO 2: DA SELETIVA E DO CAMPEONATO -->
+                        <div class="mb-5">
+                            <h3 class="fw-bold text-danger mb-3"><i class="fa-solid fa-trophy me-2"></i> 2. CAPÍTULO 2: DA SELETIVA E DO CAMPEONATO</h3>
+                            
+                            <h5 class="fw-bold text-white mt-4">2.1. Inscrição e Categorias</h5>
+                            <ul class="list-unstyled text-white-50">
+                                <li class="mb-2"><strong>2.1.1.</strong> Inscrição no valor de <strong>R$ 60 por piloto</strong> nos grids Turbo, Nitro e Fast.</li>
+                                <li class="mb-2"><strong>2.1.2.</strong> Limite de até <strong>22 pilotos por grid</strong>, distribuídos nas Categorias A e B (os 11 melhores tempos na A e os outros 11 classificados na B).</li>
+                                <li class="mb-2"><strong>2.1.3. Construtores:</strong> As duplas unem posições opostas das categorias (1º A + 11º B, 2º A + 10º B, sucessivamente). Carros sorteados para toda a temporada.</li>
+                                <li class="mb-2"><strong>2.1.4. Reservas e Substituições:</strong> Pilotos reservas devem possuir diferença máxima de <strong>0,250s</strong> na seletiva em relação ao substituído. O reserva inicia com zero ponto.</li>
+                                <li class="mb-2"><strong>2.1.5.</strong> Envio obrigatório de foto modelo 3x4. Não haverá reembolso após o início oficial da temporada.</li>
+                            </ul>
+
+                            <h5 class="fw-bold text-white mt-4">2.2. Do Campeonato</h5>
+                            <ul class="list-unstyled text-white-50">
+                                <li class="mb-2"><strong>2.2.1.</strong> O evento contará com <strong>8 ETAPAS</strong> realizadas semanalmente: <strong>Domingo 20h (Turbo)</strong>, <strong>Quarta 20h (Nitro)</strong> e <strong>Quinta 20h (Fast)</strong>.</li>
+                                <li class="mb-2"><strong>2.2.2.</strong> Cada corrida será composta por qualificação curta (18 min) e corrida com <strong>50% da distância oficial</strong>.</li>
+                            </ul>
+
+                            <h5 class="fw-bold text-white mt-4">2.4. Gravação e Transmissão</h5>
+                            <ul class="list-unstyled text-white-50">
+                                <li class="mb-2"><strong>2.4.1.</strong> Os pilotos <strong>devem registrar</strong> a qualificação e corrida completa com telemetria ativa até a publicação oficial das análises dos comissários.</li>
+                                <li class="mb-2"><strong>2.4.2.</strong> Transmissão de onboard é liberada; corridas comentadas serão exibidas nos canais da Twitch e YouTube.</li>
+                            </ul>
+                        </div>
+
+                        <hr class="border-secondary my-4">
+
+                        <!-- CAPÍTULO 3: DA PONTUAÇÃO -->
+                        <div class="mb-5">
+                            <h3 class="fw-bold text-danger mb-3"><i class="fa-solid fa-list-ol me-2"></i> 3. CAPÍTULO 3: DA PONTUAÇÃO</h3>
+                            <p class="text-white-50">
+                                <strong>3.1.</strong> No campeonato individual, pontua-se do 1º ao 11º em cada categoria. No campeonato de construtores, utiliza-se a classificação geral de 1º a 22º.
+                            </p>
+                            
+                            <h5 class="fw-bold text-white mb-3">3.2. Tabela de Pontuação Oficial (Grid 22 Pilotos)</h5>
+                            
+                            <div class="table-responsive mb-4">
                                 <table class="table table-dark table-bordered table-striped text-center align-middle">
                                     <thead class="table-danger">
                                         <tr>
@@ -172,287 +481,241 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <tr><td>P1</td><td class="fw-bold text-success">35 Pts</td><td>P11</td><td>12 Pts</td></tr>
-                                        <tr><td>P2</td><td class="fw-bold text-success">30 Pts</td><td>P12</td><td>11 Pts</td></tr>
-                                        <tr><td>P3</td><td class="fw-bold text-success">27 Pts</td><td>P13</td><td>10 Pts</td></tr>
-                                        <tr><td>P4</td><td>24 Pts</td><td>P14</td><td>9 Pts</td></tr>
-                                        <tr><td>P5</td><td>22 Pts</td><td>P15</td><td>8 Pts</td></tr>
-                                        <tr><td>P6</td><td>20 Pts</td><td>P16</td><td>7 Pts</td></tr>
-                                        <tr><td>P7</td><td>18 Pts</td><td>P17</td><td>6 Pts</td></tr>
-                                        <tr><td>P8</td><td>16 Pts</td><td>P18</td><td>5 Pts</td></tr>
-                                        <tr><td>P9</td><td>14 Pts</td><td>P19</td><td>4 Pts</td></tr>
-                                        <tr><td>P10</td><td>13 Pts</td><td>P20</td><td>3 Pts</td></tr>
-                                        <tr><td>P21</td><td>2 Pts</td><td>P22</td><td>1 Pt</td></tr>
+                                        <tr><td>P1</td><td class="fw-bold text-success">35 Pts</td><td>P12</td><td>11 Pts</td></tr>
+                                        <tr><td>P2</td><td class="fw-bold text-success">30 Pts</td><td>P13</td><td>10 Pts</td></tr>
+                                        <tr><td>P3</td><td class="fw-bold text-success">27 Pts</td><td>P14</td><td>9 Pts</td></tr>
+                                        <tr><td>P4</td><td>24 Pts</td><td>P15</td><td>8 Pts</td></tr>
+                                        <tr><td>P5</td><td>22 Pts</td><td>P16</td><td>7 Pts</td></tr>
+                                        <tr><td>P6</td><td>20 Pts</td><td>P17</td><td>6 Pts</td></tr>
+                                        <tr><td>P7</td><td>18 Pts</td><td>P18</td><td>5 Pts</td></tr>
+                                        <tr><td>P8</td><td>16 Pts</td><td>P19</td><td>4 Pts</td></tr>
+                                        <tr><td>P9</td><td>14 Pts</td><td>P20</td><td>3 Pts</td></tr>
+                                        <tr><td>P10</td><td>13 Pts</td><td>P21</td><td>2 Pts</td></tr>
+                                        <tr><td>P11</td><td>12 Pts</td><td>P22</td><td>1 Pt</td></tr>
                                     </tbody>
                                 </table>
                             </div>
-                        </div>
-                    </div>
 
-                    <div class="row g-3">
-                        <div class="col-md-4">
-                            <div class="p-3 bg-secondary bg-opacity-10 border border-secondary rounded">
-                                <strong class="text-white"><i class="fa-solid fa-ban text-danger me-2"></i> 3.3. Não Completaram (NC)</strong>
-                                <p class="text-white-50 small mb-0">Pilotos que não completarem a corrida não pontuam.</p>
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <div class="p-3 bg-secondary bg-opacity-10 border border-secondary rounded h-100">
+                                        <strong class="text-white"><i class="fa-solid fa-ban text-danger me-2"></i> 3.3. Não Completaram (NC)</strong>
+                                        <p class="text-white-50 small mb-0 mt-1">Pilotos que não completarem a corrida não pontuam.</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="p-3 bg-secondary bg-opacity-10 border border-secondary rounded h-100">
+                                        <strong class="text-white"><i class="fa-solid fa-stopwatch text-info me-2"></i> 3.4. Volta Rápida</strong>
+                                        <p class="text-white-50 small mb-0 mt-1">Piloto com a melhor volta de cada categoria ganha <strong>1 ponto extra</strong>.</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="p-3 bg-secondary bg-opacity-10 border border-secondary rounded h-100">
+                                        <strong class="text-white"><i class="fa-solid fa-comments text-warning me-2"></i> 3.5. Torcida na Live</strong>
+                                        <p class="text-white-50 small mb-0 mt-1">Piloto com maior número de comentários na live ganha <strong>1 ponto extra</strong>.</p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <div class="col-md-4">
-                            <div class="p-3 bg-secondary bg-opacity-10 border border-secondary rounded">
-                                <strong class="text-white"><i class="fa-solid fa-stopwatch text-info me-2"></i> 3.4. Volta Rápida</strong>
-                                <p class="text-white-50 small mb-0">Piloto que fizer a volta rápida ganhará <strong>1 ponto extra</strong>.</p>
+
+                        <hr class="border-secondary my-4">
+
+                        <!-- CAPÍTULO 4: LOBBY E CENÁRIOS DA CORRIDA -->
+                        <div class="mb-5">
+                            <h3 class="fw-bold text-danger mb-3"><i class="fa-solid fa-sliders me-2"></i> 4. CAPÍTULO 4: LOBBY E CENÁRIOS DA CORRIDA</h3>
+                            
+                            <h5 class="fw-bold text-white mt-4">4.1. Lobby das Corridas</h5>
+                            <ul class="list-unstyled text-white-50">
+                                <li class="mb-2"><strong>4.1.1.</strong> O lobby abre entre 10 e 30 minutos antes da sessão, com tolerância de <strong>5 minutos</strong> para entrada.</li>
+                                <li class="mb-2"><strong>4.1.2.</strong> Check-in ou aviso de ausência deve ser feito no site até <strong>2 horas antes</strong>. A falta de check-in gera <strong>1 ponto de punição na CNH</strong>.</li>
+                                <li class="mb-2"><strong>4.1.3.</strong> Quórum mínimo de 12 participantes para realização de corrida oficial.</li>
+                            </ul>
+
+                            <h5 class="fw-bold text-white mt-4">4.2. Configurações do Lobby</h5>
+                            <div class="row g-3 text-white-50">
+                                <div class="col-md-6">
+                                    <div class="p-3 bg-dark border border-secondary rounded h-100">
+                                        <h6 class="fw-bold text-danger">4.2.1. Opções de Lobby</h6>
+                                        <ul class="ps-3 mb-0 small">
+                                            <li>Privacidade: Apenas convite / seguir por amizade</li>
+                                            <li>Categoria do carro: F1 2026</li>
+                                            <li>Configuração do carro: Completo</li>
+                                            <li>Desempenho do carro: Igual</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="p-3 bg-dark border border-secondary rounded h-100">
+                                        <h6 class="fw-bold text-danger">4.2.2. Restrições de Assistência</h6>
+                                        <ul class="ps-3 mb-0 small">
+                                            <li>Assistência de Direção / Freio: Desligado</li>
+                                            <li>Linha de Corrida: Completa | ABS: Ligado</li>
+                                            <li>Controle de Tração: Completa | Câmbio: Automático</li>
+                                            <li>Assistência dos boxes: Desligado | Liberação: Manual</li>
+                                            <li>Assistência de ERS & DRS: Desligado</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="p-3 bg-dark border border-secondary rounded h-100">
+                                        <h6 class="fw-bold text-danger">4.2.3. Estrutura de Fim de Semana & Clima</h6>
+                                        <ul class="ps-3 mb-0 small">
+                                            <li>Estrutura: Padrão | Prática: Desligado</li>
+                                            <li>Qualificação: Curto / 18 minutos | Sessão: Longa</li>
+                                            <li>Clima rápido: Dinâmico | Hora de início: Realista</li>
+                                            <li>Precisão das previsões: Aproximadamente</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="p-3 bg-dark border border-secondary rounded h-100">
+                                        <h6 class="fw-bold text-danger">4.2.5. Regras, Bandeiras & Simulação</h6>
+                                        <ul class="ps-3 mb-0 small">
+                                            <li>Corte de curvas: Rígido | Parque Fechado: Ligado</li>
+                                            <li>Safety Car: Reduzido | Volta de Apresentação: Off</li>
+                                            <li>IA: 70 | Danos: Padrão (Taxa Reduzida)</li>
+                                            <li>Largada: Manual | Colisões: Ligado | Fantasmas: Ligado</li>
+                                        </ul>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <div class="col-md-4">
-                            <div class="p-3 bg-secondary bg-opacity-10 border border-secondary rounded">
-                                <strong class="text-white"><i class="fa-solid fa-comments text-warning me-2"></i> 3.5. Torcida na Live</strong>
-                                <p class="text-white-50 small mb-0">Piloto com maior número de pessoas comentando na live ganha <strong>1 ponto extra</strong>.</p>
-                            </div>
+
+                        <hr class="border-secondary my-4">
+
+                        <!-- CAPÍTULO 5: ETIQUETA DE CORRIDA -->
+                        <div class="mb-5">
+                            <h3 class="fw-bold text-danger mb-3"><i class="fa-solid fa-shield-halved me-2"></i> 5. CAPÍTULO 5: ETIQUETA DE CORRIDA</h3>
+                            
+                            <h5 class="fw-bold text-white mt-4">5.1. Normas de Pilotagem</h5>
+                            <ul class="list-unstyled text-white-50">
+                                <li class="mb-2"><strong>5.1.1.</strong> Condução perigosa ou imprudente é proibida em qualquer momento da sessão.</li>
+                                <li class="mb-2"><strong>5.1.2.</strong> Deixar espaço mínimo de um carro em disputas lado a lado.</li>
+                                <li class="mb-2"><strong>5.1.3. Qualy Ban:</strong> Proibido marcar tempo em qualificação quando suspenso. Descumprir gera desclassificação (DSQ).</li>
+                                <li class="mb-2"><strong>5.1.4.</strong> Abandono de corrida deve ser realizado obrigatoriamente dentro dos boxes.</li>
+                            </ul>
                         </div>
-                    </div>
-                </div>
 
-                <hr class="border-secondary my-4">
+                        <hr class="border-secondary my-4">
 
-                <!-- CAPÍTULO 4: LOBBY E CENÁRIOS DA CORRIDA -->
-                <div class="mb-5">
-                    <h3 class="fw-bold text-danger mb-3"><i class="fa-solid fa-sliders me-2"></i> 4. CAPÍTULO 4: LOBBY E CENÁRIOS DA CORRIDA</h3>
-                    
-                    <h5 class="fw-bold text-white mt-4">4.1. Lobby das Corridas</h5>
-                    <ul class="list-unstyled text-white-50">
-                        <li class="mb-2"><strong>4.1.1.</strong> O lobby abrirá entre 10 a 30 minutos antes do início da sessão. Host designado pelos diretores gerais. Tolerância de <strong>5 minutos</strong> para entrada.</li>
-                        <li class="mb-2"><strong>4.1.2.</strong> Host poderá ser alguém da transmissão ou piloto participante.</li>
-                        <li class="mb-2"><strong>4.1.3.</strong> O host da sessão será designado e informado em até 1 (uma) hora antes da sessão.</li>
-                        <li class="mb-2"><strong>4.1.4.</strong> Início passível de atraso pelos diretores em até <strong>20 MINUTOS</strong>.</li>
-                        <li class="mb-2"><strong>4.1.5.</strong> Passado o prazo de 20 minutos, a corrida <strong>IMPRETERIVELMENTE</strong> será <strong>ADIADA</strong>.</li>
-                        <li class="mb-2"><strong>4.1.6.</strong> Piloto impossibilitado de correr deve informar os diretores pelo menos <strong>2 horas antes</strong>. Faltas reincidentes sem justificativa resultarão em penalização e passíveis de <strong>DESLIGAMENTO da Liga</strong> (sem ressarcimento).</li>
-                        <li class="mb-2"><strong>4.1.7.</strong> Confirmação de presença ou ausência no site em até <strong>24 HORAS</strong> antes do início da sessão.</li>
-                        <li class="mb-2"><strong>4.1.8.</strong> Etapas podem ser adiadas/canceladas a cargo dos diretores gerais.</li>
-                        <li class="mb-2"><strong>4.1.9.</strong> Os pilotos devem certificar-se de estar no carro certo. Iniciar no carro errado levará a penalização pós-corrida.</li>
-                        <li class="mb-2"><strong>4.1.10.</strong> Quórum mínimo de <strong>12 participantes</strong>. Adiamento da sessão em até 15 minutos caso não atinja o quórum. Se for etapa final, a mesma será realizada sem transmissão.</li>
-                        <li class="mb-2"><strong>4.1.11.</strong> Estar presente na corrida apenas para atingir o quórum e depois abandonar a pista gera punição.</li>
-                        <li class="mb-2"><strong>4.1.12.</strong> Os pilotos <strong>devem se fazer presentes no briefing</strong> antes da corrida.</li>
-                    </ul>
-
-                    <h5 class="fw-bold text-white mt-4">4.2. Configurações do Lobby</h5>
-                    <div class="row g-3 text-white-50">
-                        <div class="col-md-6">
-                            <div class="p-3 bg-dark border border-secondary rounded">
-                                <h6 class="fw-bold text-danger">4.2.1. Opções de Lobby</h6>
-                                <ul class="ps-3 mb-0 small">
-                                    <li>Privacidade: Apenas convite / seguir por amizade</li>
-                                    <li>Categoria do carro: F1 2026</li>
-                                    <li>Configuração do carro: Completo</li>
-                                    <li>Desempenho do carro: Igual</li>
-                                </ul>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="p-3 bg-dark border border-secondary rounded">
-                                <h6 class="fw-bold text-danger">4.2.2. Restrições de Assistência</h6>
-                                <ul class="ps-3 mb-0 small">
-                                    <li>Assistência de Direção / Freio: Desligado</li>
-                                    <li>Linha de Corrida: Completa | ABS: Ligado</li>
-                                    <li>Controle de Tração: Completa | Câmbio: Automático</li>
-                                    <li>Assistência dos boxes: Desligado | Liberação: Manual</li>
-                                    <li>Assistência de ERS & DRS: Completa</li>
-                                </ul>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="p-3 bg-dark border border-secondary rounded">
-                                <h6 class="fw-bold text-danger">4.2.3. Estrutura de Fim de Semana & Clima</h6>
-                                <ul class="ps-3 mb-0 small">
-                                    <li>Estrutura: Padrão | Prática: Desligado</li>
-                                    <li>Qualificação: Curto / 18 minutos | Sessão: Longa</li>
-                                    <li>Clima rápido: Dinâmico | Hora de início: Realista</li>
-                                    <li>Precisão das previsões: Aproximadamente</li>
-                                </ul>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="p-3 bg-dark border border-secondary rounded">
-                                <h6 class="fw-bold text-danger">4.2.5. Regras, Bandeiras & Simulação</h6>
-                                <ul class="ps-3 mb-0 small">
-                                    <li>Corte de curvas: Rígido | Parque Fechado: Ligado</li>
-                                    <li>Safety Car: Reduzido | Volta de Apresentação: Off</li>
-                                    <li>IA: 55 | Danos: Padrão (Taxa Reduzida)</li>
-                                    <li>Largada: Manual | Colisões: Ligado | Fantasmas: Ligado</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-
-                    <h5 class="fw-bold text-white mt-4">4.3. Restrição de Assistência e Telemetria</h5>
-                    <p class="text-white-50">
-                        <strong>4.3.1.</strong> É <strong>obrigatório ativar a telemetria</strong>. Piloto flagrado em transmissão sem telemetria receberá advertência imediata. Ofensas recorrentes serão punidas.<br>
-                        <strong>4.3.2.</strong> O piloto deve enviar seu número e nome para a organização configurar os overlays de transmissão.
-                    </p>
-
-                    <h5 class="fw-bold text-white mt-4">4.4. Desconexões e Problemas na Sessão</h5>
-                    <p class="text-white-50 mb-1"><strong>4.4.1.</strong> Em caso de desconexão, é permitido até 2 tentativas de retorno para retomar o controle do carro.</p>
-                    <p class="text-white-50 mb-1"><strong>4.4.2.</strong> A corrida é considerada iniciada após a volta de formação ter sido completada.</p>
-                    <p class="text-white-50 mb-1"><strong>4.4.3.</strong> Após o início da corrida, o lobby só será refeito em caso de bugs que comprometam a estrutura do jogo (ex: queda de servidor/vários pilotos).</p>
-
-                    <h5 class="fw-bold text-white mt-4">4.5. Bugs e Problemas do Jogo</h5>
-                    <p class="text-white-50 mb-1"><strong>4.5.2.</strong> Menos de 50% concluída: <strong>reinício completo</strong> da corrida.</p>
-                    <p class="text-white-50 mb-1"><strong>4.5.3.</strong> Mais de 50% concluída: <strong>reinício com corrida 25%</strong>.</p>
-                    <p class="text-white-50 mb-1"><strong>4.5.4.</strong> Se a qualificação for prejudicada, será reiniciada ou feito novo lobby com qualificação de volta única.</p>
-                </div>
-
-                <hr class="border-secondary my-4">
-
-                <!-- CAPÍTULO 5: ETIQUETA DE CORRIDA -->
-                <div class="mb-5">
-                    <h3 class="fw-bold text-danger mb-3"><i class="fa-solid fa-shield-halved me-2"></i> 5. CAPÍTULO 5: ETIQUETA DE CORRIDA</h3>
-                    
-                    <h5 class="fw-bold text-white mt-4">5.1. Normas de Pilotagem</h5>
-                    <ul class="list-unstyled text-white-50">
-                        <li class="mb-2"><strong>5.1.1.</strong> Condução devagar, errática ou potencialmente perigosa é proibida em qualquer momento.</li>
-                        <li class="mb-2"><strong>5.1.2.</strong> Pilotos podem entrar em IA por tempo limitado, mas permanecem 100% responsáveis por quaisquer prejuízos causados pela sua IA.</li>
-                        <li class="mb-2"><strong>5.1.3.</strong> Ao estarem lado a lado na entrada da curva, <strong>ambos devem deixar espaço de no mínimo um carro</strong> para o adversário.</li>
-                        <li class="mb-2"><strong>5.1.4.</strong> É considerado lado a lado quando a roda dianteira do atacante está alinhada à roda traseira do carro à frente antes da zona de frenagem.</li>
-                        <li class="mb-2"><strong>5.1.5.</strong> Em manobras de frenagem/tangente (dive-bomb), a responsabilidade é total do atacante. Se estiver lado a lado durante a tangente, ambos deixam espaço mínimo de um carro.</li>
-                        <li class="mb-2"><strong>5.1.9.</strong> É terminantemente proibido o posicionamento de carros lado a lado no procedimento de relargada do Safety Car.</li>
-                    </ul>
-
-                    <h5 class="fw-bold text-white mt-4">5.2. Qualificação e Obstrução</h5>
-                    <ul class="list-unstyled text-white-50">
-                        <li class="mb-2"><strong>5.2.1.</strong> Carros fora de volta rápida devem evitar obstruir outros veículos. Dar "ar sujo" é obstrução e gera proibição de qualificação na etapa seguinte.</li>
-                        <li class="mb-2"><strong>5.2.2. Vácuo / Campeonato Individual:</strong> É proibido dar vácuo a qualquer piloto, inclusive companheiro de equipe (Campeonato de pilotos é INDIVIDUAL). Proibido compartilhar informações ou ajudar na pista.</li>
-                        <li class="mb-2"><strong>5.2.3. Proibição de Qualificação:</strong> Piloto punido com qualy ban só pode dar 1 volta de aquecimento/setup, deve largar no fundo do grid e não pode marcar tempo. Caso marque tempo e corra, será <strong>DESCLASSIFICAÇÃO</strong> da etapa e cumprirá qualy ban na etapa seguinte. Reincidência gera <strong>BANIMENTO AUTOMÁTICO</strong>.</li>
-                    </ul>
-
-                    <h5 class="fw-bold text-white mt-4">5.3. Regras de Corrida, Boxes, Linhas e Safety Car</h5>
-                    <ul class="list-unstyled text-white-50">
-                        <li class="mb-2"><strong>5.3.1. Bugs:</strong> Abuso de glitches/bugs é proibido e punível. Devolver vantagem ganha imediatamente.</li>
-                        <li class="mb-2"><strong>5.3.2. Entrada e Saída de Boxes:</strong> É proibido cruzar a linha de entrada ou saída dos boxes com pneu inteiro. Entrar nos boxes para obter vantagem no final da corrida gera penalização.</li>
-                        <li class="mb-2"><strong>5.3.5. Defesa de Posição:</strong> Máximo de 1 mudança de direção para defender (antes da frenagem). Movimentos durante a frenagem são proibidos. Proibido buscar contato ativamente.</li>
-                        <li class="mb-2"><strong>5.3.7. Retardatários:</strong> Ao receber bandeira azul, ceder passagem imediata em até o próximo setor completo.</li>
-                        <li class="mb-2"><strong>5.3.8. Safety Car (SC / VSC):</strong> Permanecer próximo ao delta (máx 3s de excesso). Ultrapassagens proibidas (exceto rodada do carro à frente). Líder controla o ritmo sem desacelerar bruscamente.</li>
-                        <li class="mb-2"><strong>5.4. Abandono na Pista:</strong> Abandono intencional na pista, uso de redefinir para a pista, cortar curvas na qualy para abrir volta e quebra proposital de placas são punidos severamente. O abandono DEVE ocorrer nos boxes.</li>
-                    </ul>
-                </div>
-
-                <hr class="border-secondary my-4">
-
-                <!-- CAPÍTULO 6: COMISSÁRIOS E PENALIDADES -->
-                <div class="mb-5">
-                    <h3 class="fw-bold text-danger mb-3"><i class="fa-solid fa-gavel me-2"></i> 6. CAPÍTULO 6: COMISSÁRIOS, INCIDENTES E PENALIDADES</h3>
-                    
-                    <p class="text-white-50">
-                        <strong>6.2. Relato de Incidentes:</strong> Incidentes podem ser submetidos via site oficial até às <strong>23:59h do dia seguinte</strong> à corrida. A defesa terá 48h após notificação. A denúncia <strong>exige vídeo da própria onboard com telemetria</strong> (replays do jogo não são aceitos).
-                    </p>
-
-                    <h5 class="fw-bold text-white mt-4">6.4. Tabela de Penalidades & CNH</h5>
-                    <p class="text-white-50">Todos os pilotos iniciam cada campeonato com <strong>25 pontos na CNH</strong>.</p>
-                    
-                    <div class="row g-3 mb-4">
-                        <div class="col-md-6 col-lg-4">
-                            <div class="p-3 bg-dark border border-secondary rounded h-100">
-                                <h6 class="text-warning fw-bold">Advertência</h6>
-                                <p class="text-white-50 small mb-0">Sem efeito imediato na pontuação. Reincidência é enquadrada em punições com efeito.</p>
-                            </div>
-                        </div>
-                        <div class="col-md-6 col-lg-4">
-                            <div class="p-3 bg-dark border border-secondary rounded h-100">
-                                <h6 class="text-info fw-bold">Punição Pena</h6>
-                                <p class="text-white-50 small mb-0">+3s no tempo final + 1 ponto na superlicença.<br>(Caso NC: Perda de 2 pts no campeonato)</p>
-                            </div>
-                        </div>
-                        <div class="col-md-6 col-lg-4">
-                            <div class="p-3 bg-dark border border-warning rounded h-100">
-                                <h6 class="text-warning fw-bold">Punição Leve</h6>
-                                <p class="text-white-50 small mb-0">Rodar adversário / perda de posições sem danos.<br><span class="text-danger fw-bold">-3 pts tabela | -3 CNH</span><br>(Caso NC: Perda de 3 pts no campeonato)</p>
-                            </div>
-                        </div>
-                        <div class="col-md-6 col-lg-6">
-                            <div class="p-3 bg-dark border border-danger rounded h-100">
-                                <h6 class="text-danger fw-bold">Punição Média</h6>
-                                <p class="text-white-50 small mb-0">Causar danos ao carro adversário.<br><span class="text-danger fw-bold">-5 pts tabela | -5 CNH | Qualy Ban</span><br>(Caso NC: Perda de 5 pts no campeonato)</p>
-                            </div>
-                        </div>
-                        <div class="col-md-6 col-lg-6">
-                            <div class="p-3 bg-dark border border-danger rounded h-100">
-                                <h6 class="text-danger fw-bold">Punição Grave / Gravíssima</h6>
-                                <p class="text-white-50 small mb-0">Causar abandono (NC) ou incidentes gravíssimos.<br><span class="text-danger fw-bold">-10 pts tabela | -10 CNH | Qualy Ban</span><br>(Caso NC: Perda de 7 a 10 pts no campeonato)</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <h5 class="fw-bold text-white mt-4">6.4.6. Acúmulo de Pontos na Superlicença / CNH</h5>
-                    <div class="row g-3">
-                        <div class="col-md-4">
-                            <div class="p-3 bg-warning text-dark rounded text-center fw-bold">
-                                8 PONTOS<br><span class="fw-normal">Qualiban (Qualificação suspensa na etapa seguinte)</span>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="p-3 bg-danger text-white rounded text-center fw-bold">
-                                12 PONTOS<br><span class="fw-normal">Raceban (Impedido de correr na etapa seguinte)</span>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="p-3 bg-dark border border-danger text-danger rounded text-center fw-bold">
-                                25 PONTOS<br><span class="fw-normal">Banimento Total da Temporada</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <hr class="border-secondary my-4">
-
-                <!-- CAPÍTULOS 7, 8, 9 E 10 -->
-                <div class="row g-4 mb-5">
-                    <div class="col-md-6">
-                        <div class="p-4 bg-dark border border-secondary rounded h-100">
-                            <h5 class="fw-bold text-danger mb-3"><i class="fa-solid fa-users me-2"></i> 7. Conduta Fora da Pista</h5>
-                            <p class="text-white-50 small">
-                                O cadastro no <strong>SITE da Liga</strong> e a presença nos grupos de comunicação via <strong>WHATSAPP são OBRIGATÓRIOS</strong> até o início da primeira etapa. Respeito mútuo é exigido. Comportamento abusivo, ofensas ou spam em redes sociais ou grupos geram advertência, suspensão ou exclusão.
+                        <!-- CAPÍTULO 6: COMISSÁRIOS E PENALIDADES -->
+                        <div class="mb-5">
+                            <h3 class="fw-bold text-danger mb-3"><i class="fa-solid fa-gavel me-2"></i> 6. CAPÍTULO 6: COMISSÁRIOS, INCIDENTES E PENALIDADES</h3>
+                            
+                            <p class="text-white-50">
+                                <strong>6.2. Relato de Incidentes:</strong> Incidentes devem ser submetidos em até <strong>24 horas</strong> via site. A defesa terá <strong>48 horas</strong> para anexar sua onboard com telemetria ativa.
                             </p>
-                        </div>
-                    </div>
-                    
-                    <div class="col-md-6">
-                        <div class="p-4 bg-dark border border-secondary rounded h-100">
-                            <h5 class="fw-bold text-danger mb-3"><i class="fa-solid fa-microchip me-2"></i> 8. Gravação & Anti-Cheat</h5>
-                            <p class="text-white-50 small">
-                                A gravação da qualificação e corrida é obrigatória. A organização reserva-se o direito de solicitar testes anti-hackers a qualquer momento. A recusa em realizar os testes solicitados resulta na exclusão do campeonato.
-                            </p>
-                        </div>
-                    </div>
 
-                    <div class="col-md-6">
-                        <div class="p-4 bg-dark border border-secondary rounded h-100">
-                            <h5 class="fw-bold text-danger mb-3"><i class="fa-solid fa-camera me-2"></i> 9. Direitos de Imagem</h5>
-                            <p class="text-white-50 small">
-                                Ao realizar a inscrição, os pilotos autorizam o uso de suas imagens e transmissões em todas as redes sociais atreladas à Full Gás League e canais parceiros por tempo indeterminado.
-                            </p>
-                        </div>
-                    </div>
+                            <h5 class="fw-bold text-white mt-4">6.4. Tabela de Penalidades & CNH</h5>
+                            <p class="text-white-50">Todos os pilotos iniciam cada campeonato com <strong>25 pontos na CNH</strong>.</p>
+                            
+                            <div class="row g-3 mb-4">
+                                <div class="col-md-6 col-lg-4">
+                                    <div class="p-3 bg-dark border border-secondary rounded h-100">
+                                        <h6 class="text-warning fw-bold">Advertência</h6>
+                                        <p class="text-white-50 small mb-0">Sem efeito imediato na pontuação.<br>Reincidência é enquadrada em punições com efeito.</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 col-lg-4">
+                                    <div class="p-3 bg-dark border border-secondary rounded h-100">
+                                        <h6 class="text-info fw-bold">Punição Pena</h6>
+                                        <p class="text-white-50 small mb-0">+3s no tempo final + 1 ponto na superlicença.<br>(Caso NC: Perda de 2 pts no campeonato)</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 col-lg-4">
+                                    <div class="p-3 bg-dark border border-warning rounded h-100">
+                                        <h6 class="text-warning fw-bold">Punição Leve</h6>
+                                        <p class="text-white-50 small mb-0">Rodar adversário / perda de posições sem danos.<br><span class="text-danger fw-bold">-3 pts tabela | -3 CNH</span><br>(Caso NC: Perda de 3 pts no campeonato)</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 col-lg-6">
+                                    <div class="p-3 bg-dark border border-danger rounded h-100">
+                                        <h6 class="text-danger fw-bold">Punição Média</h6>
+                                        <p class="text-white-50 small mb-0">Causar danos ao carro adversário.<br><span class="text-danger fw-bold">-5 pts tabela | -5 CNH | Qualy Ban</span><br>(Caso NC: Perda de 5 pts no campeonato)</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 col-lg-6">
+                                    <div class="p-3 bg-dark border border-danger rounded h-100">
+                                        <h6 class="text-danger fw-bold">Punição Grave / Gravíssima</h6>
+                                        <p class="text-white-50 small mb-0">Causar abandono (NC) ou incidentes gravíssimos.<br><span class="text-danger fw-bold">-10 pts tabela | -10 CNH | Qualy Ban</span><br>(Caso NC: Perda de 7 a 10 pts no campeonato)</p>
+                                    </div>
+                                </div>
+                            </div>
 
-                    <div class="col-md-6">
-                        <div class="p-4 bg-dark border border-secondary rounded h-100">
-                            <h5 class="fw-bold text-danger mb-3"><i class="fa-solid fa-award me-2"></i> 10. Das Premiações</h5>
-                            <p class="text-white-50 small">
-                                As premiações serão pagas ao final da temporada com o encerramento de todos os grids. O piloto que faltar na última etapa e tiver direito à premiação perde automaticamente esse direito.
-                            </p>
+                            <h5 class="fw-bold text-white mt-4">6.4.6. Acúmulo de Pontos na Superlicença / CNH</h5>
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <div class="p-3 bg-warning text-dark rounded text-center fw-bold">
+                                        8 PONTOS<br><span class="fw-normal">Qualiban (Qualificação suspensa na etapa seguinte)</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="p-3 bg-danger text-white rounded text-center fw-bold">
+                                        12 PONTOS<br><span class="fw-normal">Raceban (Impedido de correr na etapa seguinte)</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="p-3 bg-dark border border-danger text-danger rounded text-center fw-bold">
+                                        25 PONTOS<br><span class="fw-normal text-white-50">Banimento Total da Temporada</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
+
+                        <hr class="border-secondary my-4">
+
+                        <!-- CAPÍTULOS 7, 8, 9 E 10 -->
+                        <div class="row g-4 mb-5">
+                            <div class="col-md-6">
+                                <div class="p-4 bg-dark border border-secondary rounded h-100">
+                                    <h5 class="fw-bold text-danger mb-3"><i class="fa-solid fa-users me-2"></i> 7. Conduta Fora da Pista</h5>
+                                    <p class="text-white-50 small">
+                                        O cadastro no site oficial e a presença nos grupos de comunicação via WhatsApp são obrigatórios. Ofensas, spam ou atitudes antidesportivas geram punições severas.
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="p-4 bg-dark border border-secondary rounded h-100">
+                                    <h5 class="fw-bold text-danger mb-3"><i class="fa-solid fa-microchip me-2"></i> 8. Gravação & Anti-Cheat</h5>
+                                    <p class="text-white-50 small">
+                                        A gravação da sessão é obrigatória. A recusa em realizar os testes solicitados resulta na exclusão do campeonato.
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="p-4 bg-dark border border-secondary rounded h-100">
+                                    <h5 class="fw-bold text-danger mb-3"><i class="fa-solid fa-camera me-2"></i> 9. Direitos de Imagem</h5>
+                                    <p class="text-white-50 small">
+                                        Ao realizar a inscrição, os pilotos autorizam o uso de imagens e transmissões nos canais da FullGas League.
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="p-4 bg-dark border border-secondary rounded h-100">
+                                    <h5 class="fw-bold text-danger mb-3"><i class="fa-solid fa-award me-2"></i> 10. Das Premiações</h5>
+                                    <p class="text-white-50 small">
+                                        As premiações serão pagas ao final da temporada. O piloto que faltar na última etapa perde o direito à premiação.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- DOWNLOAD DO REGULAMENTO -->
+                        <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between p-3 rounded bg-secondary bg-opacity-10 border border-secondary border-opacity-25 mt-4">
+                            <div class="d-flex align-items-center mb-3 mb-md-0">
+                                <i class="fa-solid fa-file-pdf text-danger fs-3 me-3"></i>
+                                <div>
+                                    <h6 class="mb-0 fw-bold text-white">Regulamento Oficial da 5ª Temporada (PDF)</h6>
+                                    <small class="text-white-50">Documento integral para consulta offline.</small>
+                                </div>
+                            </div>
+                            <a href="{{ url_for('static', filename='downloads/regulamento-campeonato-pilotos-temporada-5.pdf') }}" target="_blank" download class="btn btn-outline-danger btn-sm px-3 py-2 fw-bold text-nowrap">
+                                <i class="fa-solid fa-download me-1"></i> Baixar Regulamento
+                            </a>
+                        </div>
+
                     </div>
                 </div>
-
-                <hr class="border-secondary my-4">
-
-                <!-- DOWNLOAD DO REGULAMENTO -->
-                <div class="text-center p-4 p-md-5 bg-dark border border-danger rounded shadow">
-                    <h4 class="fw-bold text-white mb-3">DOWNLOAD DO REGULAMENTO OFICIAL</h4>
-                    <p class="text-white-50 mb-4">
-                        Você pode baixar o documento oficial do Regulamento da Full Gás League em formato PDF para consulta offline.
-                    </p>
-                    <a href="{{ url_for('static', filename='downloads/Regulamento Full Gás.pdf') }}" target="_blank" download class="btn btn-danger btn-lg fw-bold px-4 py-3 shadow">
-                        <i class="fa-solid fa-file-pdf me-2"></i> Baixar Regulamento (PDF)
-                    </a>
-                </div>
-
             </div>
         </div>
     </div>

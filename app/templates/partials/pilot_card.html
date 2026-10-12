@@ -14,8 +14,12 @@
                 {% if item.is_reserve %}
                     <span class="badge bg-secondary border border-dark text-white" style="font-size: 0.65rem;">RESERVA</span>
                 {% endif %}
-                {% if item.quali_ban %}
-                    <span class="badge bg-danger text-white" title="Quali Ban: Proibido de participar da classificacao na proxima etapa" style="font-size: 0.65rem;">
+                {% if item.race_ban %}
+                    <span class="badge bg-danger text-white" title="Race Ban: Suspenso da proxima etapa" style="font-size: 0.65rem;">
+                        <i class="fa-solid fa-ban me-1"></i>RACE BAN
+                    </span>
+                {% elif item.quali_ban %}
+                    <span class="badge bg-warning text-dark" title="Quali Ban: Proibido de participar da classificacao na proxima etapa" style="font-size: 0.65rem;">
                         <i class="fa-solid fa-ban me-1"></i>QUALI BAN
                     </span>
                 {% endif %}

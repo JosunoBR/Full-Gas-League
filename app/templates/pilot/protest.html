@@ -19,6 +19,21 @@
                     <strong>Prazo de Abertura:</strong> O envio de protestos é permitido até às 23:59 do dia seguinte à realização da corrida.
                 </div>
 
+                {% if current_user.role in ['SUPER_ADM', 'ADM', 'COMISSARIO'] %}
+                <div class="alert alert-dark border-secondary border mb-3 py-2 small d-flex align-items-center text-white-50">
+                    <i class="fa-solid fa-user-shield me-2 text-warning"></i>
+                    <span><strong>Modo Administração:</strong> Como comissário/administrador, você tem permissão para abrir incidentes e testes em corridas concluídas.</span>
+                </div>
+                {% endif %}
+
+                {% if not races %}
+                <div class="alert alert-secondary border border-secondary mb-3 py-3 text-center">
+                    <i class="fa-solid fa-calendar-xmark fa-2x mb-2 text-warning d-block"></i>
+                    <strong class="text-white d-block mb-1">Nenhuma etapa aberta para protesto no momento</strong>
+                    <small class="text-white-50">O envio de protestos só fica disponível entre a data da prova e às 23:59 do dia seguinte.</small>
+                </div>
+                {% endif %}
+
                 <form method="POST">
                     
                     <div class="row mb-3">

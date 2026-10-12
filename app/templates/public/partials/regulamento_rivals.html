@@ -1,0 +1,140 @@
+{% from "public/partials/regulamento_macros.html" import scoring_table, penalty_cards, common_final_chapters %}
+
+<div class="rules-panel">
+    <div class="rules-title-row">
+        <div>
+            <span class="rules-kicker">Full Gas Rivals</span>
+            <h2>Campeonato de Equipes</h2>
+            <p>Regulamento do Grid Rivals para equipes e seus pilotos inscritos.</p>
+        </div>
+    </div>
+
+    <div class="rule-chapter">
+        <h3><i class="fa-solid fa-flag-checkered me-2"></i>1. CAPÍTULO 1: INTRODUÇÃO</h3>
+        <p><strong>1.1.</strong> A Full Gas League promove competições virtuais equilibradas, justas e profissionais. Este regulamento rege integralmente o <strong>Grid Rivals</strong> e é de cumprimento obrigatório.</p>
+        <p><strong>1.2.</strong> As inscrições são abertas a equipes. Todas as plataformas compatíveis com o jogo <strong>F1 25 e sua DLC</strong> são aceitas.</p>
+    </div>
+
+    <div class="rule-chapter">
+        <h3><i class="fa-solid fa-people-group me-2"></i>2. CAPÍTULO 2: INSCRIÇÃO E CAMPEONATO</h3>
+
+        <h5>2.1. Inscrição e composição das equipes</h5>
+        <ul class="rule-list">
+            <li><strong>Limite:</strong> até 11 equipes no campeonato.</li>
+            <li><strong>Composição obrigatória:</strong> 2 pilotos titulares e 2 reservas fixos, totalizando no mínimo 4 inscritos.</li>
+            <li><strong>Reservas adicionais:</strong> até 2, mantendo o máximo de 6 pilotos simultâneos por equipe.</li>
+            <li><strong>Inscrição:</strong> R$ 185 por equipe, incluindo os 4 pilotos obrigatórios. Cada reserva adicional custa R$ 30.</li>
+            <li><strong>Identificação:</strong> todo piloto deve fornecer foto 3x4 com o rosto visível, sem acessórios que dificultem a identificação.</li>
+            <li><strong>Reembolso:</strong> não há devolução total ou parcial após o início oficial do campeonato.</li>
+        </ul>
+
+        <h5>2.1.3. Rotatividade obrigatória</h5>
+        <div class="rule-emphasis">
+            <i class="fa-solid fa-rotate"></i>
+            <p>Cada equipe escala 2 pilotos por corrida. <strong>A mesma dupla não pode correr duas etapas consecutivas</strong>; ao menos um integrante precisa ser alterado, independentemente de ser titular ou reserva.</p>
+        </div>
+
+        <h5>2.1.6 a 2.1.9. Substituições</h5>
+        <ul class="rule-list">
+            <li>Cada substituição custa <strong>R$ 30</strong>, mesmo quando o piloto ainda não participou de uma corrida.</li>
+            <li>O novo piloto ocupa uma vaga existente, começa com <strong>zero ponto</strong> e não herda pontuação.</li>
+            <li>Se o substituído ainda não pontuou, a equipe não perde pontos.</li>
+            <li>Se todos os 6 inscritos já pontuaram, os pontos do piloto substituído são retirados definitivamente da equipe.</li>
+        </ul>
+
+        <h5>2.2. Formato da temporada</h5>
+        <ul class="rule-list">
+            <li><strong>8 etapas</strong>, normalmente em 8 semanas.</li>
+            <li>Corridas às <strong>segundas-feiras, às 21h30</strong>.</li>
+            <li>Classificação curta seguida de corrida com <strong>50% da distância oficial</strong>.</li>
+            <li>Em caso de necessidade, a classificação pode ser de volta única e a corrida pode ser reduzida para 35%.</li>
+            <li>O piloto só é considerado concluinte após cruzar a linha de chegada; sair antes do encerramento pode gerar DNF.</li>
+        </ul>
+
+        <h5>2.4 e 2.5. Gravações e transmissões</h5>
+        <p>A onboard pode ser transmitida, mas classificação e corrida devem ser gravadas e preservadas até 24 horas após a conclusão das análises. As corridas comentadas são exibidas nos canais oficiais da liga.</p>
+    </div>
+
+    <div class="rule-chapter">
+        <h3><i class="fa-solid fa-list-ol me-2"></i>3. CAPÍTULO 3: PONTUAÇÃO</h3>
+        <p>A pontuação obtida pelos pilotos escalados compõe a classificação da equipe no Rivals.</p>
+        {{ scoring_table('rivals-scoring-table') }}
+        <div class="row g-3 mt-1">
+            <div class="col-md-3"><div class="rule-bonus-card"><i class="fa-solid fa-ban"></i><strong>NC/DNF:</strong><span>Não pontua</span></div></div>
+            <div class="col-md-3"><div class="rule-bonus-card"><i class="fa-solid fa-stopwatch"></i><strong>Volta rápida:</strong><span>+1 ponto</span></div></div>
+            <div class="col-md-3"><div class="rule-bonus-card"><i class="fa-solid fa-heart"></i><strong>Voto do público:</strong><span>+1 ponto</span></div></div>
+            <div class="col-md-3"><div class="rule-bonus-card"><i class="fa-solid fa-star"></i><strong>Piloto do dia:</strong><span>+1 ponto</span></div></div>
+        </div>
+    </div>
+
+    <div class="rule-chapter">
+        <h3><i class="fa-solid fa-sliders me-2"></i>4. CAPÍTULO 4: LOBBY E CENÁRIOS DA CORRIDA</h3>
+
+        <h5>4.1. Lobby e presença</h5>
+        <ul class="rule-list">
+            <li>O lobby abre entre 10 e 30 minutos antes, com tolerância de 5 minutos para entrada.</li>
+            <li>O início pode atrasar até 20 minutos por decisão da direção; depois disso, a etapa pode ser adiada, cancelada ou remarcada em distância menor.</li>
+            <li>O piloto deve informar ausência com 2 horas de antecedência e confirmar presença no site até esse mesmo limite.</li>
+            <li>A falta de check-in gera <strong>1 ponto de punição na CNH</strong>, mesmo que o piloto participe.</li>
+            <li>Após confirmar presença, eventual troca deve ser avisada com 30 minutos de antecedência pelo piloto ou chefe de equipe, já indicando o substituto.</li>
+            <li>O quórum mínimo é de 12 participantes. Comparecer apenas para completar quórum e abandonar a pista é passível de punição.</li>
+        </ul>
+
+        <h5>4.2. Configurações principais</h5>
+        <div class="rule-config-grid">
+            <div><strong>Lobby:</strong><span>F1 2026 Multiplayer, desempenho igual, configuração completa e apenas amizades.</span></div>
+            <div><strong>Assistências:</strong><span>Direção e freio desligados; linha completa, ABS e controle de tração permitidos; ERS e DRS desligados.</span></div>
+            <div><strong>Fim de semana:</strong><span>Sem treino, classificação curta de 18 minutos, sessão longa e clima dinâmico.</span></div>
+            <div><strong>Simulação:</strong><span>IA 70, superfície realista, danos padrão, corte rígido, largada manual e Safety Car reduzido.</span></div>
+        </div>
+
+        <h5>4.3 a 4.6. Telemetria, desconexões e bugs</h5>
+        <ul class="rule-list">
+            <li>A telemetria é obrigatória, e o piloto deve fornecer nome e número para os overlays.</li>
+            <li>São permitidas até 2 tentativas de retorno após desconexão.</li>
+            <li>Com menos de 50% concluídos, a corrida reinicia por completo; com mais de 50%, reinicia em 25%.</li>
+            <li>Qualificação prejudicada pode ser reiniciada ou substituída por volta única. Novos lobbies usam clima dinâmico.</li>
+        </ul>
+    </div>
+
+    <div class="rule-chapter">
+        <h3><i class="fa-solid fa-shield-halved me-2"></i>5. CAPÍTULO 5: ETIQUETA DE CORRIDA</h3>
+        <div class="rule-topic-grid">
+            <div><strong>Pilotagem:</strong><span>É proibido dirigir de forma lenta, errática ou perigosa. O piloto continua responsável por sua IA.</span></div>
+            <div><strong>Qualificação:</strong><span>Quem não está em volta rápida deve evitar obstrução, ar sujo e bandeiras amarelas que prejudiquem rivais.</span></div>
+            <div><strong>Vácuo:</strong><span>Permitido entre companheiros de equipe. Ajuda a rivais e jogo de equipe indevido podem gerar DSQ.</span></div>
+            <div><strong>Qualy ban:</strong><span>O piloto não pode sair dos boxes. Descumprir gera DSQ; no terceiro strike, exclusão do campeonato.</span></div>
+            <div><strong>Limites e vantagens:</strong><span>Vantagens obtidas fora da pista ou por bugs devem ser devolvidas imediatamente.</span></div>
+            <div><strong>Retardatários:</strong><span>Bandeira azul deve ser atendida até o próximo setor completo, sem bloquear as disputas.</span></div>
+            <div><strong>Safety Car:</strong><span>Manter linha única, delta próximo e no máximo 3 segundos de excesso; ultrapassagens são proibidas.</span></div>
+            <div><strong>Abandono:</strong><span>Deve ocorrer nos boxes. Redefinir para a pista ou destruir placas intencionalmente gera punição severa.</span></div>
+        </div>
+    </div>
+
+    <div class="rule-chapter">
+        <h3><i class="fa-solid fa-gavel me-2"></i>6. CAPÍTULO 6: COMISSÁRIOS E PENALIDADES</h3>
+        <ul class="rule-list">
+            <li>Comunicados de briefing emitidos pelos comissários têm força de regra.</li>
+            <li>A denúncia deve informar volta, curva e tempo da live e ser enviada pelo site em até <strong>24 horas</strong>.</li>
+            <li>A defesa tem <strong>48 horas</strong> e deve incluir onboard própria com telemetria. Replay do jogo, isoladamente, não é aceito.</li>
+            <li>Os pilotos devem cooperar e fornecer as provas solicitadas. Cada incidente exige uma denúncia individual.</li>
+            <li>Há limite de 5 análises julgadas improcedentes; excedê-lo pode gerar 2 pontos administrativos na CNH por análise perdida.</li>
+            <li>Recursos devem ser apresentados em até 24 horas, com nova prova ou indicação objetiva de erro, e só cabem quando a decisão não foi unânime.</li>
+            <li>Se o piloto faltar à etapa em que cumpriria punição, a equipe deve indicar outro piloto; em race ban, escala apenas um competidor.</li>
+        </ul>
+        {{ penalty_cards() }}
+    </div>
+
+    {{ common_final_chapters() }}
+
+    <div class="rules-download">
+        <div>
+            <h3>Download do regulamento oficial do Rivals</h3>
+            <p>Consulte o documento integral para detalhes, exceções e redação completa dos artigos.</p>
+        </div>
+        <a href="{{ url_for('static', filename='downloads/regulamento-full-gas-rivals.pdf') }}"
+           target="_blank" rel="noopener" download class="btn btn-danger btn-lg">
+            <i class="fa-solid fa-file-pdf me-2"></i>Baixar regulamento
+        </a>
+    </div>
+</div>

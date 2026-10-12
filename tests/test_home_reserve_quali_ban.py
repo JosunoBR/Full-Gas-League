@@ -136,6 +136,7 @@ class HomeReserveQualiBanTests(unittest.TestCase):
             descricao='Punição para ativar Quali Ban',
             status='CONCLUIDO',
             veredito_final='MEDIA',
+            tipo_ban='QUALI_BAN',
             justificativa_texto='Teste de Quali Ban para reserva',
             data_criacao=datetime.utcnow(),
             data_fechamento=datetime.utcnow(),

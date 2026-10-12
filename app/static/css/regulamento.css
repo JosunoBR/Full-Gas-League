@@ -1,0 +1,52 @@
+/* ==========================================================================
+   FullGas League - Regulamento Oficial
+   Abas dos Regulamentos & Estilos Visuais Oficiais
+   ========================================================================== */
+
+/* Abas de Navegação Principal (Rivals vs Pilotos) */
+#rulesNavTabs {
+    background-color: rgba(15, 18, 25, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    padding: 0.4rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+#rulesNavTabs .nav-link {
+    color: #b0b8c4;
+    font-family: 'Orbitron', 'Segoe UI', sans-serif;
+    font-size: 0.95rem;
+    border-radius: 8px;
+    transition: all 0.25s ease;
+    border: 1px solid transparent;
+}
+
+#rulesNavTabs .nav-link:hover {
+    color: #ffffff;
+    background-color: rgba(230, 0, 0, 0.12);
+    border-color: rgba(230, 0, 0, 0.3);
+}
+
+#rulesNavTabs .nav-link.active {
+    background: linear-gradient(135deg, #e60000, #b30000) !important;
+    color: #ffffff !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
+    box-shadow: 0 4px 18px rgba(230, 0, 0, 0.45);
+}
+
+#rulesNavTabs .nav-link.active i {
+    color: #ffffff !important;
+}
+
+/* Cabeçalho da Tabela de Pontuação Salmão Oficial */
+.table-danger th {
+    color: #111827 !important;
+    font-weight: bold;
+}
+
+/* Hover nos botões de mídias */
+.btn-outline-danger.bg-dark:hover {
+    background-color: rgba(225, 6, 0, 0.15) !important;
+    border-color: #e60000 !important;
+    color: #ffffff !important;
+}

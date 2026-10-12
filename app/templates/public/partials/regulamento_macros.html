@@ -1,0 +1,110 @@
+{% macro scoring_table(table_id) %}
+<div class="table-responsive rules-table-wrap">
+    <table class="table table-dark table-bordered table-striped text-center align-middle mb-0" id="{{ table_id }}">
+        <caption class="visually-hidden">Tabela oficial de pontuação do primeiro ao vigésimo segundo colocado</caption>
+        <thead class="table-danger">
+            <tr><th>Posição</th><th>Pontuação</th><th>Posição</th><th>Pontuação</th></tr>
+        </thead>
+        <tbody>
+            <tr><td>P1</td><td class="fw-bold text-success">35 pts</td><td>P12</td><td>11 pts</td></tr>
+            <tr><td>P2</td><td class="fw-bold text-success">30 pts</td><td>P13</td><td>10 pts</td></tr>
+            <tr><td>P3</td><td class="fw-bold text-success">27 pts</td><td>P14</td><td>9 pts</td></tr>
+            <tr><td>P4</td><td>24 pts</td><td>P15</td><td>8 pts</td></tr>
+            <tr><td>P5</td><td>22 pts</td><td>P16</td><td>7 pts</td></tr>
+            <tr><td>P6</td><td>20 pts</td><td>P17</td><td>6 pts</td></tr>
+            <tr><td>P7</td><td>18 pts</td><td>P18</td><td>5 pts</td></tr>
+            <tr><td>P8</td><td>16 pts</td><td>P19</td><td>4 pts</td></tr>
+            <tr><td>P9</td><td>14 pts</td><td>P20</td><td>3 pts</td></tr>
+            <tr><td>P10</td><td>13 pts</td><td>P21</td><td>2 pts</td></tr>
+            <tr><td>P11</td><td>12 pts</td><td>P22</td><td>1 pt</td></tr>
+        </tbody>
+    </table>
+</div>
+{% endmacro %}
+
+{% macro penalty_cards() %}
+<div class="row g-3 mb-4">
+    <div class="col-md-6 col-lg-3">
+        <div class="rule-penalty-card h-100">
+            <h6 class="text-warning fw-bold">Advertência</h6>
+            <p>Sem efeito imediato. Reincidências podem gerar punições com efeito.</p>
+        </div>
+    </div>
+    <div class="col-md-6 col-lg-3">
+        <div class="rule-penalty-card rule-penalty-light h-100">
+            <h6 class="text-warning fw-bold">Punição leve</h6>
+            <p>Rodar adversário ou causar perda de posições sem danos.</p>
+            <strong>-3 tabela e -3 CNH</strong>
+        </div>
+    </div>
+    <div class="col-md-6 col-lg-3">
+        <div class="rule-penalty-card rule-penalty-medium h-100">
+            <h6 class="text-danger fw-bold">Punição média</h6>
+            <p>Causar danos ao carro adversário.</p>
+            <strong>-5 tabela e -5 CNH</strong>
+        </div>
+    </div>
+    <div class="col-md-6 col-lg-3">
+        <div class="rule-penalty-card rule-penalty-severe h-100">
+            <h6 class="text-danger fw-bold">Punição grave</h6>
+            <p>Causar abandono (NC) do adversário.</p>
+            <strong>-10 tabela, -10 CNH e qualy ban</strong>
+        </div>
+    </div>
+</div>
+<div class="row g-3">
+    <div class="col-md-4">
+        <div class="rule-license-card rule-license-yellow"><strong>15 pontos:</strong><span>Qualy ban na etapa seguinte</span></div>
+    </div>
+    <div class="col-md-4">
+        <div class="rule-license-card rule-license-red"><strong>20 pontos:</strong><span>Race ban na etapa seguinte</span></div>
+    </div>
+    <div class="col-md-4">
+        <div class="rule-license-card rule-license-dark"><strong>25 pontos:</strong><span>Banimento da temporada</span></div>
+    </div>
+</div>
+{% endmacro %}
+
+{% macro common_final_chapters() %}
+<div class="row g-4 mb-4">
+    <div class="col-md-6">
+        <div class="rule-final-card h-100">
+            <h5><i class="fa-solid fa-users me-2"></i>7. Conduta fora da pista</h5>
+            <p>Cadastro no site e participação nos grupos oficiais são obrigatórios. Insultos, abuso, intimidação, spam e faltas recorrentes podem gerar advertência, suspensão ou exclusão.</p>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="rule-final-card h-100">
+            <h5><i class="fa-solid fa-microchip me-2"></i>8. Gravação e anti-cheat</h5>
+            <p>A gravação de classificação e corrida é obrigatória. O piloto deve colaborar com testes anti-cheat solicitados; a recusa pode resultar em exclusão do campeonato.</p>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="rule-final-card h-100">
+            <h5><i class="fa-solid fa-camera me-2"></i>9. Direitos de imagem</h5>
+            <p>A inscrição autoriza o uso de imagem, transmissões individuais e clipes pela Full Gás League e canais parceiros por tempo indeterminado.</p>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="rule-final-card h-100">
+            <h5><i class="fa-solid fa-award me-2"></i>10. Premiações</h5>
+            <p>As premiações são pagas após o encerramento de todos os grids. Quem faltar à última etapa perde o direito à premiação a que faria jus.</p>
+        </div>
+    </div>
+</div>
+
+<div class="rule-chapter mb-0">
+    <h3><i class="fa-solid fa-road me-2"></i>11. CAPÍTULO 11: CONDUTA DOS PILOTOS EM PISTA</h3>
+    <p>A análise dos incidentes considera a sequência completa da manobra, e não apenas o contato. Todos devem pilotar com responsabilidade, previsibilidade, esportividade e dever de evitar acidentes.</p>
+    <div class="rule-topic-grid">
+        <div><strong>Ultrapassagens:</strong><span>O direito ao espaço exige sobreposição suficiente antes ou durante a zona de frenagem.</span></div>
+        <div><strong>Saída de curva:</strong><span>Enquanto houver sobreposição, ambos devem preservar espaço e evitar empurrar o rival para fora.</span></div>
+        <div><strong>Defesa:</strong><span>É permitida uma mudança de direção, feita de forma antecipada e previsível, nunca durante a frenagem.</span></div>
+        <div><strong>Disputas múltiplas:</strong><span>Três ou mais carros exigem cautela adicional; espaço momentâneo não torna uma manobra automaticamente segura.</span></div>
+        <div><strong>Bandeiras azuis:</strong><span>O retardatário deve facilitar a passagem de forma gradual, segura e previsível, sem disputar posição.</span></div>
+        <div><strong>Limites e retorno:</strong><span>Vantagens fora da pista devem ser devolvidas, e o retorno deve respeitar quem permanece no traçado.</span></div>
+        <div><strong>Largadas e relargadas:</strong><span>É proibido forçar espaço inexistente, criar vantagem antecipada ou agir de modo imprevisível.</span></div>
+        <div><strong>Responsabilidade:</strong><span>Preferência ou direito ao espaço não eliminam o dever de adotar medidas razoáveis para evitar contato.</span></div>
+    </div>
+</div>
+{% endmacro %}

@@ -183,9 +183,11 @@ def get_profile():
             })
 
     quali_ban = False
+    race_ban = False
     advertencias = 0
     if p_grid_id and first_active_id:
         quali_ban = DisciplineService.is_quali_banned(pilot.id, p_grid_id)
+        race_ban = DisciplineService.is_race_banned(pilot.id, p_grid_id)
         cnh_info = DisciplineService.get_pilot_discipline_stats(pilot.id, first_active_id, p_grid_id)
         advertencias = cnh_info.get('advertencias', 0)
 
@@ -236,6 +238,7 @@ def get_profile():
         "cnh_status": cnh_status,
         "advertencias": advertencias,
         "quali_ban": quali_ban,
+        "race_ban": race_ban,
         "grid_id": p_grid_id,
         "lastro_veiculo": lastro_veiculo,
         "desempenho_temporada": desempenho_temporada,

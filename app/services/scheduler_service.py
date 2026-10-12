@@ -106,9 +106,13 @@ def _alertas_ban_dia_corrida():
                 PilotProfile.grid.contains(str(corrida.grid_id))
             ).all()
 
+            from app.services.discipline_service import DisciplineService
             for piloto in pilotos:
-                # Race Ban: pontos CNH zerados
-                if piloto.pontos_cnh <= 0:
+                is_race_ban = (piloto.pontos_cnh <= 0) or DisciplineService.is_race_banned(piloto.id, corrida.grid_id)
+                is_quali_ban = (not is_race_ban) and DisciplineService.is_quali_banned(piloto.id, corrida.grid_id)
+
+                # Race Ban: CNH zerada ou suspensão manual aplicada pelo tribunal
+                if is_race_ban:
                     result = NotificationService.send_single_notification(
                         token=piloto.fcm_token,
                         title="⛔ Atenção: você tem um Race Ban!",
@@ -125,8 +129,8 @@ def _alertas_ban_dia_corrida():
                     except Exception as e:
                         logger.error(f"[SCHEDULER] Erro ao enviar e-mail de race ban: {e}")
 
-                # Quali Ban: penalidade de campeonato ativa
-                elif piloto.penalidade_campeonato and piloto.penalidade_campeonato > 0:
+                # Quali Ban: restrição de classificação aplicada pelo tribunal
+                elif is_quali_ban:
                     result = NotificationService.send_single_notification(
                         token=piloto.fcm_token,
                         title="⚠️ Atenção: você tem um Quali Ban!",

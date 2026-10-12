@@ -282,6 +282,7 @@ class Protesto(db.Model):
     
     status = db.Column(db.String(50), default='AGUARDANDO_DEFESA') 
     veredito_final = db.Column(db.String(50), nullable=True)
+    tipo_ban = db.Column(db.String(30), nullable=True, default='NENHUM') # 'NENHUM', 'QUALI_BAN', 'RACE_BAN', 'AMBOS'
     justificativa_texto = db.Column(db.Text, nullable=True)
     
     data_criacao = db.Column(db.DateTime, default=get_brasilia_now)

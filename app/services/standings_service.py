@@ -90,8 +90,9 @@ class StandingsService:
         )
         wins_map = {(row[0], row[1]): row[2] for row in wins_query}
 
-        # Precarrega quali bans ativos
-        banned_set = DisciplineService.preload_quali_bans(season_id)
+        # Precarrega bans ativos
+        banned_quali_set = DisciplineService.preload_quali_bans(season_id)
+        banned_race_set = DisciplineService.preload_race_bans(season_id)
 
         # 3. Contexto de Equipes e Construtores
         team_ctx = build_team_context(season_id)
@@ -125,7 +126,8 @@ class StandingsService:
                     points_cache[key_pg] = ScoringService.calculate_pilot_total_points(p.id, season_id, g.id)
                 
                 vitorias = wins_map.get((p.id, g.id), 0)
-                quali_ban = (p.id, g.id) in banned_set
+                quali_ban = (p.id, g.id) in banned_quali_set
+                race_ban = ((p.id, g.id) in banned_race_set) or (p.pontos_cnh <= 0)
                 foto_final = photo_map.get((p.id, g.id)) or p.foto_url
 
                 full_row = {
@@ -135,6 +137,7 @@ class StandingsService:
                     "vitorias": vitorias,
                     "carro": "",
                     "quali_ban": quali_ban,
+                    "race_ban": race_ban,
                     "foto_url": foto_final,
                     "team_name": team_ref.nome if team_ref else "Sem Equipe",
                     "is_reserve": item["is_reserve"],
@@ -148,6 +151,7 @@ class StandingsService:
                         "foto_url": foto_final,
                         "team": team_ref.to_dict() if team_ref else None,
                         "quali_ban": quali_ban,
+                        "race_ban": race_ban,
                         "is_reserve": item["is_reserve"],
                     })
 

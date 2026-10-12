@@ -382,6 +382,7 @@ def public_profile(pilot_id):
         available_contexts = [current_context]
     
     quali_ban = False
+    race_ban = False
     # Lógica de Foto por Grid (baseada em ID)
     if current_context:
         grid_id_contexto = current_context.get('grid_id')
@@ -403,10 +404,11 @@ def public_profile(pilot_id):
         perfil.pontos_cnh = cnh_info['cnh']
         perfil.advertencias_acumuladas = cnh_info['advertencias']
         
-        # Verificação de Quali Ban (100% via ID do Grid)
+        # Verificação de Quali Ban e Race Ban (100% via ID do Grid)
         grid_id_contexto = current_context.get('grid_id')
         if grid_id_contexto:
             quali_ban = DisciplineService.is_quali_banned(perfil.id, grid_id_contexto)
+            race_ban = DisciplineService.is_race_banned(perfil.id, grid_id_contexto)
 
     meus_pontos_camp = 0
     desempenho_temporada = []
@@ -474,6 +476,7 @@ def public_profile(pilot_id):
                            checkin_race=None,
                            registro_atual=None,
                            quali_ban=quali_ban,
+                           race_ban=race_ban,
                            available_contexts=available_contexts,
                            current_context=current_context,
                            current_team=current_team)
@@ -612,6 +615,7 @@ def my_profile():
         available_contexts = [current_context]
     
     quali_ban = False
+    race_ban = False
     # Lógica de Foto por Grid (baseada em ID)
     if current_context:
         grid_id_contexto = current_context.get('grid_id')
@@ -639,10 +643,11 @@ def my_profile():
         perfil.pontos_cnh = cnh_info['cnh']
         perfil.advertencias_acumuladas = cnh_info['advertencias']
         
-        # Verificação de Quali Ban (100% via ID do Grid)
+        # Verificação de Quali Ban e Race Ban (100% via ID do Grid)
         grid_id_contexto = current_context.get('grid_id')
         if grid_id_contexto:
             quali_ban = DisciplineService.is_quali_banned(perfil.id, grid_id_contexto)
+            race_ban = DisciplineService.is_race_banned(perfil.id, grid_id_contexto)
 
     if perfil.esta_banido():
         flash('ALERTA: Sua CNH está zerada ou negativa. Você está suspenso das atividades de pista.', 'danger')
@@ -761,6 +766,7 @@ def my_profile():
                            checkin_race=checkin_race,
                            registro_atual=registro_atual,
                            quali_ban=quali_ban,
+                           race_ban=race_ban,
                            available_contexts=available_contexts,
                            current_context=current_context,
                            current_team=current_team,
@@ -1104,7 +1110,8 @@ def open_protest():
         if not race.grid_id:
             flash('Corrida sem grid vinculado. Contate a administracao.', 'danger')
             return redirect(url_for('public.open_protest'))
-        if not _is_race_open_for_protest(race):
+        is_admin = current_user.role in ['SUPER_ADM', 'ADM', 'COMISSARIO']
+        if not _is_race_open_for_protest(race) and not is_admin:
             now_local = datetime.utcnow() - timedelta(hours=3)
             if race.data_corrida and now_local.date() < race.data_corrida:
                 flash('Esta corrida ainda não foi realizada.', 'warning')
@@ -1163,6 +1170,7 @@ def open_protest():
         flash('Você precisa estar vinculado a um grid para abrir protestos.', 'warning')
         return redirect(url_for('public.my_profile'))
 
+    is_admin = current_user.role in ['SUPER_ADM', 'ADM', 'COMISSARIO']
     races = []
     pilots = []
 
@@ -1172,7 +1180,7 @@ def open_protest():
             Race.season_id.in_(active_seasons_ids),
             Race.grid_id.in_(my_team_grid_ids)
         ).order_by(Race.data_corrida.desc()).all()
-        races = [r for r in races_raw if _is_race_open_for_protest(r)]
+        races = [r for r in races_raw if _is_race_open_for_protest(r) or (is_admin and r.status == 'Concluida')]
         
         all_pilots = PilotProfile.query.filter(PilotProfile.id != user_profile.id).order_by(PilotProfile.nickname).all()
         for p in all_pilots:
@@ -1189,7 +1197,7 @@ def open_protest():
     else:
         # CENÁRIO 2: Sem equipe (Reserva Global)
         all_races = Race.query.filter(Race.season_id.in_(active_seasons_ids)).order_by(Race.data_corrida.desc()).all()
-        races = [r for r in all_races if _is_race_open_for_protest(r)]
+        races = [r for r in all_races if _is_race_open_for_protest(r) or (is_admin and r.status == 'Concluida')]
         pilots = PilotProfile.query.filter(PilotProfile.id != user_profile.id).order_by(PilotProfile.nickname).all()
         
     return render_template('pilot/protest.html', races=races, pilots=pilots)

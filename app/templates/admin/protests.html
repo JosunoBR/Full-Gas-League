@@ -161,6 +161,13 @@
                             {% else %}
                                 <span class="badge bg-danger text-white">{{ p.veredito_final }}</span>
                             {% endif %}
+                            {% if p.tipo_ban == 'QUALI_BAN' %}
+                                <br><span class="badge bg-warning text-dark mt-1" style="font-size:0.65rem;"><i class="fa-solid fa-ban me-1"></i>Quali Ban</span>
+                            {% elif p.tipo_ban == 'RACE_BAN' %}
+                                <br><span class="badge bg-danger text-white mt-1" style="font-size:0.65rem;"><i class="fa-solid fa-ban me-1"></i>Race Ban</span>
+                            {% elif p.tipo_ban == 'AMBOS' %}
+                                <br><span class="badge bg-danger text-white mt-1" style="font-size:0.65rem;"><i class="fa-solid fa-ban me-1"></i>Quali + Race</span>
+                            {% endif %}
                         </td>
                         <td class="text-center">
                             <span class="badge {% if p.id in voted_protest_ids %}bg-success{% else %}bg-secondary{% endif %}">
