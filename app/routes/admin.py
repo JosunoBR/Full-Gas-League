@@ -1794,11 +1794,29 @@ def parse_simhub_csv(race_id):
         all_pilots = PilotProfile.query.join(User).order_by(PilotProfile.nickname).all()
         all_eligible_pilots = []
         race_grid_id_str = str(race.grid_id) if race.grid_id else None
+        race_grid_name = (race.grid_config.nome if race.grid_config else (race.grid or '')).strip().upper()
+        race_grid_raw = (race.grid or '').strip().upper()
 
         for p in all_pilots:
             grid_tokens = [token.strip() for token in (p.grid or '').split(',') if token.strip()]
-            if (race_grid_id_str and race_grid_id_str in grid_tokens) or ('RESERVA' in grid_tokens):
+            grid_tokens_upper = [t.upper() for t in grid_tokens]
+            is_in_grid = False
+            if race_grid_id_str and race_grid_id_str in grid_tokens:
+                is_in_grid = True
+            elif race_grid_name and race_grid_name in grid_tokens_upper:
+                is_in_grid = True
+            elif race_grid_raw and race_grid_raw in grid_tokens_upper:
+                is_in_grid = True
+            elif race.grid_id and p.teams and any(t.grid_id == race.grid_id for t in p.teams):
+                is_in_grid = True
+            elif race_grid_raw and p.teams and any((t.grid or '').strip().upper() == race_grid_raw for t in p.teams):
+                is_in_grid = True
+
+            if is_in_grid or ('RESERVA' in grid_tokens_upper):
                 all_eligible_pilots.append(p)
+
+        if not all_eligible_pilots:
+            all_eligible_pilots = list(all_pilots)
 
         # 3. Faz o parsing do conteúdo CSV (passa pilotos elegíveis e lista completa como fallback)
         parsed = SimHubService.parse_simhub_csv(content, all_eligible_pilots, all_pilots=all_pilots)
@@ -1859,29 +1877,47 @@ def race_results(race_id):
 
     # --- GET: Preparar dados para o formulário de resultados ---
     
-    # 1. Busca todos os pilotos
+    # 1. Busca todos os pilotos e resultados já gravados
     all_pilots = PilotProfile.query.join(User).order_by(PilotProfile.nickname).all()
-    
-    # 2. Filtra pilotos elegíveis e especificamente os TITULARES do grid desta corrida
+    resultados_existentes = RaceResult.query.filter_by(race_id=race.id).order_by(RaceResult.posicao).all()
+    results_by_pos = {r.posicao: r for r in resultados_existentes if r.posicao and r.posicao > 0}
+    pilots_with_results_ids = {r.pilot_id for r in resultados_existentes}
+
+    # 2. Filtra pilotos pertencentes ao grid desta corrida (titulares) e pilotos elegíveis (titulares + reservas + já gravados)
     all_eligible_pilots = []
     titulares_do_grid = []
     race_grid_id_str = str(race.grid_id) if race.grid_id else None
+    race_grid_name = (race.grid_config.nome if race.grid_config else (race.grid or '')).strip().upper()
+    race_grid_raw = (race.grid or '').strip().upper()
 
     for p in all_pilots:
         grid_tokens = [token.strip() for token in (p.grid or '').split(',') if token.strip()]
-        if (race_grid_id_str and race_grid_id_str in grid_tokens) or ('RESERVA' in grid_tokens):
-            all_eligible_pilots.append(p)
-        if race_grid_id_str and race_grid_id_str in grid_tokens and 'RESERVA' not in grid_tokens:
+        grid_tokens_upper = [t.upper() for t in grid_tokens]
+
+        is_titular = False
+        if race_grid_id_str and race_grid_id_str in grid_tokens:
+            is_titular = True
+        elif race_grid_name and race_grid_name in grid_tokens_upper:
+            is_titular = True
+        elif race_grid_raw and race_grid_raw in grid_tokens_upper:
+            is_titular = True
+        elif race.grid_id and p.teams and any(t.grid_id == race.grid_id for t in p.teams):
+            is_titular = True
+        elif race_grid_raw and p.teams and any((t.grid or '').strip().upper() == race_grid_raw for t in p.teams):
+            is_titular = True
+
+        is_eligible = is_titular or ('RESERVA' in grid_tokens_upper) or (p.id in pilots_with_results_ids)
+
+        if is_titular and 'RESERVA' not in grid_tokens_upper:
             titulares_do_grid.append(p)
-    
-    # 3. Resultados já gravados, separados por quem pontuou e quem não
-    resultados_existentes = RaceResult.query.filter_by(race_id=race.id).order_by(RaceResult.posicao).all()
-    results_by_pos = {r.posicao: r for r in resultados_existentes if r.posicao and r.posicao > 0}
-    
-    # 4. Pilotos que já têm um resultado (de qualquer tipo)
-    pilots_with_results_ids = {r.pilot_id for r in resultados_existentes}
-    
-    # 5. Lista de pilotos elegíveis que ainda não têm nenhum resultado gravado para esta corrida
+        if is_eligible:
+            all_eligible_pilots.append(p)
+
+    # Fallback seguro caso nenhum piloto tenha sido associado ao grid ainda
+    if not all_eligible_pilots:
+        all_eligible_pilots = list(all_pilots)
+
+    # 3. Lista de pilotos elegíveis que ainda não têm nenhum resultado gravado para esta corrida
     pilotos_sem_resultado = [p for p in all_eligible_pilots if p.id not in pilots_with_results_ids]
     
     # 6. Resultados de ausentes/não classificados (FJ, FNJ, etc.) para preencher o formulário

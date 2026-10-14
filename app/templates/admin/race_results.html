@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
 <style>
     .f1-card {
         background: #111827;
@@ -45,6 +46,84 @@
     }
     .btn-save-results:hover {
         box-shadow: 0 6px 25px rgba(225, 6, 0, 0.6);
+    }
+
+    /* TomSelect F1 Dark Theme Customization */
+    .ts-wrapper.f1-input {
+        padding: 0 !important;
+        background: transparent !important;
+        border: none !important;
+    }
+    .ts-control {
+        background-color: #1f2937 !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        border-radius: 6px !important;
+        min-height: 38px !important;
+        padding: 4px 12px !important;
+        font-size: 0.85rem !important;
+        display: flex !important;
+        align-items: center !important;
+        box-shadow: none !important;
+        cursor: text !important;
+    }
+    .ts-control.focus {
+        background-color: #1f2937 !important;
+        border-color: #00f2fe !important;
+        box-shadow: 0 0 8px rgba(0, 242, 254, 0.3) !important;
+    }
+    .ts-control input {
+        color: #ffffff !important;
+        font-size: 0.85rem !important;
+        cursor: text !important;
+    }
+    .ts-control input::placeholder {
+        color: rgba(255, 255, 255, 0.45) !important;
+    }
+    .ts-control .item {
+        color: #ffffff !important;
+        font-size: 0.85rem !important;
+        background: transparent !important;
+        border: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        font-weight: 600;
+    }
+    .ts-dropdown {
+        background-color: #111827 !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        border-radius: 6px !important;
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.9) !important;
+        z-index: 99999 !important;
+    }
+    .ts-dropdown .ts-dropdown-content {
+        max-height: 240px !important;
+        overflow-y: auto !important;
+    }
+    .ts-dropdown .option {
+        color: #e5e7eb !important;
+        padding: 8px 12px !important;
+        font-size: 0.85rem !important;
+        cursor: pointer;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .ts-dropdown .option:hover,
+    .ts-dropdown .option.active {
+        background: linear-gradient(135deg, #e10600, #b91c1c) !important;
+        color: #ffffff !important;
+    }
+    .ts-dropdown .no-results {
+        color: #9ca3af !important;
+        padding: 10px 14px !important;
+        font-size: 0.85rem !important;
+    }
+    .ts-wrapper .clear-button {
+        color: rgba(255, 255, 255, 0.5) !important;
+        right: 8px !important;
+        font-size: 14px !important;
+    }
+    .ts-wrapper .clear-button:hover {
+        color: #e10600 !important;
     }
 </style>
 
@@ -264,7 +343,7 @@
                     <label class="small text-white-50 mb-1">Piloto Pole Sitter</label>
                     <select name="pole_pilot_id" id="pole_pilot_id" class="form-select f1-input">
                         <option value="">-- Nenhum / Não Definido --</option>
-                        {% for p in all_eligible_pilots %}
+                        {% for p in (all_eligible_pilots or all_pilots) %}
                             <option value="{{ p.id }}" {% if race.pole_pilot_id == p.id %}selected{% endif %}>
                                 {{ p.nickname }}
                             </option>
@@ -292,11 +371,11 @@
                     <thead>
                         <tr class="small text-white-50 bg-black" style="font-size:0.75rem; text-transform:uppercase;">
                             <th class="text-center" style="width: 5%;">Pos.</th>
-                            <th style="width: 22%;">Piloto</th>
+                            <th style="width: 25%;">Piloto</th>
                             <th class="text-center" style="width: 14%;">Equipe</th>
                             <th class="text-center" style="width: 12%;">Status</th>
                             <th class="text-center" style="width: 12%;">Bônus</th>
-                            <th class="text-center" style="width: 35%;">Telemetria Completa (Grid | Qualy | VR | Pits | Tempo | Pneus | Pen)</th>
+                            <th class="text-center" style="width: 32%;">Telemetria Completa (Grid | Qualy | VR | Pits | Tempo | Pneus | Pen)</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -306,18 +385,18 @@
                             <td class="text-center ps-2">
                                 {% if i == 1 %}
                                     <span class="badge bg-warning text-dark fw-bold">1º</span>
-                                {% elif i == 2 %}
+                                								{% elif i == 2 %}
                                     <span class="badge bg-light text-dark fw-bold">2º</span>
-                                {% elif i == 3 %}
+                                								{% elif i == 3 %}
                                     <span class="badge text-white fw-bold" style="background:#cd7f32;">3º</span>
-                                {% else %}
+                                								{% else %}
                                     <strong class="text-white">{{ i }}º</strong>
-                                {% endif %}
+                                								{% endif %}
                             </td>
-                            <td>
+                            <td style="min-width: 230px;">
                                     <select name="pos_{{ i }}_pilot" class="form-select f1-input pilot-select" data-pos="{{ i }}">
                                         <option value="" data-team="-">-- Vazio --</option>
-                                        {% for p in (all_pilots or all_eligible_pilots) %}
+                                        {% for p in (all_eligible_pilots or all_pilots) %}
                                             {% set p_team = p.teams[0].nome if p.teams else 'Sem Equipe' %}
                                             {% set p_reg = checkin_map.get(p.id) if checkin_map else None %}
                                             {% set checkin_tag = ' [✓ Check-in]' if p_reg and p_reg.status == 'CONFIRMADO' else (' [✗ Ausente]' if p_reg and p_reg.status in ['AUSENTE', 'JUSTIFICADO'] else '') %}
@@ -451,66 +530,66 @@
     </div>
 </form>
 
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
 <script>
     document.addEventListener("DOMContentLoaded", function() {
-        const selects = document.querySelectorAll('.pilot-select');
         const btnParse = document.getElementById('btn_parse_simhub');
         const fileInput = document.getElementById('simhub_csv_file');
         const alertBox = document.getElementById('simhub_alert');
 
-        function updateTeamNames() {
-            selects.forEach(select => {
-                const pos = select.dataset.pos;
-                const selectedOpt = select.options[select.selectedIndex];
-                const teamSpan = document.getElementById(`team_name_${pos}`);
-                if (teamSpan) {
-                    if (selectedOpt && selectedOpt.value) {
-                        const teamName = selectedOpt.dataset.team || 'Sem Equipe';
-                        teamSpan.textContent = teamName;
-                        teamSpan.classList.remove('text-white-50');
-                        teamSpan.classList.add('text-white', 'fw-bold');
-                    } else {
-                        teamSpan.textContent = '-';
-                        teamSpan.classList.remove('text-white', 'fw-bold');
-                        teamSpan.classList.add('text-white-50');
-                    }
-                }
-            });
+        const tomSelectMap = {};
+        let tomPole = null;
+
+        function updateTeamForPos(pos, pilotId) {
+            const teamSpan = document.getElementById(`team_name_${pos}`);
+            if (!teamSpan) return;
+
+            if (!pilotId) {
+                teamSpan.textContent = '-';
+                teamSpan.classList.remove('text-white', 'fw-bold');
+                teamSpan.classList.add('text-white-50');
+                return;
+            }
+
+            const select = document.querySelector(`select[name="pos_${pos}_pilot"]`);
+            if (select) {
+                const opt = select.querySelector(`option[value="${pilotId}"]`);
+                const teamName = (opt && opt.dataset.team) ? opt.dataset.team : 'Sem Equipe';
+                teamSpan.textContent = teamName;
+                teamSpan.classList.remove('text-white-50');
+                teamSpan.classList.add('text-white', 'fw-bold');
+            }
         }
 
-        function updateSelectOptions() {
-            const selectedValues = new Set();
-            selects.forEach(s => {
-                if (s.value) {
-                    selectedValues.add(s.value);
+        function getSelectedPilotIds(exceptPos) {
+            const selected = new Set();
+            document.querySelectorAll('.pilot-select').forEach(sel => {
+                const p = sel.dataset.pos;
+                if (exceptPos !== undefined && String(p) === String(exceptPos)) return;
+                const val = sel.value;
+                if (val) selected.add(String(val));
+            });
+            return selected;
+        }
+
+        function filterOptionsForInstance(tom, currentPos) {
+            if (!tom || !tom.dropdown_content) return;
+            const selectedElsewhere = getSelectedPilotIds(currentPos);
+            tom.dropdown_content.querySelectorAll('.option').forEach(optEl => {
+                const val = optEl.dataset.value;
+                if (val && selectedElsewhere.has(String(val))) {
+                    optEl.style.display = 'none';
+                } else {
+                    optEl.style.display = '';
                 }
             });
-
-            selects.forEach(select => {
-                const currentSelectedValue = select.value;
-                select.querySelectorAll('option').forEach(option => {
-                    if (option.value && option.value !== currentSelectedValue && selectedValues.has(option.value)) {
-                        option.style.display = 'none';
-                    } else {
-                        option.style.display = 'block';
-                    }
-                });
-            });
-
-            updateAusentesTable();
         }
 
         function updateAusentesTable() {
-            const selectedValues = new Set();
-            selects.forEach(s => {
-                if (s.value) {
-                    selectedValues.add(s.value.toString());
-                }
-            });
-
+            const selectedValues = getSelectedPilotIds();
             document.querySelectorAll('.ausente-row').forEach(row => {
                 const pilotId = row.dataset.pilotId;
-                if (selectedValues.has(pilotId)) {
+                if (selectedValues.has(String(pilotId))) {
                     row.style.display = 'none';
                 } else {
                     row.style.display = '';
@@ -518,12 +597,67 @@
             });
         }
 
-        selects.forEach(select => {
-            select.addEventListener('change', function() {
-                updateTeamNames();
-                updateSelectOptions();
+        function initTomSelects() {
+            // 1. Pole Position Select
+            const poleSelect = document.getElementById('pole_pilot_id');
+            if (poleSelect && !poleSelect.tomselect) {
+                tomPole = new TomSelect(poleSelect, {
+                    dropdownParent: 'body',
+                    create: false,
+                    maxOptions: 500,
+                    placeholder: '-- Digite ou selecione o pole sitter --',
+                    allowEmptyOption: true,
+                    plugins: ['clear_button'],
+                    sortField: { field: 'text', direction: 'asc' },
+                    render: {
+                        no_results: function() {
+                            return '<div class="no-results p-2 text-white-50 small">Nenhum piloto encontrado</div>';
+                        }
+                    }
+                });
+            }
+
+            // 2. Classificação da Corrida (Posições 1 a N)
+            document.querySelectorAll('.pilot-select').forEach(select => {
+                const pos = select.dataset.pos;
+                if (select.tomselect) return;
+
+                const tom = new TomSelect(select, {
+                    dropdownParent: 'body',
+                    create: false,
+                    maxOptions: 500,
+                    placeholder: '-- Digite para buscar piloto --',
+                    allowEmptyOption: true,
+                    plugins: ['clear_button'],
+                    sortField: { field: 'text', direction: 'asc' },
+                    render: {
+                        no_results: function() {
+                            return '<div class="no-results p-2 text-white-50 small">Nenhum piloto encontrado</div>';
+                        }
+                    }
+                });
+
+                tomSelectMap[pos] = tom;
+
+                tom.on('change', function(value) {
+                    updateTeamForPos(pos, value);
+                    updateAusentesTable();
+                });
+
+                tom.on('dropdown_open', function() {
+                    filterOptionsForInstance(tom, pos);
+                });
+
+                tom.on('type', function() {
+                    filterOptionsForInstance(tom, pos);
+                });
+
+                // Inicializa nome da equipe com o valor inicial (se houver)
+                updateTeamForPos(pos, tom.getValue());
             });
-        });
+
+            updateAusentesTable();
+        }
 
         // --- MANIPULADOR DE UPLOAD DO SIMHUB CSV ---
         if (btnParse && fileInput) {
@@ -633,14 +767,18 @@
                 if (parsed.pole.pilot_id) {
                     const poleSel = document.getElementById('pole_pilot_id');
                     if (poleSel) {
-                        let opt = poleSel.querySelector(`option[value="${parsed.pole.pilot_id}"]`);
-                        if (!opt) {
-                            opt = document.createElement('option');
-                            opt.value = parsed.pole.pilot_id;
-                            opt.textContent = parsed.pole.driver_name || `Piloto ID ${parsed.pole.pilot_id}`;
-                            poleSel.appendChild(opt);
+                        const poleVal = String(parsed.pole.pilot_id);
+                        if (poleSel.tomselect) {
+                            if (!poleSel.tomselect.options[poleVal]) {
+                                poleSel.tomselect.addOption({
+                                    value: poleVal,
+                                    text: parsed.pole.driver_name || `Piloto ID ${poleVal}`
+                                });
+                            }
+                            poleSel.tomselect.setValue(poleVal, false);
+                        } else {
+                            poleSel.value = poleVal;
                         }
-                        poleSel.value = parsed.pole.pilot_id;
                     }
                 }
                 if (parsed.pole.qualy_time) {
@@ -665,17 +803,37 @@
             const matched = parsed.matched_positions || {};
             Object.keys(matched).forEach(pos => {
                 const item = matched[pos];
-
+                const pilotId = item.pilot_id ? String(item.pilot_id) : null;
                 const selectPilot = document.querySelector(`select[name="pos_${pos}_pilot"]`);
-                if (selectPilot && item.pilot_id) {
-                    let opt = selectPilot.querySelector(`option[value="${item.pilot_id}"]`);
-                    if (!opt) {
-                        opt = document.createElement('option');
-                        opt.value = item.pilot_id;
-                        opt.textContent = item.pilot_nickname || `Piloto ID ${item.pilot_id}`;
-                        selectPilot.appendChild(opt);
+
+                if (selectPilot && pilotId) {
+                    const tom = tomSelectMap[pos] || selectPilot.tomselect;
+                    if (tom) {
+                        if (!tom.options[pilotId]) {
+                            const opt = document.createElement('option');
+                            opt.value = pilotId;
+                            opt.textContent = item.pilot_nickname || `Piloto ID ${pilotId}`;
+                            opt.dataset.team = item.team_name || 'Sem Equipe';
+                            selectPilot.appendChild(opt);
+
+                            tom.addOption({
+                                value: pilotId,
+                                text: item.pilot_nickname || `Piloto ID ${pilotId}`
+                            });
+                        }
+                        tom.setValue(pilotId, false);
+                        updateTeamForPos(pos, pilotId);
+                    } else {
+                        let opt = selectPilot.querySelector(`option[value="${pilotId}"]`);
+                        if (!opt) {
+                            opt = document.createElement('option');
+                            opt.value = pilotId;
+                            opt.textContent = item.pilot_nickname || `Piloto ID ${pilotId}`;
+                            selectPilot.appendChild(opt);
+                        }
+                        selectPilot.value = pilotId;
+                        updateTeamForPos(pos, pilotId);
                     }
-                    selectPilot.value = item.pilot_id;
                 }
 
                 const inputGrid = document.querySelector(`input[name="pos_${pos}_grid_largada"]`);
@@ -694,8 +852,7 @@
                 if (chkVR) chkVR.checked = !!item.volta_rapida;
             });
 
-            updateTeamNames();
-            updateSelectOptions();
+            updateAusentesTable();
         }
 
         function showAlert(type, htmlContent) {
@@ -714,9 +871,8 @@
             alertBox.classList.remove('d-none');
         }
 
-        // Execucao Inicial
-        updateTeamNames();
-        updateSelectOptions();
+        // Inicialização de todos os selects inteligentes
+        initTomSelects();
     });
 </script>
 {% endblock %}
