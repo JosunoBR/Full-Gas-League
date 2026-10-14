@@ -56,8 +56,11 @@ class Config:
     SEND_FILE_MAX_AGE_DEFAULT = 31536000 # 1 ano de cache para assets estáticos no navegador
 
     # --- REDES SOCIAIS E CONTATO ---
-    INSTAGRAM_URL = 'https://www.instagram.com/fullgasleagueofficial/'
-    YOUTUBE_URL = 'https://www.youtube.com/@FullGasLeagueF1Oficial'
+    INSTAGRAM_URL = os.environ.get('INSTAGRAM_URL') or 'https://www.instagram.com/fullgasleagueofficial/'
+    YOUTUBE_URL = os.environ.get('YOUTUBE_URL') or 'https://www.youtube.com/@FullGasLeagueF1Oficial'
+    TWITCH_URL = os.environ.get('TWITCH_URL') or 'https://www.twitch.tv/fullgasleagueofficial'
+    TIKTOK_URL = os.environ.get('TIKTOK_URL') or 'https://www.tiktok.com/@fullgasleagueofficial'
+    SITE_URL = os.environ.get('BASE_URL') or 'https://www.fullgasleague.com.br/'
     CONTACT_EMAIL = 'fullgasracingf1@gmail.com'
 
     # --- CONFIGURAÇÃO DE E-MAILS (RESEND / SMTP) ---
