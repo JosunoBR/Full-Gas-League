@@ -366,9 +366,16 @@
                                 <td class="text-white">{{ p.nome_real }}</td>
                                 <td><span class="badge bg-success text-white">{{ p.pontos_cnh }} pts</span></td>
                                 <td class="text-end pe-4">
-                                    <a href="{{ url_for('admin.edit_pilot', pilot_id=p.id) }}" class="btn btn-sm btn-outline-warning text-white" title="Alocar em um Grid">
-                                        <i class="fa-solid fa-pen me-1"></i> Alocar Grid
+                                    <a href="{{ url_for('admin.edit_pilot', pilot_id=p.id) }}" class="btn btn-sm btn-outline-warning me-2 text-white" title="Editar / Alocar Grid">
+                                        <i class="fa-solid fa-pen"></i>
                                     </a>
+                                    {% if current_user.role == 'SUPER_ADM' and p.user and p.user.id != current_user.id and p.user.role != 'SUPER_ADM' %}
+                                    <form action="{{ url_for('admin.delete_pilot', pilot_id=p.id) }}" method="POST" class="d-inline" onsubmit="return confirm('ATENÇÃO: Tem certeza que deseja EXCLUIR este piloto?\n\nIsso apagará:\n- A conta de login\n- Todo o histórico de corridas e pontos\n- Check-ins e Protestos\n\nEssa ação não pode ser desfeita.');">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger text-white" title="Excluir Definitivamente">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
                                 </td>
                             </tr>
                             {% else %}
