@@ -60,13 +60,17 @@ def _pilot_has_membership_for_race(pilot, race):
     if has_team_link:
         return True
 
-    # Fallback legado: campo textual de grids no perfil.
+    # Grid ID direto no perfil do piloto
     grid_ids, grid_names = _parse_profile_grids(pilot.grid)
     if race.grid_id and race.grid_id in grid_ids:
         return True
-    race_grid_name = (get_grid_name(race) or "").upper()
-    if race_grid_name and race_grid_name in grid_names:
-        return True
+
+    # Fallback legado: apenas se a corrida não possuir grid_id configurado
+    if not race.grid_id:
+        race_grid_name = (get_grid_name(race) or "").upper()
+        if race_grid_name and race_grid_name in grid_names:
+            return True
+
     if "RESERVA" in grid_names:
         return True
 

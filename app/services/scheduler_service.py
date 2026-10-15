@@ -347,8 +347,8 @@ def notificar_checkin_pendente(race_id=None):
             tokens_grid = [token.strip() for token in (p.grid or '').split(',') if token.strip()]
             if (race_grid_str in tokens_grid) or ('RESERVA' in tokens_grid):
                 pilotos_do_grid.append(p)
-            elif (p.teams and any(t.grid_id == corrida.grid_id for t in p.teams)) or \
-                 (p.reserve_teams and any(t.grid_id == corrida.grid_id for t in p.reserve_teams)):
+            elif (p.teams and any(t.grid_id == corrida.grid_id and t.season_id == corrida.season_id for t in p.teams)) or \
+                 (p.reserve_teams and any(t.grid_id == corrida.grid_id and t.season_id == corrida.season_id for t in p.reserve_teams)):
                 pilotos_do_grid.append(p)
 
         if not pilotos_do_grid:

@@ -1897,14 +1897,16 @@ def race_results(race_id):
         is_titular = False
         if race_grid_id_str and race_grid_id_str in grid_tokens:
             is_titular = True
-        elif race_grid_name and race_grid_name in grid_tokens_upper:
+        elif race.grid_id and p.teams and any(t.grid_id == race.grid_id and t.season_id == race.season_id for t in p.teams):
             is_titular = True
-        elif race_grid_raw and race_grid_raw in grid_tokens_upper:
-            is_titular = True
-        elif race.grid_id and p.teams and any(t.grid_id == race.grid_id for t in p.teams):
-            is_titular = True
-        elif race_grid_raw and p.teams and any((t.grid or '').strip().upper() == race_grid_raw for t in p.teams):
-            is_titular = True
+        elif not race.grid_id:
+            # Fallback para etapas legadas sem grid_id
+            if race_grid_name and race_grid_name in grid_tokens_upper:
+                is_titular = True
+            elif race_grid_raw and race_grid_raw in grid_tokens_upper:
+                is_titular = True
+            elif race_grid_raw and p.teams and any((t.grid or '').strip().upper() == race_grid_raw and t.season_id == race.season_id for t in p.teams):
+                is_titular = True
 
         is_eligible = is_titular or ('RESERVA' in grid_tokens_upper) or (p.id in pilots_with_results_ids)
 
@@ -1966,94 +1968,116 @@ def list_pilots():
     # Mostra todos os pilotos, inclusive ADMs, para gestão de Grid/CNH
     pilots = PilotProfile.query.join(User).order_by(PilotProfile.nickname).all()
 
-    # Carrega grids configurados de TODAS as temporadas para mapeamento de IDs para nomes
-    # e para as abas, priorizando os da temporada ativa.
-    active_seasons = Season.query.filter_by(ativa=True).all()
-    active_season_ids = [s.id for s in active_seasons]
-    
+    # Carrega grids configurados de todas as temporadas
     all_grid_configs = GridConfig.query.order_by(GridConfig.season_id.desc(), GridConfig.ordem).all()
+    grid_configs_by_id = {cfg.id: cfg for cfg in all_grid_configs}
     grid_id_to_name_map = {cfg.id: cfg.nome for cfg in all_grid_configs}
 
-    # Grids para as abas: prioriza os da temporada ativa, depois outros grids existentes, e especiais.
-    grid_tabs_set = set()
-    for cfg in all_grid_configs:
-        if cfg.season_id in active_season_ids:
-            grid_tabs_set.add(cfg.nome)
-    for cfg in all_grid_configs: # Add others not in active seasons
-        grid_tabs_set.add(cfg.nome)
-    grid_tabs_set.add('RESERVA')
-    grid_tabs_set.add('SEM_GRID')
-    
-    # Ordena as abas: primeiro as da temporada ativa, depois as outras por nome, depois especiais
-    grid_tabs = sorted(list(grid_tabs_set), key=lambda x: (
-        0 if x in [cfg.nome for cfg in all_grid_configs if cfg.season_id in active_season_ids] else 1,
-        2 if x == 'RESERVA' else 3 if x == 'SEM_GRID' else 1,
-        x
-    ))
+    # Apenas temporadas ativas devem aparecer nas abas de gestão
+    active_seasons = Season.query.filter_by(ativa=True).order_by(Season.id.desc()).all()
 
-    # Organiza pilotos por NOME de grid (um piloto pode aparecer em vários)
-    pilots_by_grid = {name: [] for name in grid_tabs}
+    # Mapeamento rigoroso de pilotos por grid_id (evita colisão de grids homônimos)
+    pilots_by_grid_id = {cfg.id: [] for cfg in all_grid_configs}
+    pilots_reserva = []
+    pilots_sem_grid = []
 
     for p in pilots:
-        # Helper local para converter IDs de grid para nomes para agrupamento nas abas
-        def _get_grid_names_for_grouping(pilot_grid_str, grid_map):
-            if not pilot_grid_str or pilot_grid_str == 'SEM_GRID':
-                return ['SEM_GRID']
-            names = []
-            for token in [x.strip() for x in pilot_grid_str.split(',') if x.strip()]:
-                if token.isdigit():
-                    names.append(grid_map.get(int(token), token)) # Usa nome do mapa, fallback para ID se não encontrado
-                else:
-                    names.append(token) # Tokens especiais como 'RESERVA'
-            return names
-        grid_names_for_pilot = _get_grid_names_for_grouping(p.grid, grid_id_to_name_map)
-        
-        # Se o piloto não tem grids definidos, vai para 'SEM_GRID'
-        if not grid_names_for_pilot or (len(grid_names_for_pilot) == 1 and grid_names_for_pilot[0] == 'SEM_GRID'):
-            pilots_by_grid.setdefault('SEM_GRID', []).append(p)
+        tokens = [x.strip() for x in (p.grid or '').split(',') if x.strip()]
+        tokens_upper = [t.upper() for t in tokens]
+        has_any_grid = False
+
+        if 'RESERVA' in tokens_upper:
+            if p not in pilots_reserva:
+                pilots_reserva.append(p)
+            has_any_grid = True
+
+        for t in tokens:
+            if t.isdigit():
+                gid = int(t)
+                if gid in pilots_by_grid_id:
+                    if p not in pilots_by_grid_id[gid]:
+                        pilots_by_grid_id[gid].append(p)
+                    has_any_grid = True
+
+        # Também considera vínculo via equipes ativas do piloto
+        for team in p.teams:
+            if team.grid_id and team.grid_id in pilots_by_grid_id:
+                if p not in pilots_by_grid_id[team.grid_id]:
+                    pilots_by_grid_id[team.grid_id].append(p)
+                has_any_grid = True
+
+        # Se não tiver nenhum grid associado ou tiver explicitamente SEM_GRID
+        if not has_any_grid or (p.grid or '').strip() == 'SEM_GRID':
+            if p not in pilots_sem_grid:
+                pilots_sem_grid.append(p)
+
+    # Organização das temporadas ativas e seus respectivos grids
+    seasons_data = []
+    for s in active_seasons:
+        s_grids = [cfg for cfg in all_grid_configs if cfg.season_id == s.id]
+        if not s_grids:
             continue
-        
-        # Adiciona o piloto a todas as abas de grid correspondentes
-        for gname in grid_names_for_pilot:
-            if gname not in pilots_by_grid:
-                pilots_by_grid[gname] = [] # Should not happen if grid_tabs is comprehensive
-            pilots_by_grid[gname].append(p)
 
-    # Remove abas vazias, exceto 'SEM_GRID'
-    # Apenas remove abas que não têm pilotos e não são 'SEM_GRID'
-    # Isso garante que 'SEM_GRID' sempre apareça se for uma aba válida.
-    grid_tabs = [
-        tab for tab in grid_tabs
-        if pilots_by_grid.get(tab) or tab == 'SEM_GRID'
-    ]
-    # Se 'SEM_GRID' não foi adicionado por ter pilotos, mas está na lista de abas,
-    # garante que ele seja mantido.
-    if 'SEM_GRID' not in grid_tabs and 'SEM_GRID' in grid_tabs_set:
-        grid_tabs.append('SEM_GRID')
+        grids_list = []
+        season_pilot_ids = set()
+        for g in s_grids:
+            g_pilots = pilots_by_grid_id.get(g.id, [])
+            for p in g_pilots:
+                season_pilot_ids.add(p.id)
+            grids_list.append({
+                'id': g.id,
+                'nome': g.nome,
+                'vagas': g.vagas,
+                'pilots': g_pilots,
+                'count': len(g_pilots)
+            })
 
-    # Garante que 'SEM_GRID' esteja no final, se existir
-    if 'SEM_GRID' in grid_tabs:
-        grid_tabs.remove('SEM_GRID')
-        grid_tabs.append('SEM_GRID')
+        seasons_data.append({
+            'season': s,
+            'grids': grids_list,
+            'total_pilots': len(season_pilot_ids)
+        })
 
-    # Helper para o template exibir os nomes dos grids do piloto
+    # Grids sem temporada vinculada (órfãos), caso existam
+    orphan_grids = [cfg for cfg in all_grid_configs if not cfg.season_id]
+    orphan_info = []
+    for g in orphan_grids:
+        g_pilots = pilots_by_grid_id.get(g.id, [])
+        orphan_info.append({
+            'id': g.id,
+            'nome': g.nome,
+            'vagas': g.vagas,
+            'pilots': g_pilots,
+            'count': len(g_pilots)
+        })
+
+    # Helper para o template exibir os nomes dos grids do piloto com a temporada correspondente
     def get_pilot_grids_display(pilot_profile_obj):
         pilot_grid_str = pilot_profile_obj.grid
         if not pilot_grid_str or pilot_grid_str == 'SEM_GRID':
             return 'SEM_GRID'
+        tokens = [x.strip() for x in pilot_grid_str.split(',') if x.strip()]
         names = []
-        for token in [x.strip() for x in pilot_grid_str.split(',') if x.strip()]:
+        for token in tokens:
             if token.isdigit():
-                names.append(grid_id_to_name_map.get(int(token), token)) # Usa nome do mapa, fallback para ID se não encontrado
+                gid = int(token)
+                cfg = grid_configs_by_id.get(gid)
+                if cfg:
+                    season_label = f" ({cfg.season_rel.nome})" if cfg.season_rel else ""
+                    names.append(f"{cfg.nome}{season_label}")
+                else:
+                    names.append(f"Grid #{token}")
             else:
-                names.append(token) # Tokens especiais como 'RESERVA'
-        return ", ".join(names)
+                names.append(token)
+        return ", ".join(names) if names else 'SEM_GRID'
 
     return render_template('admin/pilots.html', 
-                           pilots_by_grid=pilots_by_grid,
                            total_count=len(pilots),
                            all_pilots=pilots,
-                           grid_tabs=grid_tabs,
+                           seasons_data=seasons_data,
+                           orphan_grids=orphan_info,
+                           pilots_reserva=pilots_reserva,
+                           pilots_sem_grid=pilots_sem_grid,
                            get_pilot_grids_display=get_pilot_grids_display)
 
 @admin_bp.route('/pilots/edit/<int:pilot_id>', methods=['GET', 'POST'])

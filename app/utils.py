@@ -158,11 +158,12 @@ def get_grid_name(obj):
 
 def grid_matches(obj, grid_ref):
     """
-    Verifica se um objeto (Race, Team, etc) pertence a um grid especÃ­fico.
+    Verifica se um objeto (Race, Team, etc) pertence a um grid específico.
     
-    Suporta dois modos:
-    - Se grid_ref Ã© int: compara estritamente com grid_id
-    - Se grid_ref Ã© GridConfig: compara nome normalizado
+    Suporta:
+    - Se grid_ref é int: compara estritamente com grid_id
+    - Se grid_ref é GridConfig: prioriza comparação estrita de grid_id/id e season_id
+    - Fallback: compara por nome normalizado apenas se não houver IDs disponíveis
     
     Args:
         obj: Objeto com atributos grid_id/grid/grid_config (Race, Team, etc)
@@ -171,16 +172,32 @@ def grid_matches(obj, grid_ref):
     Returns:
         bool: True se o objeto pertence ao grid especificado
     """
-    obj_grid_name = get_grid_name(obj)
-    
-    if isinstance(grid_ref, int):
-        # grid_ref Ã© um ID
-        if hasattr(obj, 'grid_id') and obj.grid_id == grid_ref:
-            return True
-        # Fallback: busca por nome (requer contexto de GridConfig)
+    if obj is None or grid_ref is None:
         return False
+
+    if isinstance(grid_ref, int):
+        # grid_ref é um ID
+        if hasattr(obj, 'grid_id') and obj.grid_id is not None:
+            return obj.grid_id == grid_ref
+        return False
+    elif hasattr(grid_ref, 'id') and grid_ref.id is not None:
+        # grid_ref é um GridConfig com ID
+        if hasattr(obj, 'grid_id') and obj.grid_id is not None:
+            return obj.grid_id == grid_ref.id
+
+        # Fallback para objetos legados sem grid_id: checa nome e temporada
+        obj_grid_name = get_grid_name(obj)
+        grid_ref_name = (grid_ref.nome if hasattr(grid_ref, 'nome') else str(grid_ref)).strip().upper()
+
+        obj_season_id = getattr(obj, 'season_id', None)
+        ref_season_id = getattr(grid_ref, 'season_id', None)
+        if obj_season_id and ref_season_id and obj_season_id != ref_season_id:
+            return False
+
+        return obj_grid_name == grid_ref_name
     else:
-        # grid_ref Ã© um GridConfig ou similar com atributo nome
+        # grid_ref é uma string pura
+        obj_grid_name = get_grid_name(obj)
         grid_ref_name = (grid_ref.nome if hasattr(grid_ref, 'nome') else str(grid_ref)).strip().upper()
         return obj_grid_name == grid_ref_name
 

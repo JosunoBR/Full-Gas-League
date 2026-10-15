@@ -1,9 +1,16 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="text-warning fw-bold mb-0">Gestão de Pilotos</h2>
-    <span class="badge bg-secondary text-white">{{ total_count }} Cadastrados</span>
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <div>
+        <h2 class="text-warning fw-bold mb-0" style="font-family: 'Outfit', sans-serif; letter-spacing: 0.5px;">
+            <i class="fa-solid fa-users me-2 text-danger"></i> Gestão de Pilotos
+        </h2>
+        <small class="text-white-50 font-monospace">Pilotos organizados por temporadas ativas e grids oficiais</small>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+        <span class="badge bg-danger text-white px-3 py-2 font-monospace">{{ total_count }} Cadastrados</span>
+    </div>
 </div>
 
 <div class="row mb-4">
@@ -15,24 +22,45 @@
     </div>
 </div>
 
-<!-- Abas de Navegação por Grid -->
-<ul class="nav nav-tabs border-secondary mb-4" id="pilotTabs" role="tablist">
+<!-- Abas de Navegação Principal: TODOS, TEMPORADAS ATIVAS, RESERVAS, SEM GRID -->
+<ul class="nav nav-tabs border-secondary mb-4 flex-wrap" id="pilotMainTabs" role="tablist">
     <li class="nav-item" role="presentation">
         <button class="nav-link active fw-bold" id="tab-ALL" data-bs-toggle="tab" data-bs-target="#content-ALL" type="button">
-            TODOS <span class="badge bg-secondary ms-1">{{ total_count }}</span>
+            <i class="fa-solid fa-globe me-1 text-warning"></i> TODOS <span class="badge bg-secondary ms-1">{{ total_count }}</span>
         </button>
     </li>
-    {% for grid in grid_tabs %}
+    
+    {% for s_data in seasons_data if s_data.season.ativa %}
     <li class="nav-item" role="presentation">
-        <button class="nav-link fw-bold" id="tab-{{ grid|replace(' ', '_') }}" data-bs-toggle="tab" data-bs-target="#content-{{ grid|replace(' ', '_') }}" type="button">
-            {{ grid }} <span class="badge bg-secondary ms-1">{{ pilots_by_grid[grid]|length if grid in pilots_by_grid else 0 }}</span>
+        <button class="nav-link fw-bold" id="tab-season-{{ s_data.season.id }}" data-bs-toggle="tab" data-bs-target="#content-season-{{ s_data.season.id }}" type="button">
+            <span class="badge bg-success p-1 rounded-circle me-1" style="display: inline-block; width: 8px; height: 8px;" title="Temporada Ativa"></span>
+            {{ s_data.season.nome }} <span class="badge bg-secondary ms-1">{{ s_data.total_pilots }}</span>
         </button>
     </li>
     {% endfor %}
+
+    {% if orphan_grids %}
+    <li class="nav-item" role="presentation">
+        <button class="nav-link fw-bold" id="tab-orphan-grids" data-bs-toggle="tab" data-bs-target="#content-orphan-grids" type="button">
+            <i class="fa-solid fa-layer-group me-1"></i> OUTROS GRIDS
+        </button>
+    </li>
+    {% endif %}
+
+    <li class="nav-item" role="presentation">
+        <button class="nav-link fw-bold" id="tab-RESERVA" data-bs-toggle="tab" data-bs-target="#content-RESERVA" type="button">
+            <i class="fa-solid fa-user-clock me-1 text-info"></i> RESERVAS <span class="badge bg-secondary ms-1">{{ pilots_reserva|length }}</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link fw-bold" id="tab-SEM_GRID" data-bs-toggle="tab" data-bs-target="#content-SEM_GRID" type="button">
+            <i class="fa-solid fa-user-slash me-1 text-danger"></i> SEM GRID <span class="badge bg-secondary ms-1">{{ pilots_sem_grid|length }}</span>
+        </button>
+    </li>
 </ul>
 
-<div class="tab-content" id="pilotTabsContent">
-    <!-- Aba TODOS -->
+<div class="tab-content" id="pilotMainTabsContent">
+    <!-- ABA GERAL: TODOS OS PILOTOS -->
     <div class="tab-pane fade show active" id="content-ALL" role="tabpanel">
         <div class="card shadow border-secondary">
             <div class="card-body bg-dark p-0">
@@ -50,22 +78,38 @@
                         <tbody>
                             {% for p in all_pilots %}
                             <tr>
-                                <td class="ps-4 fw-bold text-white">{{ p.nickname }}</td>
+                                <td class="ps-4 fw-bold text-white">
+                                    {{ p.nickname }}
+                                    {% if p.user and p.user.role == 'SUPER_ADM' %}
+                                        <span class="badge bg-danger text-white ms-2" style="font-size: 0.6rem;">DIREÇÃO</span>
+                                    {% elif p.user and p.user.role == 'ADM' %}
+                                        <span class="badge bg-info text-dark ms-2" style="font-size: 0.6rem;">ADM</span>
+                                    {% endif %}
+                                </td>
                                 <td class="text-white">{{ p.nome_real }}</td>
                                 <td>
                                     {% for g in get_pilot_grids_display(p).split(',') %}
-                                        <span class="badge bg-secondary">{{ g.strip() }}</span>
+                                        {% set g_clean = g.strip() %}
+                                        {% if g_clean == 'SEM_GRID' %}
+                                            <span class="badge bg-danger">{{ g_clean }}</span>
+                                        {% elif g_clean == 'RESERVA' %}
+                                            <span class="badge bg-warning text-dark">{{ g_clean }}</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ g_clean }}</span>
+                                        {% endif %}
                                     {% endfor %}
                                 </td>
                                 <td>
                                     {% if p.pontos_cnh <= 5 %}
                                         <span class="badge bg-danger text-white">{{ p.pontos_cnh }} pts</span>
+                                    {% elif p.pontos_cnh <= 15 %}
+                                        <span class="badge bg-warning text-dark">{{ p.pontos_cnh }} pts</span>
                                     {% else %}
                                         <span class="badge bg-success text-white">{{ p.pontos_cnh }} pts</span>
                                     {% endif %}
                                 </td>
                                 <td class="text-end pe-4">
-                                    <a href="{{ url_for('admin.edit_pilot', pilot_id=p.id) }}" class="btn btn-sm btn-outline-warning me-2 text-white">
+                                    <a href="{{ url_for('admin.edit_pilot', pilot_id=p.id) }}" class="btn btn-sm btn-outline-warning me-2 text-white" title="Editar">
                                         <i class="fa-solid fa-pen"></i>
                                     </a>
                                 </td>
@@ -78,10 +122,136 @@
         </div>
     </div>
 
-    {% for grid in grid_tabs %}
-    {% set pilot_list = pilots_by_grid[grid] if grid in pilots_by_grid else [] %}
-    <div class="tab-pane fade" id="content-{{ grid|replace(' ', '_') }}" role="tabpanel">
-        <div class="card shadow border-secondary">
+    <!-- ABAS POR TEMPORADA ATIVA -->
+    {% for s_data in seasons_data if s_data.season.ativa %}
+    <div class="tab-pane fade" id="content-season-{{ s_data.season.id }}" role="tabpanel">
+        <div class="p-3 mb-3 rounded-3" style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08);">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <div>
+                    <h5 class="text-white fw-bold mb-0">
+                        <i class="fa-solid fa-trophy me-2 text-warning"></i> {{ s_data.season.nome }}
+                        <span class="badge bg-success ms-2 font-monospace" style="font-size: 0.75rem;">TEMPORADA ATIVA</span>
+                    </h5>
+                    <small class="text-white-50 font-monospace">{{ s_data.grids|length }} grid(s) configurado(s) nesta temporada</small>
+                </div>
+                <div>
+                    <span class="badge bg-dark border border-secondary text-white px-3 py-2 font-monospace">
+                        <i class="fa-solid fa-users me-1 text-warning"></i> {{ s_data.total_pilots }} Pilotos Vinculados
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        {% if s_data.grids|length > 1 %}
+        <!-- Sub-abas dos Grids desta Temporada (nav-pills) -->
+        <ul class="nav nav-pills mb-3 gap-2" id="season-{{ s_data.season.id }}-grids-tab" role="tablist">
+            {% for g in s_data.grids %}
+            <li class="nav-item" role="presentation">
+                <button class="nav-link {% if loop.first %}active{% endif %} font-monospace fw-bold px-3 py-2" 
+                        id="tab-grid-{{ g.id }}" 
+                        data-bs-toggle="pill" 
+                        data-bs-target="#content-grid-{{ g.id }}" 
+                        type="button" 
+                        role="tab">
+                    <i class="fa-solid fa-flag-checkered me-1 text-danger"></i> {{ g.nome }}
+                    <span class="badge bg-dark ms-1 border border-secondary">{{ g.count }}</span>
+                </button>
+            </li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        <div class="tab-content" id="season-{{ s_data.season.id }}-grids-content">
+            {% for g in s_data.grids %}
+            <div class="tab-pane fade {% if loop.first or s_data.grids|length == 1 %}show active{% endif %}" id="content-grid-{{ g.id }}" role="tabpanel">
+                <div class="card shadow border-secondary mb-4">
+                    <div class="card-header bg-dark d-flex justify-content-between align-items-center py-2 px-3 border-secondary">
+                        <span class="fw-bold text-white font-monospace">
+                            <i class="fa-solid fa-road me-1 text-warning"></i> Grid: <span class="text-warning">{{ g.nome }}</span>
+                            <small class="text-white-50 ms-2">(ID #{{ g.id }} &bull; Limite de vagas: {{ g.vagas }})</small>
+                        </span>
+                        <span class="badge bg-secondary font-monospace">{{ g.count }} / {{ g.vagas }} Pilotos</span>
+                    </div>
+                    <div class="card-body bg-dark p-0">
+                        <div class="table-responsive">
+                            <table class="table table-dark table-hover mb-0 align-middle">
+                                <thead>
+                                    <tr class="text-white-50">
+                                        <th class="ps-4">Piloto (Nick)</th>
+                                        <th>Nome Real</th>
+                                        <th>CNH</th>
+                                        <th>Foto do Grid</th>
+                                        <th class="text-end pe-4">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for p in g.pilots %}
+                                    <tr>
+                                        <td class="ps-4 fw-bold text-white">
+                                            {{ p.nickname }}
+                                            {% if p.user and p.user.role == 'SUPER_ADM' %}
+                                                <span class="badge bg-danger text-white ms-2" style="font-size: 0.6rem;">DIREÇÃO</span>
+                                            {% elif p.user and p.user.role == 'ADM' %}
+                                                <span class="badge bg-info text-dark ms-2" style="font-size: 0.6rem;">ADM</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-white">{{ p.nome_real }}</td>
+                                        <td>
+                                            {% if p.pontos_cnh <= 5 %}
+                                                <span class="badge bg-danger text-white">{{ p.pontos_cnh }} pts</span>
+                                            {% elif p.pontos_cnh <= 15 %}
+                                                <span class="badge bg-warning text-dark">{{ p.pontos_cnh }} pts</span>
+                                            {% else %}
+                                                <span class="badge bg-success text-white">{{ p.pontos_cnh }} pts</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if p.foto_url %}
+                                                <i class="fa-solid fa-check text-success"></i>
+                                            {% else %}
+                                                <i class="fa-solid fa-times text-secondary"></i>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-end pe-4">
+                                            <a href="{{ url_for('admin.edit_pilot', pilot_id=p.id) }}" class="btn btn-sm btn-outline-warning me-2 text-white" title="Editar">
+                                                <i class="fa-solid fa-pen"></i>
+                                            </a>
+                                            {% if current_user.role == 'SUPER_ADM' and p.user and p.user.id != current_user.id and p.user.role != 'SUPER_ADM' %}
+                                            <form action="{{ url_for('admin.delete_pilot', pilot_id=p.id) }}" method="POST" class="d-inline" onsubmit="return confirm('ATENÇÃO: Tem certeza que deseja EXCLUIR este piloto?\n\nIsso apagará:\n- A conta de login\n- Todo o histórico de corridas e pontos\n- Check-ins e Protestos\n\nEssa ação não pode ser desfeita.');">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger text-white" title="Excluir Definitivamente">
+                                                    <i class="fa-solid fa-trash"></i>
+                                                </button>
+                                            </form>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="5" class="text-center py-4 text-white-50 font-monospace">Nenhum piloto vinculado ao grid {{ g.nome }} desta temporada.</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+
+    <!-- ABA OUTROS GRIDS (ÓRFÃOS) -->
+    {% if orphan_grids %}
+    <div class="tab-pane fade" id="content-orphan-grids" role="tabpanel">
+        {% for g in orphan_grids %}
+        <div class="card shadow border-secondary mb-4">
+            <div class="card-header bg-dark d-flex justify-content-between align-items-center py-2 px-3 border-secondary">
+                <span class="fw-bold text-white font-monospace">
+                    Grid: {{ g.nome }} (ID #{{ g.id }})
+                </span>
+                <span class="badge bg-secondary font-monospace">{{ g.count }} Pilotos</span>
+            </div>
             <div class="card-body bg-dark p-0">
                 <div class="table-responsive">
                     <table class="table table-dark table-hover mb-0 align-middle">
@@ -90,51 +260,76 @@
                                 <th class="ps-4">Piloto (Nick)</th>
                                 <th>Nome Real</th>
                                 <th>CNH</th>
-                                <th>Foto</th>
                                 <th class="text-end pe-4">Ações</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for p in pilot_list %}
+                            {% for p in g.pilots %}
                             <tr>
-                                <td class="ps-4 fw-bold text-white">
-                                    {{ p.nickname }}
-                                    {% if p.user.role == 'ADM' %}
-                                        <span class="badge bg-info text-dark ms-2" style="font-size: 0.6rem;">ADM</span>
-                                    {% endif %}
-                                </td>
+                                <td class="ps-4 fw-bold text-white">{{ p.nickname }}</td>
                                 <td class="text-white">{{ p.nome_real }}</td>
-                                <td>
-                                    {% if p.pontos_cnh <= 5 %}
-                                        <span class="badge bg-danger text-white">{{ p.pontos_cnh }} pts</span>
-                                    {% else %}
-                                        <span class="badge bg-success text-white">{{ p.pontos_cnh }} pts</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if p.foto_url %}
-                                        <i class="fa-solid fa-check text-success"></i>
-                                    {% else %}
-                                        <i class="fa-solid fa-times text-secondary"></i>
-                                    {% endif %}
-                                </td>
+                                <td><span class="badge bg-success text-white">{{ p.pontos_cnh }} pts</span></td>
                                 <td class="text-end pe-4">
-                                    <a href="{{ url_for('admin.edit_pilot', pilot_id=p.id) }}" class="btn btn-sm btn-outline-warning me-2 text-white" title="Editar">
+                                    <a href="{{ url_for('admin.edit_pilot', pilot_id=p.id) }}" class="btn btn-sm btn-outline-warning text-white">
                                         <i class="fa-solid fa-pen"></i>
                                     </a>
-                                    
-                                    {% if p.user.id != current_user.id and p.user.role != 'SUPER_ADM' %}
-                                    <form action="{{ url_for('admin.delete_pilot', pilot_id=p.id) }}" method="POST" class="d-inline" onsubmit="return confirm('ATENÇÃO: Tem certeza que deseja EXCLUIR este piloto?\n\nIsso apagará:\n- A conta de login\n- Todo o histórico de corridas e pontos\n- Check-ins e Protestos\n\nEssa ação não pode ser desfeita.');">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger text-white" title="Excluir Definitivamente">
-                                            <i class="fa-solid fa-trash"></i>
-                                        </button>
-                                    </form>
-                                    {% endif %}
                                 </td>
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="5" class="text-center py-4 text-white-50">Nenhum piloto neste grid.</td>
+                                <td colspan="4" class="text-center py-4 text-white-50">Nenhum piloto neste grid.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- ABA RESERVAS -->
+    <div class="tab-pane fade" id="content-RESERVA" role="tabpanel">
+        <div class="card shadow border-secondary">
+            <div class="card-header bg-dark d-flex justify-content-between align-items-center py-2 px-3 border-secondary">
+                <span class="fw-bold text-warning font-monospace">
+                    <i class="fa-solid fa-user-clock me-1"></i> Pilotos Registrados como Reservas
+                </span>
+                <span class="badge bg-secondary font-monospace">{{ pilots_reserva|length }} Pilotos</span>
+            </div>
+            <div class="card-body bg-dark p-0">
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover mb-0 align-middle">
+                        <thead>
+                            <tr class="text-white-50">
+                                <th class="ps-4">Piloto (Nick)</th>
+                                <th>Nome Real</th>
+                                <th>CNH</th>
+                                <th>Grids Atuais</th>
+                                <th class="text-end pe-4">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in pilots_reserva %}
+                            <tr>
+                                <td class="ps-4 fw-bold text-white">{{ p.nickname }}</td>
+                                <td class="text-white">{{ p.nome_real }}</td>
+                                <td><span class="badge bg-success text-white">{{ p.pontos_cnh }} pts</span></td>
+                                <td>
+                                    {% for g in get_pilot_grids_display(p).split(',') %}
+                                        <span class="badge bg-secondary">{{ g.strip() }}</span>
+                                    {% endfor %}
+                                </td>
+                                <td class="text-end pe-4">
+                                    <a href="{{ url_for('admin.edit_pilot', pilot_id=p.id) }}" class="btn btn-sm btn-outline-warning text-white">
+                                        <i class="fa-solid fa-pen"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center py-4 text-white-50">Nenhum piloto reserva registrado.</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -143,7 +338,50 @@
             </div>
         </div>
     </div>
-    {% endfor %}
+
+    <!-- ABA SEM GRID -->
+    <div class="tab-pane fade" id="content-SEM_GRID" role="tabpanel">
+        <div class="card shadow border-secondary">
+            <div class="card-header bg-dark d-flex justify-content-between align-items-center py-2 px-3 border-secondary">
+                <span class="fw-bold text-danger font-monospace">
+                    <i class="fa-solid fa-user-slash me-1"></i> Pilotos sem Alocação de Grid
+                </span>
+                <span class="badge bg-danger font-monospace">{{ pilots_sem_grid|length }} Pilotos</span>
+            </div>
+            <div class="card-body bg-dark p-0">
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover mb-0 align-middle">
+                        <thead>
+                            <tr class="text-white-50">
+                                <th class="ps-4">Piloto (Nick)</th>
+                                <th>Nome Real</th>
+                                <th>CNH</th>
+                                <th class="text-end pe-4">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in pilots_sem_grid %}
+                            <tr>
+                                <td class="ps-4 fw-bold text-white">{{ p.nickname }}</td>
+                                <td class="text-white">{{ p.nome_real }}</td>
+                                <td><span class="badge bg-success text-white">{{ p.pontos_cnh }} pts</span></td>
+                                <td class="text-end pe-4">
+                                    <a href="{{ url_for('admin.edit_pilot', pilot_id=p.id) }}" class="btn btn-sm btn-outline-warning text-white" title="Alocar em um Grid">
+                                        <i class="fa-solid fa-pen me-1"></i> Alocar Grid
+                                    </a>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center py-4 text-white-50">Nenhum piloto sem grid. Todos estão alocados!</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <style>
@@ -155,10 +393,26 @@
     .nav-tabs .nav-link {
         color: #fff;
         border: 1px solid transparent;
+        transition: all 0.2s ease-in-out;
     }
     .nav-tabs .nav-link:hover {
         border-color: #6c757d #6c757d transparent;
         color: #ffc107;
+    }
+    .nav-pills .nav-link.active {
+        background: linear-gradient(135deg, #e10600 0%, #b30000 100%) !important;
+        color: #fff !important;
+        box-shadow: 0 2px 8px rgba(225, 6, 0, 0.4);
+    }
+    .nav-pills .nav-link {
+        color: #ccc;
+        background-color: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        transition: all 0.2s ease;
+    }
+    .nav-pills .nav-link:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+        color: #fff;
     }
 </style>
 
@@ -190,7 +444,7 @@ document.getElementById('searchPilotInput').addEventListener('input', function()
             }
         });
         
-        // Handle placeholder row
+        // Linha de feedback quando nada encontrado
         const noPilotsRow = table.querySelector('tbody tr td[colspan]');
         if (noPilotsRow) {
             const tr = noPilotsRow.closest('tr');
@@ -198,8 +452,6 @@ document.getElementById('searchPilotInput').addEventListener('input', function()
                 tr.style.display = '';
                 if (query !== '') {
                     noPilotsRow.textContent = 'Nenhum piloto corresponde à busca.';
-                } else {
-                    noPilotsRow.textContent = 'Nenhum piloto neste grid.';
                 }
             } else {
                 tr.style.display = 'none';
