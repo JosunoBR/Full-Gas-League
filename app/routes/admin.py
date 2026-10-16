@@ -159,6 +159,7 @@ def restrict_access():
             'analytics',
             'media_hub',
             'media_constructors_graphic',
+            'media_drivers_graphic',
         ]
 
         if endpoint_name not in allowed_endpoints:
@@ -184,6 +185,7 @@ def restrict_access():
             'view_protest',
             'media_hub',
             'media_constructors_graphic',
+            'media_drivers_graphic',
         ]
 
         if endpoint_name not in allowed_endpoints:
@@ -941,12 +943,56 @@ def media_constructors_graphic():
     safe_grid_nome = grid_cfg.nome.lower().replace(' ', '_')
     filename = f"cartaz_construtores_{safe_grid_nome}.png"
 
-    return send_file(
+    response = send_file(
         buf,
         mimetype='image/png',
         as_attachment=bool(download),
         download_name=filename
     )
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
+
+
+@admin_bp.route('/media/drivers_graphic')
+@login_required
+def media_drivers_graphic():
+    """
+    Retorna o cartaz oficial de classificação de pilotos em alta resolução (1080x1350)
+    gerado dinamicamente com as cores da equipe de cada piloto, foto, nome e ID,
+    seguindo o modelo visual oficial.
+    Suporta parâmetro ?download=1 para forçar download do arquivo e ?tipo=titulares|reservas.
+    """
+    season_id = request.args.get('season_id', type=int)
+    grid_id = request.args.get('grid_id', type=int)
+    tipo = request.args.get('tipo', default='titulares', type=str)
+    download = request.args.get('download', default=0, type=int)
+
+    if not season_id or not grid_id:
+        abort(400, "Parâmetros season_id e grid_id são obrigatórios.")
+
+    grid_cfg = db.session.get(GridConfig, grid_id)
+    if not grid_cfg:
+        abort(404, "Grid não encontrado.")
+
+    buf = MediaService.generate_drivers_graphic(season_id, grid_id, pilot_type=tipo)
+
+    safe_grid_nome = grid_cfg.nome.lower().replace(' ', '_')
+    safe_tipo = tipo.lower()
+    filename = f"cartaz_pilotos_{safe_tipo}_{safe_grid_nome}.png"
+
+    response = send_file(
+        buf,
+        mimetype='image/png',
+        as_attachment=bool(download),
+        download_name=filename
+    )
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
+
 
 
 @admin_bp.route('/historic')

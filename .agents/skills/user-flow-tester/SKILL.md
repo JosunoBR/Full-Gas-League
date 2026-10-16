@@ -11,6 +11,11 @@ description: >-
 
 Esta skill orienta o agente na validação de qualidade, testes de usabilidade de ponta a ponta e auditoria de fluxos funcionais do **Sistema FullGas**, garantindo que as jornadas de cada tipo de usuário ocorram sem falhas.
 
+## 🛑 0. Escopo Estrito e Mudanças sob Autorização Prévia
+
+* **Alterações no Código Restritas ao Pedido:** Ao identificar melhorias ou fluxos nos testes, **NUNCA** aplique correções ou alterações no código que extrapolem a solicitação atual do usuário.
+* **Proposição Aberta, Execução Autorizada:** Fique à vontade para apontar, sugerir e desenhar novos fluxos ou propor elementos em outras telas; contudo, **a execução e implementação no código dependem impreterivelmente da autorização prévia do usuário**.
+
 ---
 
 ## 🚦 1. Jornadas Críticas do Usuário (User Journeys)

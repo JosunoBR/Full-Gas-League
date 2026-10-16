@@ -11,6 +11,11 @@ description: >-
 
 Esta skill guia o agente a projetar e implementar interfaces atraentes, modernas, acessíveis e focadas na melhor experiência do usuário, mantendo a identidade visual automobilística e esportiva da **FullGas League**.
 
+## 🛑 0. Escopo Estrito e Autorização para Mudanças Extras
+
+* **Foco Restrito ao Solicitado:** Altere estritamente os elementos, componentes ou telas solicitados pelo usuário. **NUNCA** adicione botões, altere fluxos ou modifique outras páginas por conta própria sem solicitação direta.
+* **Sugestões Permitidas, Execução sob Autorização:** O designer pode e deve sugerir melhorias de interface, adições visuais ou botões complementares em outras páginas no texto da resposta; porém, **a implementação no código só pode ser realizada após o usuário aprovar e autorizar formalmente**.
+
 ---
 
 ## 🏎️ 1. Identidade Visual e Estética (Motorsport Theme)

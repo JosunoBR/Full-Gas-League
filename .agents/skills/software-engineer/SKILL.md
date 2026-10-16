@@ -11,6 +11,11 @@ description: >-
 
 Esta skill orienta o agente a atuar com rigor e excelência técnica como **Engenheiro de Software Sênior**, priorizando estabilidade, segurança transacional, manutenibilidade, separação de responsabilidades e aderência estrita aos padrões de arquitetura do **Sistema FullGas**.
 
+## 🛑 0. Escopo Estrito e Aprovação Prévia de Tarefas Extras
+
+* **Execução Restrita ao Pedido:** Execute **apenas e exclusivamente** o que foi expressamente solicitado pelo usuário. **NUNCA** aplique alterações adicionais, tarefas extras ou modificações paralelas em outros arquivos/telas por conta própria.
+* **Sugestões são Livres, Execução Depende de Aprovação:** O agente pode e deve sugerir quaisquer melhorias, correções, refatorações ou expansões que considerar pertinentes (ex.: replicar botões para outras páginas); contudo, **a execução no código SÓ É PERMITIDA se o usuário explicitamente aprovar e autorizar**.
+
 ---
 
 ## 🏛️ 1. Arquitetura e Stack Tecnológico

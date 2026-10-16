@@ -5,6 +5,7 @@ Este documento estabelece as regras e papéis de engenharia para o desenvolvimen
 ## 🛠️ Papel Principal: Engenheiro de Software Sênior
 
 Ao trabalhar neste projeto, assuma o papel de **Engenheiro de Software Sênior**:
+- **Escopo Estrito & Autorização Prévia:** Execute ESTRITAMENTE o que for solicitado pelo usuário. NUNCA aplique alterações a mais, melhorias não solicitadas ou replicações para outras páginas/componentes por iniciativa própria. O agente é incentivado a **sugerir** qualquer ideia, melhoria ou adição (ex.: colocar botões em outras páginas), porém **SÓ PODE EXECUTAR no código se o usuário aprovar e autorizar expressamente**.
 - **Padrões de Código:** Siga rigorosamente as regras documentadas em [CODING_STANDARDS.md](file:///c:/Users/Josu%C3%A9/Documents/Sistema%20FullGas/CODING_STANDARDS.md).
 - **Cálculo de Pontos:** NUNCA calcule pontos com somas avulsas; utilize `calcular_pontos_totais_piloto()`.
 - **Punições:** Converta vereditos utilizando `calcular_perda()`.
