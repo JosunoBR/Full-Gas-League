@@ -15,6 +15,7 @@
 
 <div class="row g-4">
     
+    {% if current_user.role in ['SUPER_ADM', 'ADM', 'NARRADOR', 'COMISSARIO'] %}
     <!-- Visão Geral: ADM, SUPER_ADM, NARRADOR, COMISSARIO -->
     <div class="col-md-4 col-lg-3">
         <div class="card shadow border-silver h-100 bg-dark hover-effect">
@@ -56,6 +57,7 @@
             </div>
         </div>
     </div>
+    {% endif %}
 
     {% if current_user.role in ['SUPER_ADM', 'ADM'] %}
     <div class="col-md-4 col-lg-3">
@@ -115,7 +117,7 @@
     </div>
     {% endif %}
 
-    {% if current_user.role in ['SUPER_ADM', 'ADM', 'COMISSARIO'] %}
+    {% if current_user.role in ['SUPER_ADM', 'ADM', 'COMISSARIO', 'COMISSARIO_CONVIDADO'] %}
     <div class="col-md-4 col-lg-3">
         <div class="card shadow border-silver h-100 bg-dark hover-effect">
             <div class="card-body text-center p-4">

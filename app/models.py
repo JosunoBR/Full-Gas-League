@@ -13,7 +13,7 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(150), unique=True, nullable=False)
     email = db.Column(db.String(150), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
-    role = db.Column(db.String(20), default='PILOTO') 
+    role = db.Column(db.String(30), default='PILOTO') 
     
     pilot_profile = db.relationship('PilotProfile', backref='user', uselist=False)
 

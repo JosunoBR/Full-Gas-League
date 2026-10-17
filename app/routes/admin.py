@@ -140,7 +140,7 @@ def restrict_access():
                 return # Acesso concedido para ver o próprio protesto!
 
     # 1. Permite acesso geral para ADMs, Narradores e Comissários
-    if current_user.role not in ['SUPER_ADM', 'ADM', 'NARRADOR', 'COMISSARIO']:
+    if current_user.role not in ['SUPER_ADM', 'ADM', 'NARRADOR', 'COMISSARIO', 'COMISSARIO_CONVIDADO']:
         flash('Acesso negado. Área restrita à Direção de Prova.', 'danger')
         return redirect(url_for('public.home'))
 
@@ -190,6 +190,21 @@ def restrict_access():
 
         if endpoint_name not in allowed_endpoints:
             flash('Comissários têm acesso apenas aos cards Visão Geral, Analytics, Histórico, Tribunal e Mídia.', 'warning')
+            return redirect(url_for('admin.dashboard'))
+
+    # 4. Restrições específicas para Comissário Convidado (Apenas Tribunal e Dashboard)
+    if current_user.role == 'COMISSARIO_CONVIDADO':
+        endpoint_name = request.endpoint.split('.')[-1]
+
+        # Whitelist de endpoints permitidos para o Comissário Convidado
+        allowed_endpoints = [
+            'dashboard',
+            'protests',
+            'view_protest',
+        ]
+
+        if endpoint_name not in allowed_endpoints:
+            flash('Comissários convidados têm acesso apenas ao Dashboard e ao Tribunal.', 'warning')
             return redirect(url_for('admin.dashboard'))
 
 # --- DASHBOARD E VISÃO GERAL ---
@@ -1185,7 +1200,7 @@ def list_admins():
     if current_user.role != 'SUPER_ADM':
         flash('Acesso restrito ao Super Admin.', 'danger')
         return redirect(url_for('admin.dashboard'))
-    admins = User.query.filter(User.role.in_(['ADM', 'SUPER_ADM', 'NARRADOR', 'COMISSARIO'])).order_by(User.role.desc(), User.username).all()
+    admins = User.query.filter(User.role.in_(['ADM', 'SUPER_ADM', 'NARRADOR', 'COMISSARIO', 'COMISSARIO_CONVIDADO'])).order_by(User.role.desc(), User.username).all()
     return render_template('admin/admin_users.html', admins=admins)
 
 @admin_bp.route('/users/new', methods=['GET', 'POST'])
@@ -1200,7 +1215,7 @@ def create_admin():
         password = request.form.get('password')
         role = request.form.get('role')
 
-        if role not in ['ADM', 'SUPER_ADM', 'NARRADOR', 'COMISSARIO']:
+        if role not in ['ADM', 'SUPER_ADM', 'NARRADOR', 'COMISSARIO', 'COMISSARIO_CONVIDADO']:
             flash('Nível de acesso inválido.', 'danger')
             return redirect(url_for('admin.create_admin'))
         
@@ -1252,7 +1267,7 @@ def update_admin_role(user_id):
         return redirect(url_for('admin.list_admins'))
         
     new_role = request.form.get('role')
-    if new_role in ['PILOTO', 'ADM', 'SUPER_ADM', 'NARRADOR', 'COMISSARIO']:
+    if new_role in ['PILOTO', 'ADM', 'SUPER_ADM', 'NARRADOR', 'COMISSARIO', 'COMISSARIO_CONVIDADO']:
         user.role = new_role
         db.session.commit()
         if new_role == 'PILOTO':
@@ -2197,7 +2212,7 @@ def edit_pilot(pilot_id):
         # Apenas Super Admin pode alterar o papel do usuário
         if current_user.role == 'SUPER_ADM':
             new_role = request.form.get('role')
-            if new_role and new_role in ['PILOTO', 'ADM', 'SUPER_ADM', 'NARRADOR', 'COMISSARIO']:
+            if new_role and new_role in ['PILOTO', 'ADM', 'SUPER_ADM', 'NARRADOR', 'COMISSARIO', 'COMISSARIO_CONVIDADO']:
                 # Impede que o Super Admin rebaixe a si mesmo para evitar bloqueio acidental
                 if pilot.user.id != current_user.id:
                     pilot.user.role = new_role
@@ -2713,7 +2728,7 @@ def close_seletiva():
 def protests():
     ProtestService.atualizar_protestos_expirados()
     # Conta o total de administradores aptos a votar
-    total_admins = User.query.filter(User.role.in_(['ADM', 'SUPER_ADM', 'COMISSARIO'])).count()
+    total_admins = User.query.filter(User.role.in_(['ADM', 'SUPER_ADM', 'COMISSARIO', 'COMISSARIO_CONVIDADO'])).count()
 
     # Obtém a lista de IDs de protestos onde o administrador atual já votou
     voted_protest_ids = [v.protesto_id for v in VotoComissario.query.filter_by(admin_id=current_user.id).all()]
@@ -2768,9 +2783,14 @@ def view_protest(protest_id):
         .filter_by(protesto_id=protesto.id).group_by(VotoComissario.escolha).all()
 
     if request.method == 'POST':
+        # Trava de segurança: Comissário Convidado tem permissão estrita apenas para votar
+        if current_user.role == 'COMISSARIO_CONVIDADO' and ('fechar' in request.form or 'encerrar' in request.form or 'reabrir' in request.form or 'voto' not in request.form):
+            flash('Comissários convidados têm permissão apenas para votar, sendo proibido manipular, fechar ou reabrir tickets.', 'danger')
+            return redirect(url_for('admin.view_protest', protest_id=protesto.id))
+
         if 'voto' in request.form and protesto.status in ['EM_VOTACAO', 'AGUARDANDO_DEFESA']:
             # Apenas comissários e administradores podem votar
-            if current_user.role not in ['SUPER_ADM', 'ADM', 'COMISSARIO']:
+            if current_user.role not in ['SUPER_ADM', 'ADM', 'COMISSARIO', 'COMISSARIO_CONVIDADO']:
                 flash('Apenas comissários e administradores podem votar.', 'danger')
                 return redirect(url_for('admin.view_protest', protest_id=protesto.id))
 

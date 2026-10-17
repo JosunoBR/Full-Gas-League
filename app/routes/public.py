@@ -148,7 +148,7 @@ def login():
     if current_user.is_authenticated:
         if current_user.role == 'PILOTO':
             return redirect(url_for('public.my_profile'))
-        elif current_user.role in ['SUPER_ADM', 'ADM']:
+        elif current_user.role in ['SUPER_ADM', 'ADM', 'COMISSARIO', 'COMISSARIO_CONVIDADO', 'NARRADOR']:
             return redirect(url_for('admin.dashboard'))
         return redirect(url_for('public.home'))
 
@@ -171,7 +171,7 @@ def login():
 
         if user.role == 'PILOTO':
             return redirect(url_for('public.my_profile'))
-        elif user.role in ['SUPER_ADM', 'ADM']:
+        elif user.role in ['SUPER_ADM', 'ADM', 'COMISSARIO', 'COMISSARIO_CONVIDADO', 'NARRADOR']:
             return redirect(url_for('admin.dashboard'))
         else:
             return redirect(url_for('public.home'))
@@ -935,7 +935,7 @@ def view_protest_public(protest_id):
     ProtestService.atualizar_protestos_expirados()
     protesto = db.session.get(Protesto, protest_id) or abort(404)
     is_involved = current_user.pilot_profile and (current_user.pilot_profile.id in [protesto.acusado_id, protesto.acusador_id])
-    is_admin = current_user.role in ['SUPER_ADM', 'ADM', 'NARRADOR']
+    is_admin = current_user.role in ['SUPER_ADM', 'ADM', 'NARRADOR', 'COMISSARIO', 'COMISSARIO_CONVIDADO']
     if not (is_involved or is_admin):
         flash('Você não tem permissão para visualizar este dossiê do tribunal.', 'danger')
         return redirect(url_for('public.my_profile'))

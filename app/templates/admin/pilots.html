@@ -84,6 +84,10 @@
                                         <span class="badge bg-danger text-white ms-2" style="font-size: 0.6rem;">DIREÇÃO</span>
                                     {% elif p.user and p.user.role == 'ADM' %}
                                         <span class="badge bg-info text-dark ms-2" style="font-size: 0.6rem;">ADM</span>
+                                    {% elif p.user and p.user.role == 'COMISSARIO_CONVIDADO' %}
+                                        <span class="badge bg-warning text-dark ms-2" style="font-size: 0.6rem;">COMISSÁRIO CONVIDADO</span>
+                                    {% elif p.user and p.user.role == 'COMISSARIO' %}
+                                        <span class="badge bg-warning text-dark ms-2" style="font-size: 0.6rem;">COMISSÁRIO</span>
                                     {% endif %}
                                 </td>
                                 <td class="text-white">{{ p.nome_real }}</td>
@@ -193,6 +197,10 @@
                                                 <span class="badge bg-danger text-white ms-2" style="font-size: 0.6rem;">DIREÇÃO</span>
                                             {% elif p.user and p.user.role == 'ADM' %}
                                                 <span class="badge bg-info text-dark ms-2" style="font-size: 0.6rem;">ADM</span>
+                                            {% elif p.user and p.user.role == 'COMISSARIO_CONVIDADO' %}
+                                                <span class="badge bg-warning text-dark ms-2" style="font-size: 0.6rem;">COMISSÁRIO CONVIDADO</span>
+                                            {% elif p.user and p.user.role == 'COMISSARIO' %}
+                                                <span class="badge bg-warning text-dark ms-2" style="font-size: 0.6rem;">COMISSÁRIO</span>
                                             {% endif %}
                                         </td>
                                         <td class="text-white">{{ p.nome_real }}</td>
